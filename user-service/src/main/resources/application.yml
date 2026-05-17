@@ -1,0 +1,37 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: user-service
+
+  # ★ cloud: 단계를 추가하고 그 아래에 verifier를 넣어주어야 작동합니다!
+  cloud:
+    compatibility-verifier:
+      enabled: false
+
+  # 1. PostgreSQL DB 연결
+  datasource:
+    url: jdbc:postgresql://localhost:54321/sparta_logistics?currentSchema=user_schema
+    username: sparta_admin
+    password: password123
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  # 2. Redis 연결
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/

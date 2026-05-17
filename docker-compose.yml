@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  # 통합 PostgreSQL 데이터베이스 (user_schema는 스프링이 실행되면서 자동 생성)
+  postgres-db:
+    image: postgres:15-alpine
+    container_name: sparta-postgres
+    environment:
+      POSTGRES_USER: sparta_admin
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: sparta_logistics
+    ports:
+      - "54321:5432"
+
+  # Redis 캐시 서버
+  redis-cache:
+    image: redis:7-alpine
+    container_name: sparta-redis
+    ports:
+      - "6379:6379"
+volumes:
+  postgres_data:

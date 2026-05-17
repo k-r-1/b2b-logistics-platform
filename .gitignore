@@ -1,0 +1,17 @@
+# Compile/build output
+**/build/
+**/out/
+
+# IntelliJ IDEA
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+
+# Log files
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
