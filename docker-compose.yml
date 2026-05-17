@@ -1,7 +1,4 @@
-version: '3.8'
-
 services:
-  # 통합 PostgreSQL 데이터베이스 (user_schema는 스프링이 실행되면서 자동 생성)
   postgres-db:
     image: postgres:15-alpine
     container_name: sparta-postgres
@@ -11,12 +8,42 @@ services:
       POSTGRES_DB: sparta_logistics
     ports:
       - "54321:5432"
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - postgres_data:/var/lib/postgresql/data
 
-  # Redis 캐시 서버
   redis-cache:
     image: redis:7-alpine
     container_name: sparta-redis
     ports:
       - "6379:6379"
+
+  # ─── 여기 아래부터 우리 애플리케이션 코드를 도커로 연결하는 설정입니다 ───
+  
+  eureka-server:
+    build: ./eureka-server
+    container_name: boxoffice-eureka
+    ports:
+      - "8761:8761"
+
+  api-gateway:
+    build: ./api-gateway
+    container_name: boxoffice-gateway
+    ports:
+      - "8080:8080"
+    depends_on:
+      - eureka-server
+
+  user-service:
+    build: ./user-service
+    container_name: boxoffice-user-service
+    ports:
+      - "8081:8081"
+    env_file:
+      - ./user-service/.env # 유저 서비스 내부의 .env 환경변수를 자동으로 도커에 주입
+    depends_on:
+      - eureka-server
+      - postgres-db
+
 volumes:
   postgres_data:

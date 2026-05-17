@@ -13,8 +13,9 @@ spring:
   # 1. PostgreSQL DB 연결
   datasource:
     url: jdbc:postgresql://localhost:54321/sparta_logistics?currentSchema=user_schema
-    username: sparta_admin
-    password: password123
+    # .env에 등록된 변수를 읽어오고, 없을 경우 콜론(:) 뒤의 기본값을 사용하도록 설계
+    username: ${DB_USERNAME:sparta_admin}
+    password: ${DB_PASSWORD:password123}
     driver-class-name: org.postgresql.Driver
 
   jpa:
