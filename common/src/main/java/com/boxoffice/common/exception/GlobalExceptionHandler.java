@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * 전역 예외 처리 핸들러.
@@ -79,9 +80,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(feign.FeignException.class)
     public ResponseEntity<ApiResponse<Void>> handleFeignException(feign.FeignException e) {
         log.error("[FeignException] status: {}, message: {}", e.status(), e.getMessage());
-        HttpStatus status = HttpStatus.resolve(e.status()) != null
-                ? HttpStatus.resolve(e.status())
-                : HttpStatus.INTERNAL_SERVER_ERROR;
+        HttpStatus status = Optional.ofNullable(HttpStatus.resolve(e.status()))
+                .orElse(HttpStatus.INTERNAL_SERVER_ERROR);
         return ResponseEntity
                 .status(status)
                 .body(ApiResponse.error(
