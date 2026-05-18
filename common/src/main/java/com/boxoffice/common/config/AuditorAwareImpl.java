@@ -17,14 +17,6 @@ import java.util.UUID;
  *
  * TODO: Keycloak + Spring Security 설정 완성 후
  *       SecurityContext 방식으로 변경 여부 검토 필요.
- *       변경 시 아래 코드를 대체:
- *
- *       Authentication auth = SecurityContextHolder.getContext().getAuthentication();
- *       if (auth == null || !auth.isAuthenticated()
- *               || auth.getPrincipal().equals("anonymousUser")) {
- *           return Optional.empty();
- *       }
- *       return Optional.of(UUID.fromString(auth.getName()));
  */
 @Slf4j
 @Component
