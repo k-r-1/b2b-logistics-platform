@@ -1,0 +1,66 @@
+package com.boxoffice.hubservice.hub.entity;
+
+import com.boxoffice.common.entity.AddressVO;
+import com.boxoffice.common.entity.BaseEntity;
+import jakarta.persistence.*;
+import lombok.AccessLevel;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import org.hibernate.annotations.SQLRestriction;
+
+import java.util.UUID;
+
+@Entity
+@Table(name = "p_hubs")
+@Getter
+@SQLRestriction("deleted_at IS NULL")
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+public class Hub extends BaseEntity {
+
+    @Column(name = "name", nullable = false, unique = true, length = 100)
+    private String name;
+
+    @Embedded
+    private AddressVO address;
+
+    @Embedded
+    private CoordinateVO coordinate;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "hub_type", nullable = false, length = 20)
+    private HubType hubType;
+
+    @Column(name = "manager_id")
+    private UUID managerId;
+
+    @Column(name = "deleted_reason", length = 500)
+    private String deletedReason;
+
+    @Builder
+    private Hub(String name, AddressVO address, CoordinateVO coordinate, HubType hubType) {
+        this.name = name;
+        this.address = address;
+        this.coordinate = coordinate;
+        this.hubType = hubType;
+    }
+
+    public void update(String name, AddressVO address, CoordinateVO coordinate) {
+        if (name != null) this.name = name;
+        if (address != null) this.address = address;
+        if (coordinate != null) this.coordinate = coordinate;
+    }
+
+    public void assignManager(UUID managerId) {
+        this.managerId = managerId;
+    }
+
+    public void deactivate(String reason) {
+        this.hubType = HubType.INACTIVE;
+        this.deletedReason = reason;
+    }
+
+    public boolean isInactive() {
+        return this.hubType == HubType.INACTIVE;
+    }
+}
