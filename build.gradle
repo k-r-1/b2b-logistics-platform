@@ -38,9 +38,6 @@ subprojects {
 
 	// ★ [핵심] 모든 도메인이 숨만 쉬어도 가지게 될 "공통 의존성" 목록
 	dependencies {
-		compileOnly 'org.projectlombok:lombok'
-		annotationProcessor 'org.projectlombok:lombok'
-
 		testImplementation 'org.springframework.boot:spring-boot-starter-test'
 		testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 	}

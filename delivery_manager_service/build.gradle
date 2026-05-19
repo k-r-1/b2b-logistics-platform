@@ -21,4 +21,7 @@ dependencies {
 	// 6. Jwt 클래스를 사용하여 Keycloak 토큰을 파싱하고 검증하기 위한 핵심 라이브러리
 	implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
 
+	compileOnly 'org.projectlombok:lombok'
+	annotationProcessor 'org.projectlombok:lombok'
+
 }
