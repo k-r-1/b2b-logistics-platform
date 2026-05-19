@@ -5,6 +5,12 @@ spring:
   application:
     name: delivery-manager-service
 
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8089/realms/boxoffice-realm
+
   # 1. (Spring Boot 3.5.x )
   cloud:
     compatibility-verifier:

@@ -5,6 +5,13 @@ spring:
   application:
     name: user-service
 
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Keycloak이 토큰을 발행한 공식 인증서 주소
+          issuer-uri: http://localhost:8089/realms/boxoffice-realm
+
   # 클라우드 호환성 검사 차단 옵션 정상 반영
   cloud:
     compatibility-verifier:
