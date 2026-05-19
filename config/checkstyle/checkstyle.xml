@@ -3,12 +3,6 @@
   "-//Checkstyle//DTD Checkstyle Configuration 1.3//EN"
   "https://checkstyle.org/dtds/configuration_1_3.dtd">
 
-<!--
-  팀 Checkstyle 규칙 파일
-  - 규칙 추가/제거 시 이 파일만 수정하면 됩니다.
-  - 규칙 비활성화: 해당 <module> 블록을 주석 처리하세요.
-  - 전체 규칙 목록: https://checkstyle.org/checks.html
--->
 <module name="Checker">
 
   <!-- 파일 인코딩 -->
