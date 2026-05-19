@@ -25,6 +25,9 @@ services:
     container_name: boxoffice-eureka
     ports:
       - "8761:8761"
+    environment:
+      # ★ 도커 환경에서도 호환성 검사를 강제로 꺼버리는 핵심 치트키 옵션입니다.
+      - SPRING_CLOUD_COMPATIBILITY_VERIFIER_ENABLED=false
 
   api-gateway:
     build: ./api-gateway
@@ -35,6 +38,9 @@ services:
       - ./.env
     depends_on:
       - eureka-server
+    environment:
+      # ★ 도커 환경에서도 호환성 검사를 강제로 꺼버리는 핵심 치트키 옵션입니다.
+      - SPRING_CLOUD_COMPATIBILITY_VERIFIER_ENABLED=false
 
   user-service:
     build: ./user-service
@@ -46,6 +52,9 @@ services:
     depends_on:
       - eureka-server
       - postgres-db
+    environment:
+      # ★ 도커 환경에서도 호환성 검사를 강제로 꺼버리는 핵심 치트키 옵션입니다.
+      - SPRING_CLOUD_COMPATIBILITY_VERIFIER_ENABLED=false
 
   # 6. 배송 담당자 서비스
   delivery-manager-service:
@@ -58,6 +67,27 @@ services:
     depends_on:
       - eureka-server
       - postgres-db
+    environment:
+      # ★ 도커 환경에서도 호환성 검사를 강제로 꺼버리는 핵심 치트키 옵션입니다.
+      - SPRING_CLOUD_COMPATIBILITY_VERIFIER_ENABLED=false
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0.0
+    container_name: boxoffice-keycloak
+    command: start-dev
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin_password
+      KC_HTTP_PORT: 8080
+      KC_HEALTH_ENABLED: "true"
+      KC_METRICS_ENABLED: "true"
+    ports:
+      - "8089:8080"
+    volumes:
+      - keycloak_data:/opt/keycloak/data
+    depends_on:
+      - postgres-db
 
 volumes:
   postgres_data:
+  keycloak_data:

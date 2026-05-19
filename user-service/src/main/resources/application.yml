@@ -5,7 +5,7 @@ spring:
   application:
     name: user-service
 
-  # ★ cloud: 단계를 추가하고 그 아래에 verifier를 넣어주어야 작동합니다!
+  # 클라우드 호환성 검사 차단 옵션 정상 반영
   cloud:
     compatibility-verifier:
       enabled: false
@@ -13,7 +13,6 @@ spring:
   # 1. PostgreSQL DB 연결
   datasource:
     url: jdbc:postgresql://localhost:54321/${DB_NAME:sparta_logistics}?currentSchema=user_schema
-    # .env에 등록된 변수를 읽어오고, 없을 경우 콜론(:) 뒤의 기본값을 사용하도록 설계
     username: ${DB_USERNAME:sparta_admin}
     password: ${DB_PASSWORD:password123}
     driver-class-name: org.postgresql.Driver
@@ -22,11 +21,14 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: true
+    # ★ [교정] properties는 spring.jpa 바로 아래에 한 칸 더 들여써서 배치해야 합니다.
     properties:
       hibernate:
         format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
 
   # 2. Redis 연결
+  # ★ [교정] data(Redis) 설정은 properties 밑이 아니라 spring: 바로 아래에 위치해야 합니다.
   data:
     redis:
       host: localhost

@@ -33,7 +33,7 @@ subprojects {
 
 	ext {
 		// 모든 서비스가 공유할 스프링 클라우드 버전 축 고정
-		set('springCloudVersion', "2024.0.0")
+		set('springCloudVersion', "2025.0.0")
 	}
 
 	// ★ [핵심] 모든 도메인이 숨만 쉬어도 가지게 될 "공통 의존성" 목록
