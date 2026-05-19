@@ -151,7 +151,7 @@ jobs:
 
 
   ci-result:
-    name: CI 결과 리포트
+    name: CI 결과지 만드는 중 ...
     runs-on: ubuntu-latest
     if: always()
     needs:
@@ -161,12 +161,12 @@ jobs:
 
     steps:
       - name: Evaluate CI result
+        id: evaluate
         run: |
           echo "📋 Job Results:"
           echo "  detect-changes : ${{ needs.detect-changes.result }}"
           echo "  checkstyle     : ${{ needs.checkstyle.result }}"
           echo "  unit-test      : ${{ needs.unit-test.result }}"
-
 
           if [[ \
             "${{ needs.detect-changes.result }}" == "failure"   || \
@@ -176,8 +176,108 @@ jobs:
             "${{ needs.unit-test.result }}"      == "failure"   || \
             "${{ needs.unit-test.result }}"      == "cancelled" \
           ]]; then
-            echo "CI 가 실패했습니다. 위반 사항을 확인해주세요."
-            exit 1
+            echo "ci_status=failure" >> $GITHUB_OUTPUT
+          else
+            echo "ci_status=success" >> $GITHUB_OUTPUT
           fi
 
-          echo "Dev 에 머지를 해도 됩니다. 코드 리뷰 이후 머지해주세요."
+      - name: Collect changed services
+        id: services
+        run: |
+          SERVICES=""
+          append() {
+            [[ "$1" == "true" ]] && SERVICES="${SERVICES:+$SERVICES,}$2"
+          }
+          append "${{ needs.detect-changes.outputs.common }}"                   "common"
+          append "${{ needs.detect-changes.outputs['api-gateway'] }}"           "api-gateway"
+          append "${{ needs.detect-changes.outputs.delivery_manager_service }}" "delivery_manager_service"
+          append "${{ needs.detect-changes.outputs['eureka-server'] }}"         "eureka-server"
+          append "${{ needs.detect-changes.outputs['user-service'] }}"          "user-service"
+          # <PLACEHOLDER> 새 서비스 추가 시 append 줄을 추가하세요.
+
+          echo "list=${SERVICES:-none}" >> $GITHUB_OUTPUT
+
+      - name: Send Discord notification
+        if: always()
+        shell: bash
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_DEV_WEBHOOK }}
+          CI_STATUS:    ${{ steps.evaluate.outputs.ci_status }}
+          CHANGED_SVCS: ${{ steps.services.outputs.list }}
+          PR_TITLE:     ${{ github.event.pull_request.title }}
+          PR_AUTHOR:    ${{ github.event.pull_request.user.login }}
+          PR_URL:       ${{ github.event.pull_request.html_url }}
+          RUN_URL:      ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          R_DETECT:     ${{ needs.detect-changes.result }}
+          R_STYLE:      ${{ needs.checkstyle.result }}
+          R_UNIT:       ${{ needs.unit-test.result }}
+        run: |
+          job_emoji() {
+            case "$1" in
+              success)   echo "✅" ;;
+              failure)   echo "❌" ;;
+              cancelled) echo "⚠️" ;;
+              skipped)   echo "⏭️" ;;
+              *)         echo "❓" ;;
+            esac
+          }
+
+          [[ "$CI_STATUS" == "success" ]] \
+            && COLOR=5763719 && TITLE="✅  CI Passed — Dev CI" \
+            || COLOR=15548997 && TITLE="❌  CI Failed — Dev CI"
+
+          if [[ -z "$CHANGED_SVCS" || "$CHANGED_SVCS" == "none" ]]; then
+            SERVICE_LIST="변경된 서비스 없음"
+          else
+            SERVICE_LIST=$(echo "$CHANGED_SVCS" | tr ',' '\n' | sed 's/^/• /' | paste -sd '\n')
+          fi
+
+          FAILED_LINKS=""
+          [[ "$R_DETECT" == "failure" ]] && FAILED_LINKS="${FAILED_LINKS}• [detect-changes 로그](${RUN_URL})\n"
+          [[ "$R_STYLE"  == "failure" ]] && FAILED_LINKS="${FAILED_LINKS}• [checkstyle 로그](${RUN_URL})\n"
+          [[ "$R_UNIT"   == "failure" ]] && FAILED_LINKS="${FAILED_LINKS}• [unit-test 로그](${RUN_URL})\n"
+
+          if [[ -n "$FAILED_LINKS" ]]; then
+            FAILED_FIELD=",{\"name\":\"🔗 실패한 Job 로그\",\"value\":\"${FAILED_LINKS}\",\"inline\":false}"
+          else
+            FAILED_FIELD=""
+          fi
+
+          PAYLOAD=$(cat <<EOF
+          {
+            "username": "GitHub Actions",
+            "avatar_url": "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png",
+            "embeds": [{
+              "title": "${TITLE}",
+              "url": "${RUN_URL}",
+              "color": ${COLOR},
+              "fields": [
+                {"name":"📌 PR","value":"[${PR_TITLE}](${PR_URL})","inline":false},
+                {"name":"👤 작성자","value":"${PR_AUTHOR}","inline":true},
+                {"name":"🔀 대상 브랜치","value":"dev","inline":true},
+                {"name":"📦 변경된 서비스","value":"${SERVICE_LIST}","inline":false},
+                {"name":"📋 Job 결과","value":"$(job_emoji $R_DETECT) detect-changes\n$(job_emoji $R_STYLE) checkstyle\n$(job_emoji $R_UNIT) unit-test","inline":false}
+                ${FAILED_FIELD}
+              ],
+              "footer":{"text":"Run #${{ github.run_number }} • ${{ github.repository }}"},
+              "timestamp":"$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            }]
+          }
+          EOF
+          )
+
+          HTTP_STATUS=$(curl -s -o /tmp/res.txt -w "%{http_code}" \
+            -X POST "$DISCORD_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD")
+
+          cat /tmp/res.txt
+          [[ "$HTTP_STATUS" -ge 200 && "$HTTP_STATUS" -lt 300 ]] \
+            && echo "디스코드 알림 완료" \
+            || { echo "서버 에러로 디스코드에 전송하지 못했습니다."; exit 1; }
+
+      - name: Final status check
+        run: |
+          [[ "${{ steps.evaluate.outputs.ci_status }}" == "success" ]] \
+            && echo "CI SUCCESS" \
+            || { echo "CI가 실패했습니다. 다시 코드를 확인해주세요."; exit 1; }
