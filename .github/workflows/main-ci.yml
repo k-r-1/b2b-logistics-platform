@@ -70,11 +70,7 @@ jobs:
             changed: ${{ needs.detect-changes.outputs['eureka-server'] }}
           - service: user-service
             changed: ${{ needs.detect-changes.outputs['user-service'] }}
-          # <PLACEHOLDER> 새 서비스 추가 시 matrix 항목을 추가하세요.
-
-    if: >
-      needs.detect-changes.outputs[matrix.service] == 'true' ||
-      needs.detect-changes.outputs.common == 'true'
+          # 새 서비스 추가 시 matrix 항목을 추가하세요.
 
     steps:
       - name: 코드 확인
@@ -87,7 +83,8 @@ jobs:
           distribution: 'temurin'
           cache: 'gradle'
 
-      - name: checkstyle
+      - name: Run Checkstyle
+        if: matrix.changed == 'true' || needs.detect-changes.outputs.common == 'true'
         run: |
           ./gradlew :${{ matrix.service }}:checkstyleMain \
             --no-daemon \
@@ -122,10 +119,6 @@ jobs:
             changed: ${{ needs.detect-changes.outputs['user-service'] }}
           # 새 서비스 추가 시 matrix 항목을 추가하세요.
 
-    if: >
-      needs.detect-changes.outputs[matrix.service] == 'true' ||
-      needs.detect-changes.outputs.common == 'true'
-
     steps:
       - name: 코드 확인
         uses: actions/checkout@v4
@@ -138,6 +131,7 @@ jobs:
           cache: 'gradle'
 
       - name: 단위 테스트 수행
+        if: matrix.changed == 'true' || needs.detect-changes.outputs.common == 'true'
         run: |
           ./gradlew :${{ matrix.service }}:test \
             --no-daemon \
@@ -171,10 +165,6 @@ jobs:
             changed: ${{ needs.detect-changes.outputs['user-service'] }}
           # 새 서비스 추가 시 matrix 항목을 추가하세요.
 
-    if: >
-      needs.detect-changes.outputs[matrix.service] == 'true' ||
-      needs.detect-changes.outputs.common == 'true'
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -188,6 +178,7 @@ jobs:
 
 
       - name: docker compose 로 헬스 체크
+        if: needs.detect-changes.outputs[matrix.service] == 'true' || needs.detect-changes.outputs.common == 'true'
         run: |
           docker compose -f docker-compose.test.yml up -d --wait
           echo "모든 컨테이너가 healthy 합니다 ! "
@@ -220,8 +211,9 @@ jobs:
         run: docker compose -f docker-compose.test.yml down -v
 
 
+
   ci-result:
-    name: Main 의 CI Test 결과
+    name: CI 결과지 생성중 ...
     runs-on: ubuntu-latest
     if: always()
     needs:
@@ -232,13 +224,8 @@ jobs:
 
     steps:
       - name: Evaluate CI result
+        id: evaluate
         run: |
-          echo "📋 Job Results:"
-          echo "  detect-changes   : ${{ needs.detect-changes.result }}"
-          echo "  checkstyle       : ${{ needs.checkstyle.result }}"
-          echo "  unit-test        : ${{ needs.unit-test.result }}"
-          echo "  integration-test : ${{ needs.integration-test.result }}"
-
           if [[ \
             "${{ needs.detect-changes.result }}"   == "failure"   || \
             "${{ needs.detect-changes.result }}"   == "cancelled" || \
@@ -249,8 +236,110 @@ jobs:
             "${{ needs.integration-test.result }}" == "failure"   || \
             "${{ needs.integration-test.result }}" == "cancelled" \
           ]]; then
-            echo "CI 가 실패했습니다. 머지가 불가능합니다."
-            exit 1
+            echo "ci_status=failure" >> $GITHUB_OUTPUT
+          else
+            echo "ci_status=success" >> $GITHUB_OUTPUT
           fi
 
-          echo "Main 에 대한 CI 가 성공했습니다. 머지하셔도 좋습니다 😀"
+      - name: Collect changed services
+        id: services
+        run: |
+          SERVICES=""
+          append() {
+            [[ "$1" == "true" ]] && SERVICES="${SERVICES:+$SERVICES,}$2"
+          }
+          append "${{ needs.detect-changes.outputs.common }}"                   "common"
+          append "${{ needs.detect-changes.outputs['api-gateway'] }}"           "api-gateway"
+          append "${{ needs.detect-changes.outputs.delivery_manager_service }}" "delivery_manager_service"
+          append "${{ needs.detect-changes.outputs['eureka-server'] }}"         "eureka-server"
+          append "${{ needs.detect-changes.outputs['user-service'] }}"          "user-service"
+          # <PLACEHOLDER> 새 서비스 추가 시 append 줄을 추가하세요.
+
+          echo "list=${SERVICES:-none}" >> $GITHUB_OUTPUT
+
+      - name: Send Discord notification
+        if: always()
+        shell: bash
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_MAIN_WEBHOOK }}
+          CI_STATUS:    ${{ steps.evaluate.outputs.ci_status }}
+          CHANGED_SVCS: ${{ steps.services.outputs.list }}
+          PR_TITLE:     ${{ github.event.pull_request.title }}
+          PR_AUTHOR:    ${{ github.event.pull_request.user.login }}
+          PR_URL:       ${{ github.event.pull_request.html_url }}
+          RUN_URL:      ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          R_DETECT:     ${{ needs.detect-changes.result }}
+          R_STYLE:      ${{ needs.checkstyle.result }}
+          R_UNIT:       ${{ needs.unit-test.result }}
+          R_INTEGRATION: ${{ needs.integration-test.result }}
+        run: |
+          job_emoji() {
+            case "$1" in
+              success)   echo "✅" ;;
+              failure)   echo "❌" ;;
+              cancelled) echo "⚠️" ;;
+              skipped)   echo "⏭️" ;;
+              *)         echo "❓" ;;
+            esac
+          }
+
+          [[ "$CI_STATUS" == "success" ]] \
+            && COLOR=5763719 && TITLE="MAIN CI 가 성공했습니다." \
+            || COLOR=15548997 && TITLE="MAIN CI 가 실패했습니다 ❌"
+
+          if [[ -z "$CHANGED_SVCS" || "$CHANGED_SVCS" == "none" ]]; then
+            SERVICE_LIST="변경된 서비스 없음"
+          else
+            SERVICE_LIST=$(echo "$CHANGED_SVCS" | tr ',' '\n' | sed 's/^/• /' | paste -sd '\n')
+          fi
+
+          FAILED_LINKS=""
+          [[ "$R_DETECT"      == "failure" ]] && FAILED_LINKS="${FAILED_LINKS}• [detect-changes 로그](${RUN_URL})\n"
+          [[ "$R_STYLE"       == "failure" ]] && FAILED_LINKS="${FAILED_LINKS}• [checkstyle 로그](${RUN_URL})\n"
+          [[ "$R_UNIT"        == "failure" ]] && FAILED_LINKS="${FAILED_LINKS}• [unit-test 로그](${RUN_URL})\n"
+          [[ "$R_INTEGRATION" == "failure" ]] && FAILED_LINKS="${FAILED_LINKS}• [integration-test 로그](${RUN_URL})\n"
+
+          if [[ -n "$FAILED_LINKS" ]]; then
+            FAILED_FIELD=",{\"name\":\"🔗 실패한 Job 로그\",\"value\":\"${FAILED_LINKS}\",\"inline\":false}"
+          else
+            FAILED_FIELD=""
+          fi
+
+          PAYLOAD=$(cat <<EOF
+          {
+            "username": "GitHub Actions",
+            "avatar_url": "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png",
+            "embeds": [{
+              "title": "${TITLE}",
+              "url": "${RUN_URL}",
+              "color": ${COLOR},
+              "fields": [
+                {"name":"📌 PR","value":"[${PR_TITLE}](${PR_URL})","inline":false},
+                {"name":"👤 작성자","value":"${PR_AUTHOR}","inline":true},
+                {"name":"🔀 대상 브랜치","value":"main","inline":true},
+                {"name":"📦 변경된 서비스","value":"${SERVICE_LIST}","inline":false},
+                {"name":"📋 Job 결과","value":"$(job_emoji $R_DETECT) detect-changes\n$(job_emoji $R_STYLE) checkstyle\n$(job_emoji $R_UNIT) unit-test\n$(job_emoji $R_INTEGRATION) integration-test","inline":false}
+                ${FAILED_FIELD}
+              ],
+              "footer":{"text":"Run #${{ github.run_number }} • ${{ github.repository }}"},
+              "timestamp":"$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            }]
+          }
+          EOF
+          )
+
+          HTTP_STATUS=$(curl -s -o /tmp/res.txt -w "%{http_code}" \
+            -X POST "$DISCORD_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD")
+
+          cat /tmp/res.txt
+          [[ "$HTTP_STATUS" -ge 200 && "$HTTP_STATUS" -lt 300 ]] \
+            && echo "✅ Discord 알림 전송 완료" \
+            || { echo "❌ 전송 실패 (HTTP $HTTP_STATUS)"; exit 1; }
+
+      - name: Final status check
+        run: |
+          [[ "${{ steps.evaluate.outputs.ci_status }}" == "success" ]] \
+            && echo "🎉 CI Main Passed — safe to merge!" \
+            || { echo "❌ CI Main Failed — merge blocked."; exit 1; }
