@@ -136,9 +136,16 @@ jobs:
           ./gradlew :${{ matrix.service }}:test \
             --no-daemon \
             -x checkstyleMain \
-            -x checkstyleTest트
+            -x checkstyleTest
+          retention-days: 5
+
+      - name: Jacoco 커버리지 결과
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-coverage-${{ matrix.service }}
+          path: ${{ matrix.service }}/build/reports/jacoco/test/html/
           retention-days: 3
-    
 
       - name: 결과 업로드
         if: always()
@@ -180,7 +187,7 @@ jobs:
 
 
       - name: docker compose 로 헬스 체크
-        if: needs.detect-changes.outputs[matrix.service] == 'true' || needs.detect-changes.outputs.common == 'true'
+        if: matrix.changed == 'true' || needs.detect-changes.outputs.common == 'true'
         run: |
           docker compose -f docker-compose.test.yml up -d --wait
           echo "모든 컨테이너가 healthy 합니다 ! "
@@ -343,5 +350,5 @@ jobs:
       - name: Final status check
         run: |
           [[ "${{ steps.evaluate.outputs.ci_status }}" == "success" ]] \
-            && echo "🎉 CI Main Passed — safe to merge!" \
-            || { echo "❌ CI Main Failed — merge blocked."; exit 1; }
+            && echo "CI SUCCESS 🥳" \
+            || { echo "CI가 실패했습니다. 다시 코드를 확인해주세요.😿"; exit 1; }
