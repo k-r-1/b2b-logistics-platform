@@ -1,0 +1,256 @@
+name: CI - Main
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+
+concurrency:
+  group: ci-main-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+env:
+  JAVA_VERSION: '21'
+  GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.parallel=true"
+
+
+jobs:
+  detect-changes:
+    name: 변경된 서비스를 확인합니다.
+    runs-on: ubuntu-latest
+    outputs:
+      common:                   ${{ steps.filter.outputs.common }}
+      api-gateway:              ${{ steps.filter.outputs.api-gateway }}
+      delivery_manager_service: ${{ steps.filter.outputs.delivery_manager_service }}
+      eureka-server:            ${{ steps.filter.outputs.eureka-server }}
+      user-service:             ${{ steps.filter.outputs.user-service }}
+      # 새 서비스 추가 시 outputs 항목을 추가하세요.
+
+    steps:
+      - name: 코드 확인
+        uses: actions/checkout@v4
+
+      - name: 변경 경로 확인
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            common:
+              - 'common/**'
+            api-gateway:
+              - 'api-gateway/**'
+            delivery_manager_service:
+              - 'delivery_manager_service/**'
+            eureka-server:
+              - 'eureka-server/**'
+            user-service:
+              - 'user-service/**'
+
+  
+
+  checkstyle:
+    name: 린트 체크 - ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    needs: detect-changes
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: api-gateway
+            changed: ${{ needs.detect-changes.outputs['api-gateway'] }}
+          - service: delivery_manager_service
+            changed: ${{ needs.detect-changes.outputs.delivery_manager_service }}
+          - service: eureka-server
+            changed: ${{ needs.detect-changes.outputs['eureka-server'] }}
+          - service: user-service
+            changed: ${{ needs.detect-changes.outputs['user-service'] }}
+          # <PLACEHOLDER> 새 서비스 추가 시 matrix 항목을 추가하세요.
+
+    if: >
+      needs.detect-changes.outputs[matrix.service] == 'true' ||
+      needs.detect-changes.outputs.common == 'true'
+
+    steps:
+      - name: 코드 확인
+        uses: actions/checkout@v4
+
+      - name: Set up Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: checkstyle
+        run: |
+          ./gradlew :${{ matrix.service }}:checkstyleMain \
+            --no-daemon \
+            --continue \
+            --stacktrace
+
+      - name: Upload Checkstyle report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: checkstyle-report-${{ matrix.service }}
+          path: ${{ matrix.service }}/build/reports/checkstyle/
+          retention-days: 14
+
+
+  unit-test:
+    name: 단위 테스트 - ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    needs: [detect-changes, checkstyle]
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: api-gateway
+            changed: ${{ needs.detect-changes.outputs['api-gateway'] }}
+          - service: delivery_manager_service
+            changed: ${{ needs.detect-changes.outputs.delivery_manager_service }}
+          - service: eureka-server
+            changed: ${{ needs.detect-changes.outputs['eureka-server'] }}
+          - service: user-service
+            changed: ${{ needs.detect-changes.outputs['user-service'] }}
+          # 새 서비스 추가 시 matrix 항목을 추가하세요.
+
+    if: >
+      needs.detect-changes.outputs[matrix.service] == 'true' ||
+      needs.detect-changes.outputs.common == 'true'
+
+    steps:
+      - name: 코드 확인
+        uses: actions/checkout@v4
+
+      - name: Set up Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: 단위 테스트 수행
+        run: |
+          ./gradlew :${{ matrix.service }}:test \
+            --no-daemon \
+            -x checkstyleMain \
+            -x checkstyleTest
+
+      - name: 결과 업로드
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-results-${{ matrix.service }}
+          path: ${{ matrix.service }}/build/reports/tests/test/
+          retention-days: 14
+
+  integration-test:
+    name: 통합테스트 (Docker) - ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    needs: [detect-changes, unit-test]
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: api-gateway
+            changed: ${{ needs.detect-changes.outputs['api-gateway'] }}
+          - service: delivery_manager_service
+            changed: ${{ needs.detect-changes.outputs.delivery_manager_service }}
+          - service: eureka-server
+            changed: ${{ needs.detect-changes.outputs['eureka-server'] }}
+          - service: user-service
+            changed: ${{ needs.detect-changes.outputs['user-service'] }}
+          # 새 서비스 추가 시 matrix 항목을 추가하세요.
+
+    if: >
+      needs.detect-changes.outputs[matrix.service] == 'true' ||
+      needs.detect-changes.outputs.common == 'true'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: 'gradle'
+
+
+      - name: docker compose 로 헬스 체크
+        run: |
+          docker compose -f docker-compose.test.yml up -d --wait
+          echo "모든 컨테이너가 healthy 합니다 ! "
+
+      # 통합 테스트의 경우 *IntegrationTest 로 컨벤션을 준수해주세요.
+      - name: Run integration tests
+        run: |
+          ./gradlew :${{ matrix.service }}:test \
+            --tests "*IntegrationTest" \
+            --no-daemon \
+            -x checkstyleMain \
+            -x checkstyleTest
+        env:
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/testdb
+          SPRING_DATASOURCE_USERNAME: testuser
+          SPRING_DATASOURCE_PASSWORD: testpass
+          SPRING_DATA_REDIS_HOST: localhost
+          SPRING_DATA_REDIS_PORT: 6379
+
+      - name: 결과를 올립니다.
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-results-${{ matrix.service }}
+          path: ${{ matrix.service }}/build/reports/tests/test/
+          retention-days: 30
+
+      - name: Docker Compose 제거 중 . . .
+        if: always()
+        run: docker compose -f docker-compose.test.yml down -v
+
+
+  ci-result:
+    name: Main 의 CI Test 결과
+    runs-on: ubuntu-latest
+    if: always()
+    needs:
+      - detect-changes
+      - checkstyle
+      - unit-test
+      - integration-test
+
+    steps:
+      - name: Evaluate CI result
+        run: |
+          echo "📋 Job Results:"
+          echo "  detect-changes   : ${{ needs.detect-changes.result }}"
+          echo "  checkstyle       : ${{ needs.checkstyle.result }}"
+          echo "  unit-test        : ${{ needs.unit-test.result }}"
+          echo "  integration-test : ${{ needs.integration-test.result }}"
+
+          if [[ \
+            "${{ needs.detect-changes.result }}"   == "failure"   || \
+            "${{ needs.detect-changes.result }}"   == "cancelled" || \
+            "${{ needs.checkstyle.result }}"       == "failure"   || \
+            "${{ needs.checkstyle.result }}"       == "cancelled" || \
+            "${{ needs.unit-test.result }}"        == "failure"   || \
+            "${{ needs.unit-test.result }}"        == "cancelled" || \
+            "${{ needs.integration-test.result }}" == "failure"   || \
+            "${{ needs.integration-test.result }}" == "cancelled" \
+          ]]; then
+            echo "CI 가 실패했습니다. 머지가 불가능합니다."
+            exit 1
+          fi
+
+          echo "Main 에 대한 CI 가 성공했습니다. 머지하셔도 좋습니다 😀"

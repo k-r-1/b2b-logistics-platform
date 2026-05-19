@@ -10,6 +10,7 @@ subprojects {
 	apply plugin: 'java'
 	apply plugin: 'org.springframework.boot'
 	apply plugin: 'io.spring.dependency-management'
+	apply plugin: 'checkstyle'
 
 	group = 'com.boxoffice'
 	version = '0.0.1-SNAPSHOT'
@@ -36,6 +37,16 @@ subprojects {
 		set('springCloudVersion', "2024.0.0")
 	}
 
+	checkstyle {
+		toolVersion = '13.4.2'
+
+		configFile = rootProject.file('config/checkstyle/checkstyle.xml')
+
+		ignoreFailures = false
+
+		maxWarnings = 0
+	}
+
 	// ★ [핵심] 모든 도메인이 숨만 쉬어도 가지게 될 "공통 의존성" 목록
 	dependencies {
 		compileOnly 'org.projectlombok:lombok'
@@ -53,5 +64,9 @@ subprojects {
 
 	tasks.named('test') {
 		useJUnitPlatform()
+	}
+
+	tasks.named('checkstyleTest').configure {
+		enabled = false
 	}
 }
