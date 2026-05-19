@@ -3,6 +3,7 @@ plugins {
 	id 'org.springframework.boot' version '3.5.14' apply false
 	id 'io.spring.dependency-management' version '1.1.7' apply false
 	id 'java'
+	id 'jacoco'
 }
 
 // include된 모든 하위 도메인 프로젝트에 공통으로 강제 주입할 설정
@@ -11,6 +12,7 @@ subprojects {
 	apply plugin: 'org.springframework.boot'
 	apply plugin: 'io.spring.dependency-management'
 	apply plugin: 'checkstyle'
+	apply plugin: 'jacoco'
 
 	group = 'com.boxoffice'
 	version = '0.0.1-SNAPSHOT'
@@ -47,7 +49,10 @@ subprojects {
 		maxWarnings = 0
 	}
 
-	// ★ [핵심] 모든 도메인이 숨만 쉬어도 가지게 될 "공통 의존성" 목록
+	jacoco {
+		toolVersion = "0.8.12"
+	}
+
 	dependencies {
 		compileOnly 'org.projectlombok:lombok'
 		annotationProcessor 'org.projectlombok:lombok'
@@ -64,9 +69,18 @@ subprojects {
 
 	tasks.named('test') {
 		useJUnitPlatform()
+		finalizedBy jacocoTestReport
 	}
 
 	tasks.named('checkstyleTest').configure {
 		enabled = false
+	}
+
+	jacocoTestReport {
+		dependsOn test
+		reports {
+			html.required = true
+			xml.required = true
+		}
 	}
 }

@@ -136,7 +136,9 @@ jobs:
           ./gradlew :${{ matrix.service }}:test \
             --no-daemon \
             -x checkstyleMain \
-            -x checkstyleTest
+            -x checkstyleTest트
+          retention-days: 3
+    
 
       - name: 결과 업로드
         if: always()

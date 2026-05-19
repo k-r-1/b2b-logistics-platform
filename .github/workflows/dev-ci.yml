@@ -18,6 +18,10 @@ env:
   JAVA_VERSION: '21'
   GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.parallel=true"
 
+permissions:
+  pull-requests: write
+  contents: read
+
 jobs:
   detect-changes:
     name: PR 에서 변경된 서비스를 감지해 이후 JOB 의 실행 속도를 높입니다.
@@ -86,9 +90,7 @@ jobs:
           cache: 'gradle'
 
       - name: Run Checkstyle
-        if: matrix.changed == 'true' || 
-          needs.detect-changes.outputs.common == 'true' ||
-          needs.detact-changes.outputs.infra == 'true'
+        if: matrix.changed == 'true' || needs.detect-changes.outputs.common == 'true'
         run: |
           ./gradlew :${{ matrix.service }}:checkstyleMain \
             --no-daemon \
@@ -145,6 +147,14 @@ jobs:
             -x checkstyleMain \
             -x checkstyleTest
 
+      - name: Jacoco 커버리지 결과
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-coverage-${{ matrix.service }}
+          path: ${{ matrix.service }}/build/reports/jacoco/test/html/
+          retention-days: 3
+
       - name: 결과를 성공/실패 무관하게 업로드합니다.
         if: always()
         uses: actions/upload-artifact@v4
@@ -153,6 +163,17 @@ jobs:
           name: unit-test-results-${{ matrix.service }}
           path: ${{ matrix.service }}/build/reports/tests/test/
           retention-days: 7
+
+      - name: Jacoco PR Comment
+        if: matrix.changed == 'true' || needs.detect-changes.outputs.common == 'true'
+        uses: Madrapps/jacoco-report@v1.6.1
+        with:
+          paths: ${{ matrix.service }}/build/reports/jacoco/test/jacocoTestReport.xml
+          token: ${{ secrets.GITHUB_TOKEN }}
+          min-coverage-overall: 70 # 현재 통과 기준 70입니다.
+          min-coverage-changed-files: 70
+          title: Jacoco 커버리지 리포트 - ${{ matrix.service }}
+          update-comment: true
 
 
   ci-result:
