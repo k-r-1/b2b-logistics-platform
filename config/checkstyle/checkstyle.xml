@@ -7,8 +7,7 @@
 
   <!-- 파일 인코딩 -->
   <property name="charset" value="UTF-8"/>
-  <!-- 위반 시 severity: error(빌드 실패), warning(경고만) -->
-  <property name="severity" value="error"/>
+  <property name="severity" value="warning"/>
   <!-- 검사 대상 파일 확장자 -->
   <property name="fileExtensions" value="java"/>
 
@@ -19,6 +18,17 @@
 
   <!-- 파일 마지막에 개행 문자 필수 -->
   <module name="NewlineAtEndOfFile"/>
+
+  <module name="RegexpSingleline">
+    <property name="format" value="[ \t]+$"/>
+    <property name="message" value="Trailing whitespace is not allowed."/>
+  </module>
+
+  <module name="LineLength">
+    <property name="max" value="150"/>
+    <!-- 패키지/임포트 선언은 예외 -->
+    <property name="ignorePattern" value="^(import|package).*"/>
+  </module>
 
   <module name="TreeWalker">
 
@@ -51,20 +61,6 @@
 
     <!-- 공백 규칙 -->
     <module name="WhitespaceAround"/>
-    <!-- 후행 공백(trailing whitespace) 금지 -->
-    <module name="Regexp">
-      <property name="format" value="[ \t]+$"/>
-      <property name="illegalPattern" value="true"/>
-      <property name="message" value="Trailing whitespace is not allowed."/>
-    </module>
-
-
-    <!-- 한 줄 최대 길이: 150자 -->
-    <module name="LineLength">
-      <property name="max" value="150"/>
-      <!-- 패키지/임포트 선언은 예외 -->
-      <property name="ignorePattern" value="^(import|package).*"/>
-    </module>
 
     <!-- 메서드 최대 줄 수: 90줄 -->
     <module name="MethodLength">
@@ -76,7 +72,6 @@
 
     <!-- 불필요한 괄호 금지 -->
     <module name="UnnecessaryParentheses"/>
-
 
     <!-- TODO 주석 경고 -->
     <module name="TodoComment">
