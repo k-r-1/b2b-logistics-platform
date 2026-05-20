@@ -1,5 +1,5 @@
 server:
-  port: 8080  #
+  port: 8080
 
 spring:
   application:
@@ -16,16 +16,16 @@ spring:
           enabled: true # 유레카에 등록된 서비스 이름으로 자동 라우팅을 허용합니다.
       routes:
         # 1. 유저 서비스 라우팅 정보
-        - id: user-service
-          uri: lb://user-service # lb://는 유레카에 등록된 서비스명으로 로드밸런싱 하겠다는 의미입니다.
+        - id: userservice
+          uri: lb://userservice # lb://는 유레카에 등록된 서비스명으로 로드밸런싱 하겠다는 의미입니다.
           predicates:
             - Path=/api/v1/users/**, /api/v1/auth/**
 
         # 2. 배송 담당자 서비스 라우팅 정보
-        - id: delivery-manager-service
-          uri: lb://delivery-manager-service
+        - id: deliverymanagerservice
+          uri: lb://deliverymanagerservice
           predicates:
-            - Path=/api/v1/deliveries/**, /api/v1/managers/**
+            - Path=/api/v1/deliverymanagers/**
 
 eureka:
   client:

@@ -3,7 +3,7 @@ server:
 
 spring:
   application:
-    name: user-service
+    name: userservice
 
   security:
     oauth2:
@@ -19,7 +19,7 @@ spring:
 
   # 1. PostgreSQL DB 연결
   datasource:
-    url: jdbc:postgresql://localhost:54321/${DB_NAME:sparta_logistics}?currentSchema=user_schema
+    url: jdbc:postgresql://localhost:5432/${DB_NAME:sparta_logistics}?currentSchema=user_schema
     username: ${DB_USERNAME:sparta_admin}
     password: ${DB_PASSWORD:password123}
     driver-class-name: org.postgresql.Driver

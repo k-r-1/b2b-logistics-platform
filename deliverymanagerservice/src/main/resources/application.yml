@@ -1,5 +1,5 @@
 server:
-  port: 8086  #
+  port: 8086
 
 spring:
   application:
@@ -18,7 +18,7 @@ spring:
 
   # 2. PostgreSQL
   datasource:
-    url: jdbc:postgresql://localhost:54321/${DB_NAME:sparta_logistics}?currentSchema=delivery_manager_schema
+    url: jdbc:postgresql://localhost:5432/${DB_NAME:sparta_logistics}?currentSchema=delivery_manager_schema
     username: ${DB_USERNAME:sparta_admin}
     password: ${DB_PASSWORD:password123}
     driver-class-name: org.postgresql.Driver
