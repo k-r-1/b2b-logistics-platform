@@ -7,7 +7,7 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
 
 @EnableFeignClients
 @EnableDiscoveryClient
-@SpringBootApplication(scanBasePackages = {"com.boxoffice.user_service", "com.boxoffice.common"})
+@SpringBootApplication
 public class UserServiceApplication {
 
 	public static void main(String[] args) {
