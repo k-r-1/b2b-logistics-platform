@@ -1,26 +1,20 @@
 dependencies {
 	implementation project(':common')
 
-	// 1. 기본 웹 및 DB 인프라 관련
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 	runtimeOnly 'org.postgresql:postgresql'
 
-	// 2. 유효성 검증 규칙
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 
-	// 3. MSA 인프라 및 서비스 간 통신(Feign) 관련
 	implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
 	implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
 
-	// 4. 순차 정렬이 가능한 고성능 UUID v7 발급 전용 핵심 엔진 (★오늘 도입 가치 결정적)
 	implementation 'com.fasterxml.uuid:java-uuid-generator:5.1.0'
 
-	// 5. Authentication, SecurityContextHolder를 사용하기 위한 스프링 시큐리티 핵심 라이브러리
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 
-	// 6. Jwt 클래스를 사용하여 Keycloak 토큰을 파싱하고 검증하기 위한 핵심 라이브러리
 	implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
 
 	compileOnly 'org.projectlombok:lombok'

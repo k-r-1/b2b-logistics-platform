@@ -9,10 +9,8 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          # Keycloak이 토큰을 발행한 공식 인증서 주소
           issuer-uri: http://localhost:8089/realms/boxoffice-realm
 
-  # 클라우드 호환성 검사 차단 옵션 정상 반영
   cloud:
     compatibility-verifier:
       enabled: false
@@ -28,14 +26,12 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: true
-    # ★ [교정] properties는 spring.jpa 바로 아래에 한 칸 더 들여써서 배치해야 합니다.
     properties:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
   # 2. Redis 연결
-  # ★ [교정] data(Redis) 설정은 properties 밑이 아니라 spring: 바로 아래에 위치해야 합니다.
   data:
     redis:
       host: localhost

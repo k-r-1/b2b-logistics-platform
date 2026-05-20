@@ -26,7 +26,6 @@ services:
     ports:
       - "8761:8761"
     environment:
-      # ★ 도커 환경에서도 호환성 검사를 강제로 꺼버리는 핵심 치트키 옵션입니다.
       - SPRING_CLOUD_COMPATIBILITY_VERIFIER_ENABLED=false
 
   api-gateway:
@@ -39,7 +38,6 @@ services:
     depends_on:
       - eureka-server
     environment:
-      # ★ 도커 환경에서도 호환성 검사를 강제로 꺼버리는 핵심 치트키 옵션입니다.
       - SPRING_CLOUD_COMPATIBILITY_VERIFIER_ENABLED=false
 
   user-service:
@@ -53,7 +51,6 @@ services:
       - eureka-server
       - postgres-db
     environment:
-      # ★ 도커 환경에서도 호환성 검사를 강제로 꺼버리는 핵심 치트키 옵션입니다.
       - SPRING_CLOUD_COMPATIBILITY_VERIFIER_ENABLED=false
 
   # 6. 배송 담당자 서비스
@@ -68,7 +65,6 @@ services:
       - eureka-server
       - postgres-db
     environment:
-      # ★ 도커 환경에서도 호환성 검사를 강제로 꺼버리는 핵심 치트키 옵션입니다.
       - SPRING_CLOUD_COMPATIBILITY_VERIFIER_ENABLED=false
 
   keycloak:

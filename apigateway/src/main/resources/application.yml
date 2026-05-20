@@ -9,19 +9,16 @@ spring:
     compatibility-verifier:
       enabled: false
 
-    # ─── 🔀 API 게이트웨이 핵심 라우팅 설정 ───
     gateway:
       discovery:
         locator:
-          enabled: true # 유레카에 등록된 서비스 이름으로 자동 라우팅을 허용합니다.
+          enabled: true
       routes:
-        # 1. 유저 서비스 라우팅 정보
         - id: userservice
-          uri: lb://userservice # lb://는 유레카에 등록된 서비스명으로 로드밸런싱 하겠다는 의미입니다.
+          uri: lb://userservice
           predicates:
             - Path=/api/v1/users/**, /api/v1/auth/**
 
-        # 2. 배송 담당자 서비스 라우팅 정보
         - id: deliverymanagerservice
           uri: lb://deliverymanagerservice
           predicates:
