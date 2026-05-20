@@ -17,7 +17,7 @@ public class User extends BaseEntity {
     private String keycloakSub;
 
     @Column(nullable = false, unique = true)
-    private String email;
+    private Email email;
 
     @Column(nullable = false)
     private String name;
@@ -27,7 +27,7 @@ public class User extends BaseEntity {
     private UserRole role;
 
     @Builder
-    public User(String keycloakSub, String email, String name, UserRole role) {
+    public User(String keycloakSub, Email email, String name, UserRole role) {
         this.keycloakSub = keycloakSub;
         this.email = email;
         this.name = name;
