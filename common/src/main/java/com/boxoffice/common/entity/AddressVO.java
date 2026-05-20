@@ -4,7 +4,11 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
-import lombok.*;
+import lombok.Getter;
+import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
 
 /**
  * 공통 주소 Value Object.
