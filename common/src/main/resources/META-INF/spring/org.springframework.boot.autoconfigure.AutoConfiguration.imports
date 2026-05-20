@@ -1,0 +1,4 @@
+com.boxoffice.common.config.JpaConfig
+com.boxoffice.common.config.FeignConfig
+com.boxoffice.common.config.AuditorAwareImpl
+com.boxoffice.common.exception.GlobalExceptionHandler
