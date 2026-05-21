@@ -120,79 +120,25 @@ jobs:
       # 새 서비스 추가 시 변경 4
 
     steps:
-      - name: "[DEBUG] Secret 확인 (테스트 후 삭제)"
-        run: |
-          if [[ -z "${{ secrets.DISCORD_DEV_WEBHOOK }}" ]]; then
-            echo "❌ DISCORD_DEV_WEBHOOK 이 비어있습니다"
-          else
-            echo "✅ DISCORD_DEV_WEBHOOK 확인됨 (길이: ${#DISCORD_DEV_WEBHOOK}자)"
-          fi
-        env:
-          DISCORD_DEV_WEBHOOK: ${{ secrets.DISCORD_DEV_WEBHOOK }}
-
-
-      - name: CI 성공/실패 판정
-        id: evaluate
-        run: |
-          echo "📋 Job Results:"
-          echo "  detect-changes     : ${{ needs.detect-changes.result }}"
-          echo "  ci-api-gateway     : ${{ needs.ci-api-gateway.result }}"
-          echo "  ci-delivery-manager: ${{ needs.ci-delivery-manager.result }}"
-          echo "  ci-eureka-server   : ${{ needs.ci-eureka-server.result }}"
-          echo "  ci-user-service    : ${{ needs.ci-user-service.result }}"
-
-          FAILED=false
-          for result in \
-            "${{ needs.detect-changes.result }}" \
-            "${{ needs.ci-api-gateway.result }}" \
-            "${{ needs.ci-delivery-manager.result }}" \
-            "${{ needs.ci-eureka-server.result }}" \
-            "${{ needs.ci-user-service.result }}"; do
-            [[ "$result" == "failure" || "$result" == "cancelled" ]] && FAILED=true
-          done
-
-          [[ "$FAILED" == "true" ]] \
-            && echo "ci_status=failure" >> $GITHUB_OUTPUT \
-            || echo "ci_status=success" >> $GITHUB_OUTPUT
-
-      - name: 변경된 서비스 목록 수집
-        id: services
-        env:
-          OUT_COMMON: ${{ needs.detect-changes.outputs.common }}
-          OUT_GW:     ${{ needs.detect-changes.outputs['api-gateway'] }}
-          OUT_DM:     ${{ needs.detect-changes.outputs.delivery_manager_service }}
-          OUT_EU:     ${{ needs.detect-changes.outputs['eureka-server'] }}
-          OUT_US:     ${{ needs.detect-changes.outputs['user-service'] }}
-        run: |
-          SERVICES=""
-          append() {
-            [[ "$1" == "true" ]] && SERVICES="${SERVICES:+$SERVICES,}$2"
-          }
-          append "$OUT_COMMON" "common"
-          append "$OUT_GW"     "api-gateway"
-          append "$OUT_DM"     "delivery_manager_service"
-          append "$OUT_EU"     "eureka-server"
-          append "$OUT_US"     "user-service"
-          # 새 서비스 추가 시 append 줄 추가
-
-          echo "list=${SERVICES:-none}" >> $GITHUB_OUTPUT
-
-      - name: Discord 알림 전송
+      - name: CI 성공/실패 판정 + Discord 알림
         if: always()
         shell: bash
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_DEV_WEBHOOK }}
-          CI_STATUS:    ${{ steps.evaluate.outputs.ci_status }}
-          CHANGED_SVCS: ${{ steps.services.outputs.list }}
-          PR_TITLE:     ${{ github.event.pull_request.title }}
-          PR_AUTHOR:    ${{ github.event.pull_request.user.login }}
-          PR_URL:       ${{ github.event.pull_request.html_url }}
-          RUN_URL:      ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          R_DETECT:     ${{ needs.detect-changes.result }}
-          R_GW:         ${{ needs.ci-api-gateway.result }}
-          R_DM:         ${{ needs.ci-delivery-manager.result }}
-          R_EU:         ${{ needs.ci-eureka-server.result }}
-          R_US:         ${{ needs.ci-user-service.result }}
+          OUT_COMMON: ${{ needs.detect-changes.outputs.common }}
+          OUT_GW: ${{ needs.detect-changes.outputs['api-gateway'] }}
+          OUT_DM: ${{ needs.detect-changes.outputs.delivery_manager_service }}
+          OUT_EU: ${{ needs.detect-changes.outputs['eureka-server'] }}
+          OUT_US: ${{ needs.detect-changes.outputs['user-service'] }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          R_DETECT: ${{ needs.detect-changes.result }}
+          R_GW: ${{ needs.ci-api-gateway.result }}
+          R_DM: ${{ needs.ci-delivery-manager.result }}
+          R_EU: ${{ needs.ci-eureka-server.result }}
+          R_US: ${{ needs.ci-user-service.result }}
         run: |
           job_emoji() {
             case "$1" in
@@ -203,36 +149,33 @@ jobs:
               *)         echo "❓" ;;
             esac
           }
-
-          [[ "$CI_STATUS" == "success" ]] \
-            && COLOR=5763719  && TITLE="✅  CI Passed — Dev CI" \
-            || COLOR=15548997 && TITLE="❌  CI Failed — Dev CI"
-
-          if [[ -z "$CHANGED_SVCS" || "$CHANGED_SVCS" == "none" ]]; then
+          
+          # CI 성공/실패 판정
+          FAILED=false
+          for result in "$R_DETECT" "$R_GW" "$R_DM" "$R_EU" "$R_US"; do
+            [[ "$result" == "failure" || "$result" == "cancelled" ]] && FAILED=true
+          done
+          
+          [[ "$FAILED" == "true" ]] \
+            && COLOR=15548997 && TITLE="❌  CI Failed — Dev CI" \
+            || COLOR=5763719  && TITLE="✅  CI Passed — Dev CI"
+          
+          # 변경된 서비스 목록
+          SERVICES=""
+          append() { [[ "$1" == "true" ]] && SERVICES="${SERVICES:+$SERVICES,}$2"; }
+          append "$OUT_COMMON" "common"
+          append "$OUT_GW"     "api-gateway"
+          append "$OUT_DM"     "delivery_manager_service"
+          append "$OUT_EU"     "eureka-server"
+          append "$OUT_US"     "user-service"
+          
+          if [[ -z "$SERVICES" ]]; then
             SERVICE_LIST="변경된 서비스 없음"
           else
-            SERVICE_LIST=$(echo "$CHANGED_SVCS" | tr ',' '\n' | sed 's/^/• /' | awk '{printf "%s\\n", $0}' | sed 's/\\n$//')
+            SERVICE_LIST=$(echo "$SERVICES" | tr ',' '\n' | sed 's/^/• /' | awk '{printf "%s\\n", $0}' | sed 's/\\n$//')
           fi
-
-          JOB_RESULTS=$(printf '%s %s\n%s %s\n%s %s\n%s %s\n%s %s' \
-            "$(job_emoji $R_DETECT)" "detect-changes" \
-            "$(job_emoji $R_GW)"     "ci-api-gateway" \
-            "$(job_emoji $R_DM)"     "ci-delivery-manager" \
-            "$(job_emoji $R_EU)"     "ci-eureka-server" \
-            "$(job_emoji $R_US)"     "ci-user-service" \
-            | awk '{printf "%s\\n", $0}' | sed 's/\\n$//')
-
-          FAILED_LINKS=""
-          [[ "$R_DETECT" == "failure" ]] && FAILED_LINKS+="• [detect-changes 로그](${RUN_URL})\n"
-          [[ "$R_GW"     == "failure" ]] && FAILED_LINKS+="• [api-gateway 로그](${RUN_URL})\n"
-          [[ "$R_DM"     == "failure" ]] && FAILED_LINKS+="• [delivery-manager 로그](${RUN_URL})\n"
-          [[ "$R_EU"     == "failure" ]] && FAILED_LINKS+="• [eureka-server 로그](${RUN_URL})\n"
-          [[ "$R_US"     == "failure" ]] && FAILED_LINKS+="• [user-service 로그](${RUN_URL})\n"
-
-          FAILED_FIELD=""
-          [[ -n "$FAILED_LINKS" ]] && \
-            FAILED_FIELD=",{\"name\":\"🔗 실패한 Job 로그\",\"value\":\"${FAILED_LINKS}\",\"inline\":false}"
-
+          
+          # Discord 전송
           PAYLOAD=$(cat <<EOF
           {
             "username": "GitHub Actions",
@@ -246,8 +189,7 @@ jobs:
                 {"name":"👤 작성자",        "value":"${PR_AUTHOR}",           "inline":true},
                 {"name":"🔀 대상 브랜치",   "value":"dev",                    "inline":true},
                 {"name":"📦 변경된 서비스", "value":"${SERVICE_LIST}",        "inline":false},
-                {"name":"📋 Job 결과",      "value":"${JOB_RESULTS}",         "inline":false}
-                ${FAILED_FIELD}
+                {"name":"📋 Job 결과",      "value":"$(job_emoji $R_DETECT) detect-changes\n$(job_emoji $R_GW) ci-api-gateway\n$(job_emoji $R_DM) ci-delivery-manager\n$(job_emoji $R_EU) ci-eureka-server\n$(job_emoji $R_US) ci-user-service","inline":false}
               ],
               "footer":{"text":"Run #${{ github.run_number }} • ${{ github.repository }}"},
               "timestamp":"$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -255,19 +197,28 @@ jobs:
           }
           EOF
           )
-
+          
           HTTP_STATUS=$(curl -s -o /tmp/res.txt -w "%{http_code}" \
             -X POST "$DISCORD_WEBHOOK_URL" \
             -H "Content-Type: application/json" \
             -d "$PAYLOAD")
-
+          
           cat /tmp/res.txt
           [[ "$HTTP_STATUS" -ge 200 && "$HTTP_STATUS" -lt 300 ]] \
-            && echo "디스코드 알림 완료" \
+            && echo "Discord 알림 완료" \
             || { echo "Discord 전송 실패 (HTTP $HTTP_STATUS)"; exit 1; }
 
       - name: 최종 CI 상태 확인
         run: |
-          [[ "${{ steps.evaluate.outputs.ci_status }}" == "success" ]] \
-            && echo "CI SUCCESS" \
-            || { echo "CI 실패 — 코드를 다시 확인해주세요."; exit 1; }
+          FAILED=false
+          for result in \
+            "${{ needs.detect-changes.result }}" \
+            "${{ needs.ci-api-gateway.result }}" \
+            "${{ needs.ci-delivery-manager.result }}" \
+            "${{ needs.ci-eureka-server.result }}" \
+            "${{ needs.ci-user-service.result }}"; do
+            [[ "$result" == "failure" || "$result" == "cancelled" ]] && FAILED=true
+          done
+          [[ "$FAILED" == "true" ]] \
+            && { echo "CI 실패 — 코드를 다시 확인해주세요."; exit 1; } \
+            || echo "CI SUCCESS"
