@@ -70,4 +70,17 @@ public class UserController {
 
         return ResponseEntity.ok(ApiResponse.success(responseDto));
     }
+
+    // 🌟 사용자 삭제 API
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ApiResponse<Void>> deleteUser(
+            @PathVariable UUID id,
+            @RequestHeader("X-User-Id") String requesterId) {
+
+        log.info("[Controller] 유저 삭제 요청. TargetId: {}, RequesterId: {}", id, requesterId);
+
+        userService.deleteUser(id, requesterId);
+
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
 }

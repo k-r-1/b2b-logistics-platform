@@ -240,4 +240,28 @@ public class UserService {
 
         return UserResponseDto.from(targetUser);
     }
+
+    /**
+     * 🌟 사용자 삭제 (논리적 삭제 - Soft Delete)
+     */
+    @Transactional
+    public void deleteUser(UUID targetUserId, String requesterSub) {
+
+        User requester = userRepository.findByKeycloakSub(requesterSub)
+                .orElseThrow(() -> new BaseException(UserErrorCode.USER_NOT_FOUND));
+
+        User targetUser = userRepository.findById(targetUserId)
+                .orElseThrow(() -> new BaseException(UserErrorCode.USER_NOT_FOUND));
+
+        if (!"MASTER".equals(requester.getRole().name())) {
+            log.warn("[UserDelete] 권한 없음: MASTER가 아닌 유저가 삭제 시도. RequesterSub: {}", requesterSub);
+            throw new BaseException(CommonErrorCode.FORBIDDEN);
+        }
+
+        targetUser.softDelete(requester.getId());
+
+        targetUser.updateStatus(UserStatus.DELETED);
+
+        log.info("[UserDelete] 유저 논리적 삭제 완료. TargetUserId: {}", targetUserId);
+    }
 }
