@@ -1,0 +1,17 @@
+dependencies {
+    // common 모듈
+    implementation project(':common')
+
+    // DB
+    runtimeOnly 'org.postgresql:postgresql'
+
+    // Eureka
+    implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
+
+    // JPA (전이 안 되므로 각 서비스에 필요)
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+
+    // Lombok (전이 안 되므로 각 서비스에 필요)
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+}
