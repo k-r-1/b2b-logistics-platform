@@ -168,10 +168,10 @@ jobs:
           
           if [[ "$FAILED" == "true" ]]; then
             COLOR=15548997
-            TITLE="❌  CI Failed — Dev CI"
+            TITLE="❌  CI Failed — Main CI"
           else
             COLOR=5763719
-            TITLE="✅  CI Passed — Dev CI"
+            TITLE="✅  CI Passed — Main CI"
           fi
           
           # 2. 변경된 서비스 목록 수집
@@ -211,7 +211,7 @@ jobs:
               "fields": [
                 {"name":"📌 PR",           "value":"[${PR_TITLE}](${PR_URL})","inline":false},
                 {"name":"👤 작성자",        "value":"${PR_AUTHOR}",           "inline":true},
-                {"name":"🔀 대상 브랜치",   "value":"dev",                    "inline":true},
+                {"name":"🔀 대상 브랜치",   "value":"main",                    "inline":true},
                 {"name":"📦 변경된 서비스", "value":"${SERVICE_LIST}",        "inline":false},
                 {"name":"📋 Job 결과",      "value":"$(job_emoji "$R_DETECT") detect-changes\n$(job_emoji "$R_GW") ci-api-gateway\n$(job_emoji "$R_DM") ci-delivery-manager\n$(job_emoji "$R_EU") ci-eureka-server\n$(job_emoji "$R_US") ci-user-service","inline":false}
               ],
