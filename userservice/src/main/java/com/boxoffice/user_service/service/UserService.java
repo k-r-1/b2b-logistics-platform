@@ -1,6 +1,6 @@
 package com.boxoffice.user_service.service;
 
-import com.boxoffice.common.exception.BaseException; // 팀원분의 BaseException 임포트
+import com.boxoffice.common.exception.BaseException;
 import com.boxoffice.common.exception.CommonErrorCode;
 import com.boxoffice.user_service.client.KeycloakClient;
 import com.boxoffice.user_service.client.KeycloakUserCreateRequestDto;
@@ -10,8 +10,9 @@ import com.boxoffice.user_service.dto.UserSignupRequestDto;
 import com.boxoffice.user_service.dto.UserStatusUpdateRequestDto;
 import com.boxoffice.user_service.entity.Email;
 import com.boxoffice.user_service.entity.User;
+import com.boxoffice.user_service.entity.UserRole;
 import com.boxoffice.user_service.entity.UserStatus;
-import com.boxoffice.user_service.exception.UserErrorCode; // 하단에 추가할 ErrorCode
+import com.boxoffice.user_service.exception.UserErrorCode;
 import com.boxoffice.user_service.repository.UserRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -95,21 +96,14 @@ public class UserService {
                     .hubId(request.getHubId())
                     .build();
 
-            userRepository.save(user);
-
             try {
                 userRepository.save(user);
                 log.info("[Signup] Keycloak 및 DB 유저 생성 완료. Email: {}", request.getEmail());
             } catch (Exception e) {
-                // DB 저장이 실패했다면, Keycloak에는 유저가 만들어진 채로 붕 뜨게 됩니다.
                 log.error("[CRITICAL_ALERT] DB 저장 실패로 인한 고아 데이터 발생! Keycloak 유저 수동 삭제 필요. Sub: {}, Email: {}", keycloakSub, request.getEmail(), e);
-
-                // TODO (선택사항): 나중에 keycloakClient.deleteUser(adminAccessToken, realm, keycloakSub) API를 뚫어서
-
                 throw new BaseException(CommonErrorCode.INTERNAL_SERVER_ERROR);
             }
         } else {
-            // Keycloak 생성 실패 시
             log.error("[Signup] Keycloak 유저 생성 실패. Email: {}, StatusCode: {}", request.getEmail(), response.getStatusCode());
             throw new BaseException(UserErrorCode.KEYCLOAK_USER_CREATE_FAILED);
         }
@@ -146,24 +140,18 @@ public class UserService {
      * 🌟 일반 유저 로그인 로직 (토큰 대리 발급)
      */
     public String login(UserLoginRequestDto request) {
-        // 1. Keycloak에 던질 로그인 폼 데이터 조립
         Map<String, String> formParams = new HashMap<>();
-        formParams.put("client_id", userClientId); // "boxoffice-app"
+        formParams.put("client_id", userClientId);
         formParams.put("grant_type", "password");
         formParams.put("username", request.getUsername());
         formParams.put("password", request.getPassword());
 
         try {
-            // 2. Keycloak 토큰 발급 API 호출 (관리자 토큰 발급 메서드와 엔드포인트가 완벽히 동일하므로 재활용)
             Map<String, Object> tokenResponse = keycloakClient.getAdminToken(realm, formParams);
-
-            // 3. 발급된 access_token 추출하여 반환
             String accessToken = (String) tokenResponse.get("access_token");
             log.info("[Login] 로그인 성공. 토큰 발급 완료. Username: {}", request.getUsername());
             return accessToken;
-
         } catch (Exception e) {
-            // 4. 비밀번호가 틀렸거나 없는 계정이면 Keycloak이 에러를 뱉음
             log.warn("[Login] 로그인 실패 (자격증명 오류). Username: {}", request.getUsername());
             throw new BaseException(UserErrorCode.INVALID_CREDENTIALS);
         }
@@ -189,34 +177,27 @@ public class UserService {
     @Transactional(readOnly = true)
     public Page<UserResponseDto> getUserList(String requesterSub, Pageable pageable) {
 
-        // 1. 게이트웨이가 넘겨준 UUID로 '요청을 보낸 사람'의 정보를 찾습니다.
         User requester = userRepository.findByKeycloakSub(requesterSub)
                 .orElseThrow(() -> new BaseException(UserErrorCode.USER_NOT_FOUND));
 
         Page<User> userPage;
 
-        // 2. 권한(Role)에 따른 분기 처리 (데이터 격리)
-        String roleName = requester.getRole().name();
+        UserRole role = requester.getRole();
 
-        if ("MASTER".equals(roleName)) {
-            // 마스터: 제한 없이 모든 유저 조회
+        if (role == UserRole.MASTER) {
             userPage = userRepository.findAll(pageable);
             log.info("[UserSearch] MASTER 권한으로 전체 유저 목록 조회");
-
-        } else if ("HUB_MANAGER".equals(roleName)) {
-            // 허브 매니저: 본인이 소속된 허브(HubId)의 유저만 조회
+        } else if (role == UserRole.HUB_MANAGER) {
             userPage = userRepository.findByHubId(requester.getHubId(), pageable);
             log.info("[UserSearch] HUB_MANAGER 권한으로 {} 허브 유저 목록 조회", requester.getHubId());
-
         } else {
-            // 배송 기사 등 다른 권한은 목록 조회 불가 (403 Forbidden)
             log.warn("[UserSearch] 권한 없는 유저의 목록 조회 시도. Sub: {}", requesterSub);
             throw new BaseException(CommonErrorCode.FORBIDDEN);
         }
 
-        // 3. DTO 변환 후 반환
         return userPage.map(UserResponseDto::from);
     }
+
     /**
      * 🌟 가입 승인/거절 (상태 변경)
      */
@@ -229,16 +210,14 @@ public class UserService {
         User targetUser = userRepository.findById(targetUserId)
                 .orElseThrow(() -> new BaseException(UserErrorCode.USER_NOT_FOUND));
 
-        String roleName = requester.getRole().name();
+        UserRole role = requester.getRole();
 
-        if ("HUB_MANAGER".equals(roleName)) {
-            // 허브 매니저라면, 대상자가 '자신과 같은 허브' 소속일 때만 승인 가능
+        if (role == UserRole.HUB_MANAGER) {
             if (!requester.getHubId().equals(targetUser.getHubId())) {
                 log.warn("[UserStatus] 권한 없음: 다른 허브 소속 유저 상태 변경 시도. Requester: {}, TargetHub: {}", requester.getHubId(), targetUser.getHubId());
                 throw new BaseException(CommonErrorCode.FORBIDDEN);
             }
-        } else if (!"MASTER".equals(roleName)) {
-            // 마스터나 허브 매니저가 아니면 접근 불가
+        } else if (role != UserRole.MASTER) {
             throw new BaseException(CommonErrorCode.FORBIDDEN);
         }
 
@@ -262,13 +241,12 @@ public class UserService {
         User targetUser = userRepository.findById(targetUserId)
                 .orElseThrow(() -> new BaseException(UserErrorCode.USER_NOT_FOUND));
 
-        if (!"MASTER".equals(requester.getRole().name())) {
+        if (requester.getRole() != UserRole.MASTER) {
             log.warn("[UserDelete] 권한 없음: MASTER가 아닌 유저가 삭제 시도. RequesterSub: {}", requesterSub);
             throw new BaseException(CommonErrorCode.FORBIDDEN);
         }
 
         targetUser.softDelete(requester.getId());
-
         targetUser.updateStatus(UserStatus.DELETED);
 
         log.info("[UserDelete] 유저 논리적 삭제 완료. TargetUserId: {}", targetUserId);
@@ -278,27 +256,21 @@ public class UserService {
      * 🌟 사용자 로그아웃 (Redis 블랙리스트 등록)
      */
     public void logout(String authHeader) {
-        // 1. 헤더에서 토큰만 추출 ("Bearer " 제거)
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            throw new BaseException(CommonErrorCode.INVALID_INPUT); // 잘못된 헤더
+            throw new BaseException(CommonErrorCode.INVALID_INPUT);
         }
         String token = authHeader.substring(7);
 
         try {
-            // 2. 토큰의 Payload(내용물) 뜯기 (Gateway에서 했던 방식과 동일!)
             String[] chunks = token.split("\\.");
             String payload = new String(Base64.getUrlDecoder().decode(chunks[1]));
             JsonNode jsonNode = objectMapper.readTree(payload);
 
-            // 3. 토큰의 만료 시간(exp) 추출
-            // JWT의 exp는 '초(second)' 단위이므로 밀리초로 변환합니다.
             long exp = jsonNode.path("exp").asLong() * 1000;
             long now = System.currentTimeMillis();
             long remainingTime = exp - now;
 
-            // 4. 아직 만료되지 않았다면 Redis에 블랙리스트로 등록 (TTL 설정)
             if (remainingTime > 0) {
-                // 키: 토큰 값 자체, 값: "logout", 만료시간: 토큰의 남은 수명
                 redisTemplate.opsForValue().set(token, "logout", remainingTime, TimeUnit.MILLISECONDS);
                 log.info("[Logout] 토큰이 Redis 블랙리스트에 등록되었습니다. 남은 수명: {}ms", remainingTime);
             }
