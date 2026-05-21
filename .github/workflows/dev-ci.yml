@@ -1,3 +1,7 @@
+# 새 서비스 추가 시 수정할 위치 3곳:
+#   1. detect-changes.outputs  에 출력 변수 추가
+#   2. paths-filter.filters    에 경로 패턴 추가
+#   3. 하단에 ci-<service> Job 블록 복붙 후 이름만 변경
 name: CI - Dev
 
 on:
@@ -14,37 +18,32 @@ concurrency:
   group: ci-dev-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
-env:
-  JAVA_VERSION: '21'
-  GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.parallel=true"
-
 permissions:
   pull-requests: write
   contents: read
 
 jobs:
   detect-changes:
-    name: PR 에서 변경된 서비스를 감지해 이후 JOB 의 실행 속도를 높입니다.
+    name: "detect changes"
     runs-on: ubuntu-latest
     outputs:
+      # 서비스 추가 시 변경 1
       common:                   ${{ steps.filter.outputs.common }}
       api-gateway:              ${{ steps.filter.outputs.api-gateway }}
       delivery_manager_service: ${{ steps.filter.outputs.delivery_manager_service }}
       eureka-server:            ${{ steps.filter.outputs.eureka-server }}
       user-service:             ${{ steps.filter.outputs.user-service }}
-      # 새 서비스 추가 시 outputs 항목을 추가해야 합니다.
-      # new-service: ${{ steps.filter.outputs.new-service }}
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: '1'
 
-      - name: 변경된 파일이 어느 서비스 디렉토리에 있는지 감지 (새로운 서비스가 들어오면 하단에 추가)
+      - name: 변경된 서비스 디렉토리 감지
         uses: dorny/paths-filter@v3
         id: filter
         with:
+          # 서비스 추가 시 변경 2
           filters: |
             common:
               - 'common/**'
@@ -57,157 +56,93 @@ jobs:
             user-service:
               - 'user-service/**'
 
-  checkstyle:
-    name: 린트 체크 (테스트 제외) - ${{ matrix.service }}
-    runs-on: ubuntu-latest
+  # 새 서비스 추가 시 변경 3
+  ci-api-gateway:
     needs: detect-changes
+    uses: ./.github/workflows/_service-ci.yml
+    secrets: inherit
+    permissions:
+      pull-requests: write
+      contents: read
+    with:
+      service: api-gateway
+      changed: ${{ needs.detect-changes.outputs['api-gateway'] }}
+      common-changed: ${{ needs.detect-changes.outputs.common }}
 
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - service: api-gateway
-            changed: ${{ needs.detect-changes.outputs['api-gateway'] }}
-          - service: delivery_manager_service
-            changed: ${{ needs.detect-changes.outputs.delivery_manager_service }}
-          - service: eureka-server
-            changed: ${{ needs.detect-changes.outputs['eureka-server'] }}
-          - service: user-service
-            changed: ${{ needs.detect-changes.outputs['user-service'] }}
-          # 새 서비스 추가 시 하단에 항목 추가 필요
+  ci-delivery-manager:
+    needs: detect-changes
+    uses: ./.github/workflows/_service-ci.yml
+    secrets: inherit
+    permissions:
+      pull-requests: write
+      contents: read
+    with:
+      service: delivery_manager_service
+      changed: ${{ needs.detect-changes.outputs.delivery_manager_service }}
+      common-changed: ${{ needs.detect-changes.outputs.common }}
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: '1'
+  ci-eureka-server:
+    needs: detect-changes
+    uses: ./.github/workflows/_service-ci.yml
+    secrets: inherit
+    permissions:
+      pull-requests: write
+      contents: read
+    with:
+      service: eureka-server
+      changed: ${{ needs.detect-changes.outputs['eureka-server'] }}
+      common-changed: ${{ needs.detect-changes.outputs.common }}
 
-      - name: Set up Java ${{ env.JAVA_VERSION }}
-        uses: actions/setup-java@v4
-        with:
-          java-version: ${{ env.JAVA_VERSION }}
-          distribution: 'temurin'
-          cache: 'gradle'
-
-      - name: Run Checkstyle
-        if: matrix.changed == 'true' || needs.detect-changes.outputs.common == 'true'
-        run: |
-          ./gradlew :${{ matrix.service }}:checkstyleMain \
-            --no-daemon \
-            --continue \
-            --stacktrace
-
-      - name: checkstyle 위반 시 Actions->실행->Artifacts 에서 확인 가능
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          if-no-files-found: ignore
-          name: checkstyle-report-${{ matrix.service }}
-          path: ${{ matrix.service }}/build/reports/checkstyle/
-          retention-days: 7
-
-  unit-test:
-    name: 단위 테스트 - ${{ matrix.service }}
-    runs-on: ubuntu-latest
-    needs: [detect-changes, checkstyle]
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - service: api-gateway
-            changed: ${{ needs.detect-changes.outputs['api-gateway'] }}
-          - service: delivery_manager_service
-            changed: ${{ needs.detect-changes.outputs.delivery_manager_service }}
-          - service: eureka-server
-            changed: ${{ needs.detect-changes.outputs['eureka-server'] }}
-          - service: user-service
-            changed: ${{ needs.detect-changes.outputs['user-service'] }}
-          # 새 서비스 추가 시 matrix 항목을 추가해주세요.
-
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: '1'
-
-      - name: Set up Java ${{ env.JAVA_VERSION }}
-        uses: actions/setup-java@v4
-        with:
-          java-version: ${{ env.JAVA_VERSION }}
-          distribution: 'temurin'
-          cache: 'gradle'
-
-      - name: 단위 테스트 실행
-        if: matrix.changed == 'true' || needs.detect-changes.outputs.common == 'true'
-        run: |
-          ./gradlew :${{ matrix.service }}:test \
-            --no-daemon \
-            -x checkstyleMain \
-            -x checkstyleTest
-
-      - name: Jacoco 커버리지 결과
-        if: (matrix.changed == 'true' || needs.detect-changes.outputs.common == 'true') && always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: jacoco-coverage-${{ matrix.service }}
-          path: ${{ matrix.service }}/build/reports/jacoco/test/html/
-          retention-days: 3
-
-      - name: 결과를 성공/실패 무관하게 업로드합니다.
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          if-no-files-found: ignore
-          name: unit-test-results-${{ matrix.service }}
-          path: ${{ matrix.service }}/build/reports/tests/test/
-          retention-days: 7
-
-      - name: Jacoco PR Comment
-        if: matrix.changed == 'true' || needs.detect-changes.outputs.common == 'true'
-        uses: Madrapps/jacoco-report@v1.6.1
-        with:
-          paths: ${{ matrix.service }}/build/reports/jacoco/test/jacocoTestReport.xml
-          token: ${{ secrets.GITHUB_TOKEN }}
-          min-coverage-overall: 70 # 현재 통과 기준 70입니다.
-          min-coverage-changed-files: 70
-          title: Jacoco 커버리지 리포트 - ${{ matrix.service }}
-          update-comment: true
-
+  ci-user-service:
+    needs: detect-changes
+    uses: ./.github/workflows/_service-ci.yml
+    secrets: inherit
+    permissions:
+      pull-requests: write
+      contents: read
+    with:
+      service: user-service
+      changed: ${{ needs.detect-changes.outputs['user-service'] }}
+      common-changed: ${{ needs.detect-changes.outputs.common }}
 
   ci-result:
-    name: CI 결과지 만드는 중 ...
+    name: "결과지 생성중"
     runs-on: ubuntu-latest
     if: always()
     needs:
       - detect-changes
-      - checkstyle
-      - unit-test
+      - ci-api-gateway
+      - ci-delivery-manager
+      - ci-eureka-server
+      - ci-user-service
+      # 새 서비스 추가 시 변경 4
 
     steps:
-      - name: Evaluate CI result
+      - name: CI 성공/실패 판정
         id: evaluate
         run: |
           echo "📋 Job Results:"
-          echo "  detect-changes : ${{ needs.detect-changes.result }}"
-          echo "  checkstyle     : ${{ needs.checkstyle.result }}"
-          echo "  unit-test      : ${{ needs.unit-test.result }}"
+          echo "  detect-changes     : ${{ needs.detect-changes.result }}"
+          echo "  ci-api-gateway     : ${{ needs.ci-api-gateway.result }}"
+          echo "  ci-delivery-manager: ${{ needs.ci-delivery-manager.result }}"
+          echo "  ci-eureka-server   : ${{ needs.ci-eureka-server.result }}"
+          echo "  ci-user-service    : ${{ needs.ci-user-service.result }}"
 
-          if [[ \
-            "${{ needs.detect-changes.result }}" == "failure"   || \
-            "${{ needs.detect-changes.result }}" == "cancelled" || \
-            "${{ needs.checkstyle.result }}"     == "failure"   || \
-            "${{ needs.checkstyle.result }}"     == "cancelled" || \
-            "${{ needs.unit-test.result }}"      == "failure"   || \
-            "${{ needs.unit-test.result }}"      == "cancelled" \
-          ]]; then
-            echo "ci_status=failure" >> $GITHUB_OUTPUT
-          else
-            echo "ci_status=success" >> $GITHUB_OUTPUT
-          fi
+          FAILED=false
+          for result in \
+            "${{ needs.detect-changes.result }}" \
+            "${{ needs.ci-api-gateway.result }}" \
+            "${{ needs.ci-delivery-manager.result }}" \
+            "${{ needs.ci-eureka-server.result }}" \
+            "${{ needs.ci-user-service.result }}"; do
+            [[ "$result" == "failure" || "$result" == "cancelled" ]] && FAILED=true
+          done
 
-      - name: Collect changed services
+          [[ "$FAILED" == "true" ]] \
+            && echo "ci_status=failure" >> $GITHUB_OUTPUT \
+            || echo "ci_status=success" >> $GITHUB_OUTPUT
+
+      - name: 변경된 서비스 목록 수집
         id: services
         run: |
           SERVICES=""
@@ -219,11 +154,11 @@ jobs:
           append "${{ needs.detect-changes.outputs.delivery_manager_service }}" "delivery_manager_service"
           append "${{ needs.detect-changes.outputs['eureka-server'] }}"         "eureka-server"
           append "${{ needs.detect-changes.outputs['user-service'] }}"          "user-service"
-          # <PLACEHOLDER> 새 서비스 추가 시 append 줄을 추가하세요.
+          # ★ 새 서비스 추가 시 append 줄 추가
 
           echo "list=${SERVICES:-none}" >> $GITHUB_OUTPUT
 
-      - name: Send Discord notification
+      - name: Discord 알림 전송
         if: always()
         shell: bash
         env:
@@ -235,8 +170,10 @@ jobs:
           PR_URL:       ${{ github.event.pull_request.html_url }}
           RUN_URL:      ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           R_DETECT:     ${{ needs.detect-changes.result }}
-          R_STYLE:      ${{ needs.checkstyle.result }}
-          R_UNIT:       ${{ needs.unit-test.result }}
+          R_GW:         ${{ needs.ci-api-gateway.result }}
+          R_DM:         ${{ needs.ci-delivery-manager.result }}
+          R_EU:         ${{ needs.ci-eureka-server.result }}
+          R_US:         ${{ needs.ci-user-service.result }}
         run: |
           job_emoji() {
             case "$1" in
@@ -249,25 +186,32 @@ jobs:
           }
 
           [[ "$CI_STATUS" == "success" ]] \
-            && COLOR=5763719 && TITLE="✅  CI Passed — Dev CI" \
+            && COLOR=5763719  && TITLE="✅  CI Passed — Dev CI" \
             || COLOR=15548997 && TITLE="❌  CI Failed — Dev CI"
 
-          if [[ -z "$CHANGED_SVCS" || "$CHANGED_SVCS" == "none" ]]; then
-            SERVICE_LIST="변경된 서비스 없음"
-          else
-            SERVICE_LIST=$(echo "$CHANGED_SVCS" | tr ',' '\n' | sed 's/^/• /' | paste -sd '\n')
-          fi
+          SERVICE_LIST=$(
+            [[ -z "$CHANGED_SVCS" || "$CHANGED_SVCS" == "none" ]] \
+              && echo "변경된 서비스 없음" \
+              || echo "$CHANGED_SVCS" | tr ',' '\n' | sed 's/^/• /' | paste -sd '\n'
+          )
+
+          JOB_RESULTS="\
+          $(job_emoji $R_DETECT) detect-changes\n\
+          $(job_emoji $R_GW) ci-api-gateway\n\
+          $(job_emoji $R_DM) ci-delivery-manager\n\
+          $(job_emoji $R_EU) ci-eureka-server\n\
+          $(job_emoji $R_US) ci-user-service"
 
           FAILED_LINKS=""
-          [[ "$R_DETECT" == "failure" ]] && FAILED_LINKS="${FAILED_LINKS}• [detect-changes 로그](${RUN_URL})\n"
-          [[ "$R_STYLE"  == "failure" ]] && FAILED_LINKS="${FAILED_LINKS}• [checkstyle 로그](${RUN_URL})\n"
-          [[ "$R_UNIT"   == "failure" ]] && FAILED_LINKS="${FAILED_LINKS}• [unit-test 로그](${RUN_URL})\n"
+          [[ "$R_DETECT" == "failure" ]] && FAILED_LINKS+="• [detect-changes 로그](${RUN_URL})\n"
+          [[ "$R_GW"     == "failure" ]] && FAILED_LINKS+="• [api-gateway 로그](${RUN_URL})\n"
+          [[ "$R_DM"     == "failure" ]] && FAILED_LINKS+="• [delivery-manager 로그](${RUN_URL})\n"
+          [[ "$R_EU"     == "failure" ]] && FAILED_LINKS+="• [eureka-server 로그](${RUN_URL})\n"
+          [[ "$R_US"     == "failure" ]] && FAILED_LINKS+="• [user-service 로그](${RUN_URL})\n"
 
-          if [[ -n "$FAILED_LINKS" ]]; then
+          FAILED_FIELD=""
+          [[ -n "$FAILED_LINKS" ]] && \
             FAILED_FIELD=",{\"name\":\"🔗 실패한 Job 로그\",\"value\":\"${FAILED_LINKS}\",\"inline\":false}"
-          else
-            FAILED_FIELD=""
-          fi
 
           PAYLOAD=$(cat <<EOF
           {
@@ -278,11 +222,11 @@ jobs:
               "url": "${RUN_URL}",
               "color": ${COLOR},
               "fields": [
-                {"name":"📌 PR","value":"[${PR_TITLE}](${PR_URL})","inline":false},
-                {"name":"👤 작성자","value":"${PR_AUTHOR}","inline":true},
-                {"name":"🔀 대상 브랜치","value":"dev","inline":true},
-                {"name":"📦 변경된 서비스","value":"${SERVICE_LIST}","inline":false},
-                {"name":"📋 Job 결과","value":"$(job_emoji $R_DETECT) detect-changes\n$(job_emoji $R_STYLE) checkstyle\n$(job_emoji $R_UNIT) unit-test","inline":false}
+                {"name":"📌 PR",           "value":"[${PR_TITLE}](${PR_URL})","inline":false},
+                {"name":"👤 작성자",        "value":"${PR_AUTHOR}",           "inline":true},
+                {"name":"🔀 대상 브랜치",   "value":"dev",                    "inline":true},
+                {"name":"📦 변경된 서비스", "value":"${SERVICE_LIST}",        "inline":false},
+                {"name":"📋 Job 결과",      "value":"${JOB_RESULTS}",         "inline":false}
                 ${FAILED_FIELD}
               ],
               "footer":{"text":"Run #${{ github.run_number }} • ${{ github.repository }}"},
@@ -300,10 +244,10 @@ jobs:
           cat /tmp/res.txt
           [[ "$HTTP_STATUS" -ge 200 && "$HTTP_STATUS" -lt 300 ]] \
             && echo "디스코드 알림 완료" \
-            || { echo "서버 에러로 디스코드에 전송하지 못했습니다."; exit 1; }
+            || { echo "Discord 전송 실패 (HTTP $HTTP_STATUS)"; exit 1; }
 
-      - name: Final status check
+      - name: 최종 CI 상태 확인
         run: |
           [[ "${{ steps.evaluate.outputs.ci_status }}" == "success" ]] \
             && echo "CI SUCCESS" \
-            || { echo "CI가 실패했습니다. 다시 코드를 확인해주세요."; exit 1; }
+            || { echo "CI 실패 — 코드를 다시 확인해주세요."; exit 1; }
