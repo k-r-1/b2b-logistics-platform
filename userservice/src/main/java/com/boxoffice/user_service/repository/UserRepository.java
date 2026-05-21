@@ -22,4 +22,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     // 전체 유저 목록을 페이징하여 가져오는 메서드
     Page<User> findAll(Pageable pageable);
+
+    // 허브 매니저를 위한 '특정 허브 소속 유저만' 가져오는 쿼리
+    Page<User> findByHubId(String hubId, Pageable pageable);
 }

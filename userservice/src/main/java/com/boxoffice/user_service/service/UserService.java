@@ -173,14 +173,37 @@ public class UserService {
     }
 
     /**
-     * 🌟 사용자 목록 검색 (페이징 포함)
+     * 🌟 사용자 목록 검색 (권한별 데이터 격리 + 페이징 적용)
      */
     @Transactional(readOnly = true)
-    public Page<UserResponseDto> getUserList(Pageable pageable) {
-        // 1. DB에서 페이지네이션이 적용된 유저 목록 조회
-        Page<User> userPage = userRepository.findAll(pageable);
+    public Page<UserResponseDto> getUserList(String requesterSub, Pageable pageable) {
 
-        // 2. Page<User>를 Page<UserResponseDto>로 변환 (map 함수 사용)
+        // 1. 게이트웨이가 넘겨준 UUID로 '요청을 보낸 사람'의 정보를 찾습니다.
+        User requester = userRepository.findByKeycloakSub(requesterSub)
+                .orElseThrow(() -> new BaseException(UserErrorCode.USER_NOT_FOUND));
+
+        Page<User> userPage;
+
+        // 2. 권한(Role)에 따른 분기 처리 (데이터 격리)
+        String roleName = requester.getRole().name();
+
+        if ("MASTER".equals(roleName)) {
+            // 마스터: 제한 없이 모든 유저 조회
+            userPage = userRepository.findAll(pageable);
+            log.info("[UserSearch] MASTER 권한으로 전체 유저 목록 조회");
+
+        } else if ("HUB_MANAGER".equals(roleName)) {
+            // 허브 매니저: 본인이 소속된 허브(HubId)의 유저만 조회
+            userPage = userRepository.findByHubId(requester.getHubId(), pageable);
+            log.info("[UserSearch] HUB_MANAGER 권한으로 {} 허브 유저 목록 조회", requester.getHubId());
+
+        } else {
+            // 배송 기사 등 다른 권한은 목록 조회 불가 (403 Forbidden)
+            log.warn("[UserSearch] 권한 없는 유저의 목록 조회 시도. Sub: {}", requesterSub);
+            throw new BaseException(CommonErrorCode.FORBIDDEN);
+        }
+
+        // 3. DTO 변환 후 반환
         return userPage.map(UserResponseDto::from);
     }
 

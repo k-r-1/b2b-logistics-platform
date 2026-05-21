@@ -51,11 +51,13 @@ public class UserController {
 
     @GetMapping
     public ResponseEntity<ApiResponse<Page<UserResponseDto>>> getUserList(
+            @RequestHeader("X-User-Id") String requesterId, // 🌟 문지기가 꽂아준 명찰 받기!
             @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
 
-        log.info("[Controller] 사용자 목록 조회 요청. PageNumber: {}, PageSize: {}", pageable.getPageNumber(), pageable.getPageSize());
+        log.info("[Controller] 사용자 목록 조회 요청. RequesterId: {}, Page: {}", requesterId, pageable.getPageNumber());
 
-        Page<UserResponseDto> responseDtoPage = userService.getUserList(pageable);
+        // 서비스로 요청자 ID(requesterId)를 같이 넘겨줍니다.
+        Page<UserResponseDto> responseDtoPage = userService.getUserList(requesterId, pageable);
 
         return ResponseEntity.ok(ApiResponse.success(responseDtoPage));
     }
