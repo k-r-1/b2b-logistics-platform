@@ -5,13 +5,13 @@ spring:
   application:
     name: delivery-manager-service
 
+  # 1. MSA 보안 아키텍처
   security:
     oauth2:
       resourceserver:
         jwt:
           issuer-uri: http://localhost:8089/realms/boxoffice-realm
 
-  # 1. (Spring Boot 3.5.x )
   cloud:
     compatibility-verifier:
       enabled: false
@@ -23,22 +23,32 @@ spring:
     password: ${DB_PASSWORD:password123}
     driver-class-name: org.postgresql.Driver
 
+  # 3. JPA 설정 최적화 (Spring Boot 3.x 기준)
   jpa:
     hibernate:
       ddl-auto: update
     show-sql: true
+    open-in-view: false
     properties:
       hibernate:
         format_sql: true
-        dialect: org.hibernate.dialect.PostgreSQLDialect
 
-  # 3. Redis
+  # 4. Redis
   data:
     redis:
       host: localhost
       port: 6379
 
+# 5. Eureka 클라이언트 최적화
 eureka:
+  instance:
+    prefer-ip-address: true
   client:
     service-url:
       defaultZone: http://localhost:8761/eureka/
+
+# 6. 🌟 로깅 최적화
+logging:
+  level:
+    org.hibernate.orm.jdbc.bind: TRACE
+    com.boxoffice.delivery_manager_service: DEBUG
