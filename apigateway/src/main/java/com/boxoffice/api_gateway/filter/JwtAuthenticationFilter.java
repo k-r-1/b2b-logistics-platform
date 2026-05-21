@@ -21,25 +21,30 @@ public class JwtAuthenticationFilter extends AbstractGatewayFilterFactory<JwtAut
         return (exchange, chain) -> {
             ServerHttpRequest request = exchange.getRequest();
 
-            // 1. 헤더에서 Authorization (JWT) 토큰 추출
             String authHeader = request.getHeaders().getFirst("Authorization");
 
             if (authHeader != null && authHeader.startsWith("Bearer ")) {
                 String token = authHeader.substring(7);
 
                 // TODO: Keycloak 또는 JWT 유효성 검증 및 Redis 블랙리스트 체크 로직 들어갈 자리
+                // (나중에 토큰 라이브러리를 통해 claims.get("hub_id") 형태로 파싱하게 됩니다.)
 
-                // 가짜 예시 데이터 (나중에 토큰 파싱 결과값으로 대체)
+                // Keycloak 토큰에서 꺼내올 파싱 결과값 예시
                 String userId = "user-uuid-1234";
-                String username = "logistics_master";
-                String userRole = "MASTER";
+                String username = "hub_manager_jun";
+                String userRole = "HUB_MANAGER";
+                String hubId = "hub-uuid-7777";
 
-                // 2. 핵심 MSA 패턴: 인증된 유저 정보를 헤더에 담아 내부 서비스로 전달
-                ServerHttpRequest mutatedRequest = request.mutate()
+                ServerHttpRequest.Builder requestBuilder = request.mutate()
                         .header("X-User-Id", userId)
                         .header("X-User-Username", username)
-                        .header("X-User-Role", userRole)
-                        .build();
+                        .header("X-User-Role", userRole);
+
+                if ("HUB_MANAGER".equals(userRole) && hubId != null) {
+                    requestBuilder.header("X-User-Hub-Id", hubId);
+                }
+
+                ServerHttpRequest mutatedRequest = requestBuilder.build();
 
                 return chain.filter(exchange.mutate().request(mutatedRequest).build());
             }
