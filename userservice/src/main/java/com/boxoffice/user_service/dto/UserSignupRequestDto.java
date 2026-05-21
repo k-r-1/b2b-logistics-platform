@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 
 @Getter
 @NoArgsConstructor
-public class UserSignupRequest {
+public class UserSignupRequestDto {
 
     @NotBlank(message = "사용자 ID는 필수 입력 사항입니다.")
     @Pattern(regexp = "^[a-z0-9]{4,10}$",
