@@ -25,7 +25,7 @@
   </module>
 
   <module name="LineLength">
-    <property name="max" value="150"/>
+    <property name="max" value="120"/>
     <!-- 패키지/임포트 선언은 예외 -->
     <property name="ignorePattern" value="^(import|package).*"/>
   </module>
