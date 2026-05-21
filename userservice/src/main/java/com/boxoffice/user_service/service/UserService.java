@@ -1,11 +1,15 @@
 package com.boxoffice.user_service.service;
 
+import com.boxoffice.common.exception.BaseException; // 팀원분의 BaseException 임포트
+import com.boxoffice.common.exception.CommonErrorCode;
 import com.boxoffice.user_service.client.KeycloakClient;
 import com.boxoffice.user_service.client.KeycloakUserCreateRequestDto;
+import com.boxoffice.user_service.dto.UserLoginRequestDto;
 import com.boxoffice.user_service.dto.UserSignupRequestDto;
 import com.boxoffice.user_service.entity.Email;
 import com.boxoffice.user_service.entity.User;
 import com.boxoffice.user_service.entity.UserStatus;
+import com.boxoffice.user_service.exception.UserErrorCode; // 하단에 추가할 ErrorCode
 import com.boxoffice.user_service.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,20 +42,19 @@ public class UserService {
     @Value("${keycloak.admin.client-id:admin-cli}")
     private String adminClientId;
 
-    /**
-     * 🌟 대망의 회원가입 전체 비즈니스 오케스트레이션 로직
-     */
+    @Value("${keycloak.client-id:boxoffice-app}")
+    private String userClientId; // 우리가 Keycloak에 만든 Public 클라이언트 ID
+
     @Transactional
     public void signUp(UserSignupRequestDto request) {
-        // 1. 우리 서비스 DB 내부 중복 검사 (이메일 검증)
+        // 1. 중복 이메일 검증
         if (userRepository.findByEmailValue(request.getEmail()).isPresent()) {
-            throw new IllegalArgumentException("이미 가입된 이메일 주소입니다.");
+            log.warn("[Signup] 중복 회원가입 시도 차단. Email: {}", request.getEmail());
+            throw new BaseException(UserErrorCode.DUPLICATE_EMAIL);
         }
 
-        // 2. Keycloak 문을 열기 위한 관리자(Admin) Access Token 획득
         String adminAccessToken = getKeycloakAdminToken();
 
-        // 3. Keycloak용 요청 가방 조립 후 계정 생성 호출
         KeycloakUserCreateRequestDto keycloakRequest = new KeycloakUserCreateRequestDto(
                 request.getUsername(),
                 request.getEmail(),
@@ -65,35 +68,39 @@ public class UserService {
                 keycloakRequest
         );
 
-        // 4. Keycloak 생성 결과 분석 및 고유키(sub) 추출
         if (response.getStatusCode().is2xxSuccessful()) {
             String keycloakSub = extractKeycloakSub(response);
-            log.info("[Signup] Keycloak 계정 생성 성공. sub: {}", keycloakSub);
 
-            // 5. 값 객체(Email VO) 및 엔티티 조립
             Email emailVo = new Email(request.getEmail());
             User user = User.builder()
                     .keycloakSub(keycloakSub)
                     .email(emailVo)
                     .name(request.getName())
                     .role(request.getRole())
-                    .status(UserStatus.PENDING) // 기획서대로 가입 직후는 PENDING(대기) 상태!
+                    .status(UserStatus.PENDING)
                     .hubId(request.getHubId())
                     .build();
 
-            // 6. 우리 서비스 PostgreSQL DB에 최종 영속화
             userRepository.save(user);
-            log.info("[Signup] 우리 서비스 DB에 유저 정보 저장 성공. ID: {}", user.getName());
 
+            try {
+                userRepository.save(user);
+                log.info("[Signup] Keycloak 및 DB 유저 생성 완료. Email: {}", request.getEmail());
+            } catch (Exception e) {
+                // DB 저장이 실패했다면, Keycloak에는 유저가 만들어진 채로 붕 뜨게 됩니다.
+                log.error("[CRITICAL_ALERT] DB 저장 실패로 인한 고아 데이터 발생! Keycloak 유저 수동 삭제 필요. Sub: {}, Email: {}", keycloakSub, request.getEmail(), e);
+
+                // TODO (선택사항): 나중에 keycloakClient.deleteUser(adminAccessToken, realm, keycloakSub) API를 뚫어서
+
+                throw new BaseException(CommonErrorCode.INTERNAL_SERVER_ERROR);
+            }
         } else {
-            log.error("[Signup] Keycloak 유저 생성 실패. Status Code: {}", response.getStatusCode());
-            throw new RuntimeException("인증 서버에 사용자 등록을 실패했습니다.");
+            // Keycloak 생성 실패 시
+            log.error("[Signup] Keycloak 유저 생성 실패. Email: {}, StatusCode: {}", request.getEmail(), response.getStatusCode());
+            throw new BaseException(UserErrorCode.KEYCLOAK_USER_CREATE_FAILED);
         }
     }
 
-    /**
-     * 🔑 Keycloak 마스터 권한 토큰을 받아오는 내부 헬퍼 메서드
-     */
     private String getKeycloakAdminToken() {
         Map<String, String> formParams = new HashMap<>();
         formParams.put("client_id", adminClientId);
@@ -105,21 +112,47 @@ public class UserService {
             Map<String, Object> tokenResponse = keycloakClient.getAdminToken(realm, formParams);
             return (String) tokenResponse.get("access_token");
         } catch (Exception e) {
-            log.error("[Keycloak] Admin 토큰 발급 실패: {}", e.getMessage());
-            throw new RuntimeException("인증 서버 관리자 인증에 실패했습니다.");
+            log.error("[Keycloak] Admin 토큰 발급 과정에서 치명적 에러 발생: {}", e.getMessage(), e);
+            throw new BaseException(UserErrorCode.KEYCLOAK_ADMIN_AUTH_FAILED);
         }
     }
 
-    /**
-     * ✂️ Keycloak 응답 헤더(Location)에서 유저의 고유 UUID(sub)를 찢어내는 칼날 메서드
-     */
     private String extractKeycloakSub(ResponseEntity<Void> response) {
         URI location = response.getHeaders().getLocation();
         if (location == null) {
-            throw new IllegalStateException("Keycloak 응답에 Location 헤더가 누락되었습니다.");
+            log.error("[Keycloak] 유저 생성 응답에 Location 헤더가 누락되었습니다.");
+            throw new BaseException(UserErrorCode.KEYCLOAK_LOCATION_HEADER_MISSING);
         }
 
-        String path = location.getPath(); // 예: /admin/realms/boxoffice-realm/users/b7a8d-9999...
-        return path.substring(path.lastIndexOf("/") + 1); // 맨 마지막 슬래시 뒤의 UUID만 쏙 추출
+        String path = location.getPath();
+        return path.substring(path.lastIndexOf("/") + 1);
     }
+
+    /**
+     * 🌟 일반 유저 로그인 로직 (토큰 대리 발급)
+     */
+    public String login(UserLoginRequestDto request) {
+        // 1. Keycloak에 던질 로그인 폼 데이터 조립
+        Map<String, String> formParams = new HashMap<>();
+        formParams.put("client_id", userClientId); // "boxoffice-app"
+        formParams.put("grant_type", "password");
+        formParams.put("username", request.getUsername());
+        formParams.put("password", request.getPassword());
+
+        try {
+            // 2. Keycloak 토큰 발급 API 호출 (관리자 토큰 발급 메서드와 엔드포인트가 완벽히 동일하므로 재활용)
+            Map<String, Object> tokenResponse = keycloakClient.getAdminToken(realm, formParams);
+
+            // 3. 발급된 access_token 추출하여 반환
+            String accessToken = (String) tokenResponse.get("access_token");
+            log.info("[Login] 로그인 성공. 토큰 발급 완료. Username: {}", request.getUsername());
+            return accessToken;
+
+        } catch (Exception e) {
+            // 4. 비밀번호가 틀렸거나 없는 계정이면 Keycloak이 에러를 뱉음
+            log.warn("[Login] 로그인 실패 (자격증명 오류). Username: {}", request.getUsername());
+            throw new BaseException(UserErrorCode.INVALID_CREDENTIALS);
+        }
+    }
+
 }
