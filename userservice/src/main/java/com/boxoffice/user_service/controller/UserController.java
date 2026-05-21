@@ -28,14 +28,14 @@ public class UserController {
 
     private final UserService userService;
 
-    @GetMapping
-    public ResponseEntity<List<Map<String, String>>> getUserList() {
-        List<Map<String, String>> mockUsers = List.of(
-                Map.of("id", "1", "username", "user1", "name", "홍길동", "status", "인증 파이프라인 개통 완료! 🎉")
-        );
-
-        return ResponseEntity.ok(mockUsers);
-    }
+//    @GetMapping
+//    public ResponseEntity<List<Map<String, String>>> getUserList() {
+//        List<Map<String, String>> mockUsers = List.of(
+//                Map.of("id", "1", "username", "user1", "name", "홍길동", "status", "인증 파이프라인 개통 완료! 🎉")
+//        );
+//
+//        return ResponseEntity.ok(mockUsers);
+//    }
 
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<UserResponseDto>> getMyInfo(
@@ -58,4 +58,5 @@ public class UserController {
         Page<UserResponseDto> responseDtoPage = userService.getUserList(pageable);
 
         return ResponseEntity.ok(ApiResponse.success(responseDtoPage));
+    }
 }
