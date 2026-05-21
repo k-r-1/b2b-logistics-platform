@@ -8,10 +8,16 @@ dependencies {
     // Eureka
     implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
 
-    // JPA (전이 안 되므로 각 서비스에 필요)
+    // Web
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+
+    // JPA
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 
-    // Lombok (전이 안 되므로 각 서비스에 필요)
+    // Validation
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+    // Lombok
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
 }
