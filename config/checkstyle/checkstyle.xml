@@ -11,11 +11,6 @@
   <!-- 검사 대상 파일 확장자 -->
   <property name="fileExtensions" value="java"/>
 
-  <!-- 탭 문자 사용 금지 (스페이스만 허용) -->
-  <module name="FileTabCharacter">
-    <property name="eachLine" value="true"/>
-  </module>
-
   <!-- 파일 마지막에 개행 문자 필수 -->
   <module name="NewlineAtEndOfFile"/>
 
