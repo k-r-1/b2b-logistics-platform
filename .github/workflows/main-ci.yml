@@ -123,7 +123,7 @@ jobs:
         if: always()
         shell: bash
         env:
-          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_MAIN_WEBHOOK }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_DEV_WEBHOOK }}
           OUT_COMMON: ${{ needs.detect-changes.outputs.common }}
           OUT_GW: ${{ needs.detect-changes.outputs['api-gateway'] }}
           OUT_DM: ${{ needs.detect-changes.outputs.delivery_manager_service }}
@@ -139,6 +139,12 @@ jobs:
           R_EU: ${{ needs.ci-eureka-server.result }}
           R_US: ${{ needs.ci-user-service.result }}
         run: |
+          # Webhook URL 누락 시 알림 건너뛰기 (CI 실패 방지)
+          if [[ -z "$DISCORD_WEBHOOK_URL" ]]; then
+            echo "⚠️ DISCORD_WEBHOOK_URL이 누락되었습니다. 알림 전송을 건너뜁니다."
+            exit 0
+          fi
+          
           job_emoji() {
             case "$1" in
               success)   echo "✅" ;;
@@ -149,19 +155,34 @@ jobs:
             esac
           }
           
-          # CI 성공/실패 판정
+          # 1. CI 성공/실패 판정 (if문 사용으로 set -e 충돌 방지)
           FAILED=false
           for result in "$R_DETECT" "$R_GW" "$R_DM" "$R_EU" "$R_US"; do
-            [[ "$result" == "failure" || "$result" == "cancelled" ]] && FAILED=true
+            if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
+              FAILED=true
+            fi
           done
           
-          [[ "$FAILED" == "true" ]] \
-            && COLOR=15548997 && TITLE="❌  CI Failed — MAIN CI" \
-            || COLOR=5763719  && TITLE="✅  CI Passed — MAIN CI"
+          if [[ "$FAILED" == "true" ]]; then
+            COLOR=15548997
+            TITLE="❌  CI Failed — Dev CI"
+          else
+            COLOR=5763719
+            TITLE="✅  CI Passed — Dev CI"
+          fi
           
-          # 변경된 서비스 목록
+          # 2. 변경된 서비스 목록 수집
           SERVICES=""
-          append() { [[ "$1" == "true" ]] && SERVICES="${SERVICES:+$SERVICES,}$2"; }
+          append() {
+            if [[ "$1" == "true" ]]; then
+              if [[ -z "$SERVICES" ]]; then
+                SERVICES="$2"
+              else
+                SERVICES="$SERVICES,$2"
+              fi
+            fi
+          }
+          
           append "$OUT_COMMON" "common"
           append "$OUT_GW"     "api-gateway"
           append "$OUT_DM"     "delivery_manager_service"
@@ -171,10 +192,11 @@ jobs:
           if [[ -z "$SERVICES" ]]; then
             SERVICE_LIST="변경된 서비스 없음"
           else
-            SERVICE_LIST=$(echo "$SERVICES" | tr ',' '\n' | sed 's/^/• /' | awk '{printf "%s\\n", $0}' | sed 's/\\n$//')
+            # JSON 포맷에 맞게 이스케이프 및 줄바꿈 처리
+            SERVICE_LIST=$(echo "$SERVICES" | tr ',' '\n' | awk '{printf "• %s\\n", $0}' | sed 's/\\n$//')
           fi
           
-          # Discord 전송
+          # 3. Discord 전송 Payload (변수 쌍따옴표 묶기)
           PAYLOAD=$(cat <<EOF
           {
             "username": "GitHub Actions",
@@ -186,9 +208,9 @@ jobs:
               "fields": [
                 {"name":"📌 PR",           "value":"[${PR_TITLE}](${PR_URL})","inline":false},
                 {"name":"👤 작성자",        "value":"${PR_AUTHOR}",           "inline":true},
-                {"name":"🔀 대상 브랜치",   "value":"main",                    "inline":true},
+                {"name":"🔀 대상 브랜치",   "value":"dev",                    "inline":true},
                 {"name":"📦 변경된 서비스", "value":"${SERVICE_LIST}",        "inline":false},
-                {"name":"📋 Job 결과",      "value":"$(job_emoji $R_DETECT) detect-changes\n$(job_emoji $R_GW) ci-api-gateway\n$(job_emoji $R_DM) ci-delivery-manager\n$(job_emoji $R_EU) ci-eureka-server\n$(job_emoji $R_US) ci-user-service","inline":false}
+                {"name":"📋 Job 결과",      "value":"$(job_emoji "$R_DETECT") detect-changes\n$(job_emoji "$R_GW") ci-api-gateway\n$(job_emoji "$R_DM") ci-delivery-manager\n$(job_emoji "$R_EU") ci-eureka-server\n$(job_emoji "$R_US") ci-user-service","inline":false}
               ],
               "footer":{"text":"Run #${{ github.run_number }} • ${{ github.repository }}"},
               "timestamp":"$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -197,15 +219,21 @@ jobs:
           EOF
           )
           
+          # 4. HTTP API 호출 및 에러 처리
           HTTP_STATUS=$(curl -s -o /tmp/res.txt -w "%{http_code}" \
             -X POST "$DISCORD_WEBHOOK_URL" \
             -H "Content-Type: application/json" \
             -d "$PAYLOAD")
           
           cat /tmp/res.txt
-          [[ "$HTTP_STATUS" -ge 200 && "$HTTP_STATUS" -lt 300 ]] \
-            && echo "Discord 알림 완료" \
-            || { echo "Discord 전송 실패 (HTTP $HTTP_STATUS)"; exit 1; }
+          echo "" # 줄바꿈 확보
+          
+          if [[ "$HTTP_STATUS" -ge 200 && "$HTTP_STATUS" -lt 300 ]]; then
+            echo "✅ Discord 알림 완료"
+          else
+            echo "⚠️ Discord 전송 실패 (HTTP $HTTP_STATUS). 파이프라인을 통과시킵니다."
+            # 알림 실패로 인해 전체 CI가 실패하는 것을 방지하기 위해 exit 1 제거
+          fi
 
       - name: 최종 CI 상태 확인
         run: |
@@ -216,8 +244,14 @@ jobs:
             "${{ needs.ci-delivery-manager.result }}" \
             "${{ needs.ci-eureka-server.result }}" \
             "${{ needs.ci-user-service.result }}"; do
-            [[ "$result" == "failure" || "$result" == "cancelled" ]] && FAILED=true
+            if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
+              FAILED=true
+            fi
           done
-          [[ "$FAILED" == "true" ]] \
-            && { echo "CI 실패 — 코드를 다시 확인해주세요."; exit 1; } \
-            || echo "CI SUCCESS"
+          
+          if [[ "$FAILED" == "true" ]]; then
+            echo "❌ CI 실패 — 코드를 다시 확인해주세요."
+            exit 1
+          else
+            echo "✅ CI SUCCESS"
+          fi
