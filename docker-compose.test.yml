@@ -4,9 +4,9 @@ services:
   postgres:
     image: postgres:15-alpine
     environment:
-      POSTGRES_DB: sparta_logistics      # testdb → 변경
-      POSTGRES_USER: sparta_admin        # testuser → 변경
-      POSTGRES_PASSWORD: password123     # testpass → 변경
+      POSTGRES_DB: sparta_logistics
+      POSTGRES_USER: sparta_admin
+      POSTGRES_PASSWORD: password123
     ports:
       - "5432:5432"
     volumes:
@@ -19,6 +19,7 @@ services:
 
   redis:
     image: redis:7-alpine
+    command: redis-server --save "" --appendoly no
     ports:
       - "6379:6379"
     healthcheck:

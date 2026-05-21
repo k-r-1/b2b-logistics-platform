@@ -14,31 +14,32 @@ concurrency:
   group: ci-main-${{ github.event.pull_request.number }}
   cancel-in-progress: false
 
-env:
-  JAVA_VERSION: '21'
-  GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.parallel=true"
-
+permissions:
+  pull-requests: write
+  contents: read
 
 jobs:
   detect-changes:
-    name: 변경된 서비스를 확인합니다.
+    name: "변경 서비스 감지"
     runs-on: ubuntu-latest
     outputs:
+      # 새 서비스 추가 시 추가 부분 1
       common:                   ${{ steps.filter.outputs.common }}
       api-gateway:              ${{ steps.filter.outputs.api-gateway }}
       delivery_manager_service: ${{ steps.filter.outputs.delivery_manager_service }}
       eureka-server:            ${{ steps.filter.outputs.eureka-server }}
       user-service:             ${{ steps.filter.outputs.user-service }}
-      # 새 서비스 추가 시 outputs 항목을 추가하세요.
 
     steps:
-      - name: 코드 확인
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: '1'
 
-      - name: 변경 경로 확인
+      - name: 변경된 서비스 디렉토리 감지
         uses: dorny/paths-filter@v3
         id: filter
         with:
+          # 새 서비스 추가 시 추가 부분 2
           filters: |
             common:
               - 'common/**'
@@ -51,206 +52,91 @@ jobs:
             user-service:
               - 'user-service/**'
 
-  
 
-  checkstyle:
-    name: 린트 체크 - ${{ matrix.service }}
-    runs-on: ubuntu-latest
+  ci-api-gateway:
     needs: detect-changes
+    uses: ./.github/workflows/_service-ci.yml
+    secrets: inherit
+    permissions:
+      pull-requests: write
+      contents: read
+    with:
+      service: api-gateway
+      changed: ${{ needs.detect-changes.outputs['api-gateway'] }}
+      common-changed: ${{ needs.detect-changes.outputs.common }}
+      run-integration-test: true
 
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - service: api-gateway
-            changed: ${{ needs.detect-changes.outputs['api-gateway'] }}
-          - service: delivery_manager_service
-            changed: ${{ needs.detect-changes.outputs.delivery_manager_service }}
-          - service: eureka-server
-            changed: ${{ needs.detect-changes.outputs['eureka-server'] }}
-          - service: user-service
-            changed: ${{ needs.detect-changes.outputs['user-service'] }}
-          # 새 서비스 추가 시 matrix 항목을 추가하세요.
+  ci-delivery-manager:
+    needs: detect-changes
+    uses: ./.github/workflows/_service-ci.yml
+    secrets: inherit
+    permissions:
+      pull-requests: write
+      contents: read
+    with:
+      service: delivery_manager_service
+      changed: ${{ needs.detect-changes.outputs.delivery_manager_service }}
+      common-changed: ${{ needs.detect-changes.outputs.common }}
+      run-integration-test: true
 
-    steps:
-      - name: 코드 확인
-        uses: actions/checkout@v4
+  ci-eureka-server:
+    needs: detect-changes
+    uses: ./.github/workflows/_service-ci.yml
+    secrets: inherit
+    permissions:
+      pull-requests: write
+      contents: read
+    with:
+      service: eureka-server
+      changed: ${{ needs.detect-changes.outputs['eureka-server'] }}
+      common-changed: ${{ needs.detect-changes.outputs.common }}
+      run-integration-test: true
 
-      - name: Set up Java ${{ env.JAVA_VERSION }}
-        uses: actions/setup-java@v4
-        with:
-          java-version: ${{ env.JAVA_VERSION }}
-          distribution: 'temurin'
-          cache: 'gradle'
-
-      - name: Run Checkstyle
-        if: matrix.changed == 'true' || needs.detect-changes.outputs.common == 'true'
-        run: |
-          ./gradlew :${{ matrix.service }}:checkstyleMain \
-            --no-daemon \
-            --continue \
-            --stacktrace
-
-      - name: Upload Checkstyle report on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: checkstyle-report-${{ matrix.service }}
-          path: ${{ matrix.service }}/build/reports/checkstyle/
-          retention-days: 14
-
-
-  unit-test:
-    name: 단위 테스트 - ${{ matrix.service }}
-    runs-on: ubuntu-latest
-    needs: [detect-changes, checkstyle]
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - service: api-gateway
-            changed: ${{ needs.detect-changes.outputs['api-gateway'] }}
-          - service: delivery_manager_service
-            changed: ${{ needs.detect-changes.outputs.delivery_manager_service }}
-          - service: eureka-server
-            changed: ${{ needs.detect-changes.outputs['eureka-server'] }}
-          - service: user-service
-            changed: ${{ needs.detect-changes.outputs['user-service'] }}
-          # 새 서비스 추가 시 matrix 항목을 추가하세요.
-
-    steps:
-      - name: 코드 확인
-        uses: actions/checkout@v4
-
-      - name: Set up Java ${{ env.JAVA_VERSION }}
-        uses: actions/setup-java@v4
-        with:
-          java-version: ${{ env.JAVA_VERSION }}
-          distribution: 'temurin'
-          cache: 'gradle'
-
-      - name: 단위 테스트 수행
-        if: matrix.changed == 'true' || needs.detect-changes.outputs.common == 'true'
-        run: |
-          ./gradlew :${{ matrix.service }}:test \
-            --no-daemon \
-            -x checkstyleMain \
-            -x checkstyleTest
-          retention-days: 5
-
-      - name: Jacoco 커버리지 결과
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: jacoco-coverage-${{ matrix.service }}
-          path: ${{ matrix.service }}/build/reports/jacoco/test/html/
-          retention-days: 3
-
-      - name: 결과 업로드
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: unit-test-results-${{ matrix.service }}
-          path: ${{ matrix.service }}/build/reports/tests/test/
-          retention-days: 14
-
-  integration-test:
-    name: 통합테스트 (Docker) - ${{ matrix.service }}
-    runs-on: ubuntu-latest
-    needs: [detect-changes, unit-test]
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - service: api-gateway
-            changed: ${{ needs.detect-changes.outputs['api-gateway'] }}
-          - service: delivery_manager_service
-            changed: ${{ needs.detect-changes.outputs.delivery_manager_service }}
-          - service: eureka-server
-            changed: ${{ needs.detect-changes.outputs['eureka-server'] }}
-          - service: user-service
-            changed: ${{ needs.detect-changes.outputs['user-service'] }}
-          # 새 서비스 추가 시 matrix 항목을 추가하세요.
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Java ${{ env.JAVA_VERSION }}
-        uses: actions/setup-java@v4
-        with:
-          java-version: ${{ env.JAVA_VERSION }}
-          distribution: 'temurin'
-          cache: 'gradle'
-
-
-      - name: docker compose 로 헬스 체크
-        if: matrix.changed == 'true' || needs.detect-changes.outputs.common == 'true'
-        run: |
-          docker compose -f docker-compose.test.yml up -d --wait
-          echo "모든 컨테이너가 healthy 합니다 ! "
-
-      # 통합 테스트의 경우 *IntegrationTest 로 컨벤션을 준수해주세요.
-      - name: Run integration tests
-        run: |
-          ./gradlew :${{ matrix.service }}:test \
-            --tests "*IntegrationTest" \
-            --no-daemon \
-            -x checkstyleMain \
-            -x checkstyleTest
-        env:
-          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/testdb
-          SPRING_DATASOURCE_USERNAME: testuser
-          SPRING_DATASOURCE_PASSWORD: testpass
-          SPRING_DATA_REDIS_HOST: localhost
-          SPRING_DATA_REDIS_PORT: 6379
-
-      - name: 결과를 올립니다.
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: integration-test-results-${{ matrix.service }}
-          path: ${{ matrix.service }}/build/reports/tests/test/
-          retention-days: 30
-
-      - name: Docker Compose 제거 중 . . .
-        if: always()
-        run: docker compose -f docker-compose.test.yml down -v
-
+  ci-user-service:
+    needs: detect-changes
+    uses: ./.github/workflows/_service-ci.yml
+    secrets: inherit
+    permissions:
+      pull-requests: write
+      contents: read
+    with:
+      service: user-service
+      changed: ${{ needs.detect-changes.outputs['user-service'] }}
+      common-changed: ${{ needs.detect-changes.outputs.common }}
+      run-integration-test: true
 
 
   ci-result:
-    name: CI 결과지 생성중 ...
+    name: "CI 결과 집계"
     runs-on: ubuntu-latest
     if: always()
     needs:
       - detect-changes
-      - checkstyle
-      - unit-test
-      - integration-test
+      - ci-api-gateway
+      - ci-delivery-manager
+      - ci-eureka-server
+      - ci-user-service
+      # 새 서비스 추가 시 추가 부분 3
 
     steps:
-      - name: Evaluate CI result
+      - name: CI 성공/실패 판정
         id: evaluate
         run: |
-          if [[ \
-            "${{ needs.detect-changes.result }}"   == "failure"   || \
-            "${{ needs.detect-changes.result }}"   == "cancelled" || \
-            "${{ needs.checkstyle.result }}"       == "failure"   || \
-            "${{ needs.checkstyle.result }}"       == "cancelled" || \
-            "${{ needs.unit-test.result }}"        == "failure"   || \
-            "${{ needs.unit-test.result }}"        == "cancelled" || \
-            "${{ needs.integration-test.result }}" == "failure"   || \
-            "${{ needs.integration-test.result }}" == "cancelled" \
-          ]]; then
-            echo "ci_status=failure" >> $GITHUB_OUTPUT
-          else
-            echo "ci_status=success" >> $GITHUB_OUTPUT
-          fi
+          FAILED=false
+          for result in \
+            "${{ needs.detect-changes.result }}" \
+            "${{ needs.ci-api-gateway.result }}" \
+            "${{ needs.ci-delivery-manager.result }}" \
+            "${{ needs.ci-eureka-server.result }}" \
+            "${{ needs.ci-user-service.result }}"; do
+            [[ "$result" == "failure" || "$result" == "cancelled" ]] && FAILED=true
+          done
 
-      - name: Collect changed services
+          [[ "$FAILED" == "true" ]] \
+            && echo "ci_status=failure" >> $GITHUB_OUTPUT \
+            || echo "ci_status=success" >> $GITHUB_OUTPUT
+
+      - name: 변경된 서비스 목록 수집
         id: services
         run: |
           SERVICES=""
@@ -262,11 +148,11 @@ jobs:
           append "${{ needs.detect-changes.outputs.delivery_manager_service }}" "delivery_manager_service"
           append "${{ needs.detect-changes.outputs['eureka-server'] }}"         "eureka-server"
           append "${{ needs.detect-changes.outputs['user-service'] }}"          "user-service"
-          # <PLACEHOLDER> 새 서비스 추가 시 append 줄을 추가하세요.
+          # 새 서비스 추가 시 추가 부분 4
 
           echo "list=${SERVICES:-none}" >> $GITHUB_OUTPUT
 
-      - name: Send Discord notification
+      - name: Discord 알림 전송
         if: always()
         shell: bash
         env:
@@ -278,9 +164,10 @@ jobs:
           PR_URL:       ${{ github.event.pull_request.html_url }}
           RUN_URL:      ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           R_DETECT:     ${{ needs.detect-changes.result }}
-          R_STYLE:      ${{ needs.checkstyle.result }}
-          R_UNIT:       ${{ needs.unit-test.result }}
-          R_INTEGRATION: ${{ needs.integration-test.result }}
+          R_GW:         ${{ needs.ci-api-gateway.result }}
+          R_DM:         ${{ needs.ci-delivery-manager.result }}
+          R_EU:         ${{ needs.ci-eureka-server.result }}
+          R_US:         ${{ needs.ci-user-service.result }}
         run: |
           job_emoji() {
             case "$1" in
@@ -293,26 +180,32 @@ jobs:
           }
 
           [[ "$CI_STATUS" == "success" ]] \
-            && COLOR=5763719 && TITLE="MAIN CI 가 성공했습니다." \
-            || COLOR=15548997 && TITLE="MAIN CI 가 실패했습니다 ❌"
+            && COLOR=5763719  && TITLE="✅  CI Passed — Main CI" \
+            || COLOR=15548997 && TITLE="❌  CI Failed — Main CI"
 
-          if [[ -z "$CHANGED_SVCS" || "$CHANGED_SVCS" == "none" ]]; then
-            SERVICE_LIST="변경된 서비스 없음"
-          else
-            SERVICE_LIST=$(echo "$CHANGED_SVCS" | tr ',' '\n' | sed 's/^/• /' | paste -sd '\n')
-          fi
+          SERVICE_LIST=$(
+            [[ -z "$CHANGED_SVCS" || "$CHANGED_SVCS" == "none" ]] \
+              && echo "변경된 서비스 없음" \
+              || echo "$CHANGED_SVCS" | tr ',' '\n' | sed 's/^/• /' | paste -sd '\n'
+          )
+
+          JOB_RESULTS="\
+          $(job_emoji $R_DETECT) detect-changes\n\
+          $(job_emoji $R_GW) ci-api-gateway\n\
+          $(job_emoji $R_DM) ci-delivery-manager\n\
+          $(job_emoji $R_EU) ci-eureka-server\n\
+          $(job_emoji $R_US) ci-user-service"
 
           FAILED_LINKS=""
-          [[ "$R_DETECT"      == "failure" ]] && FAILED_LINKS="${FAILED_LINKS}• [detect-changes 로그](${RUN_URL})\n"
-          [[ "$R_STYLE"       == "failure" ]] && FAILED_LINKS="${FAILED_LINKS}• [checkstyle 로그](${RUN_URL})\n"
-          [[ "$R_UNIT"        == "failure" ]] && FAILED_LINKS="${FAILED_LINKS}• [unit-test 로그](${RUN_URL})\n"
-          [[ "$R_INTEGRATION" == "failure" ]] && FAILED_LINKS="${FAILED_LINKS}• [integration-test 로그](${RUN_URL})\n"
+          [[ "$R_DETECT" == "failure" ]] && FAILED_LINKS+="• [detect-changes 로그](${RUN_URL})\n"
+          [[ "$R_GW"     == "failure" ]] && FAILED_LINKS+="• [api-gateway 로그](${RUN_URL})\n"
+          [[ "$R_DM"     == "failure" ]] && FAILED_LINKS+="• [delivery-manager 로그](${RUN_URL})\n"
+          [[ "$R_EU"     == "failure" ]] && FAILED_LINKS+="• [eureka-server 로그](${RUN_URL})\n"
+          [[ "$R_US"     == "failure" ]] && FAILED_LINKS+="• [user-service 로그](${RUN_URL})\n"
 
-          if [[ -n "$FAILED_LINKS" ]]; then
+          FAILED_FIELD=""
+          [[ -n "$FAILED_LINKS" ]] && \
             FAILED_FIELD=",{\"name\":\"🔗 실패한 Job 로그\",\"value\":\"${FAILED_LINKS}\",\"inline\":false}"
-          else
-            FAILED_FIELD=""
-          fi
 
           PAYLOAD=$(cat <<EOF
           {
@@ -323,11 +216,11 @@ jobs:
               "url": "${RUN_URL}",
               "color": ${COLOR},
               "fields": [
-                {"name":"📌 PR","value":"[${PR_TITLE}](${PR_URL})","inline":false},
-                {"name":"👤 작성자","value":"${PR_AUTHOR}","inline":true},
-                {"name":"🔀 대상 브랜치","value":"main","inline":true},
-                {"name":"📦 변경된 서비스","value":"${SERVICE_LIST}","inline":false},
-                {"name":"📋 Job 결과","value":"$(job_emoji $R_DETECT) detect-changes\n$(job_emoji $R_STYLE) checkstyle\n$(job_emoji $R_UNIT) unit-test\n$(job_emoji $R_INTEGRATION) integration-test","inline":false}
+                {"name":"📌 PR",           "value":"[${PR_TITLE}](${PR_URL})","inline":false},
+                {"name":"👤 작성자",        "value":"${PR_AUTHOR}",           "inline":true},
+                {"name":"🔀 대상 브랜치",   "value":"main",                   "inline":true},
+                {"name":"📦 변경된 서비스", "value":"${SERVICE_LIST}",        "inline":false},
+                {"name":"📋 Job 결과",      "value":"${JOB_RESULTS}",         "inline":false}
                 ${FAILED_FIELD}
               ],
               "footer":{"text":"Run #${{ github.run_number }} • ${{ github.repository }}"},
@@ -344,11 +237,11 @@ jobs:
 
           cat /tmp/res.txt
           [[ "$HTTP_STATUS" -ge 200 && "$HTTP_STATUS" -lt 300 ]] \
-            && echo "✅ Discord 알림 전송 완료" \
-            || { echo "❌ 전송 실패 (HTTP $HTTP_STATUS)"; exit 1; }
+            && echo "Discord 알림 완료" \
+            || { echo "Discord 전송 실패 (HTTP $HTTP_STATUS)"; exit 1; }
 
-      - name: Final status check
+      - name: 최종 CI 상태 확인
         run: |
           [[ "${{ steps.evaluate.outputs.ci_status }}" == "success" ]] \
-            && echo "CI SUCCESS 🥳" \
-            || { echo "CI가 실패했습니다. 다시 코드를 확인해주세요.😿"; exit 1; }
+            && echo "CI SUCCESS" \
+            || { echo "CI 실패 — 코드를 다시 확인해주세요."; exit 1; }
