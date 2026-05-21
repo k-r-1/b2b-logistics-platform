@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.Locale;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -20,14 +21,15 @@ public class CompanyFacade {
     private final HubValidator hubValidator;
     private final CompanyService companyService;
 
-    public CompanyCreateResponseDto createCompany(CompanyCreateRequestDto request, String userRole) {
-        validateCompanyCreatePermission(userRole);
-        // Feign 기반 허브 검증은 외부 응답 대기 시간이 트랜잭션 범위에 포함되지 않도록 트랜잭션 전에 수행한다.
+    public CompanyCreateResponseDto createCompany(CompanyCreateRequestDto request, String userRole, UUID userHubId) {
+        String normalizedRole = validateCompanyCreatePermission(userRole);
+        validateHubManagerCanCreateCompany(request.getHubId(), normalizedRole, userHubId);
+        // Feign 기반 허브 검증은 외부 응답 대기 시간을 트랜잭션 범위에 포함하지 않도록 트랜잭션 전에 수행한다.
         hubValidator.validateHubActive(request.getHubId());
         return companyService.createCompany(request);
     }
 
-    private void validateCompanyCreatePermission(String userRole) {
+    private String validateCompanyCreatePermission(String userRole) {
         if (userRole == null || userRole.isBlank()) {
             throw new BaseException(CommonErrorCode.UNAUTHORIZED);
         }
@@ -38,6 +40,19 @@ public class CompanyFacade {
                 || ROLE_HUB_MANAGER.equals(normalizedRole);
 
         if (!canCreateCompany) {
+            throw new BaseException(CommonErrorCode.FORBIDDEN);
+        }
+
+        return normalizedRole;
+    }
+
+    private void validateHubManagerCanCreateCompany(UUID requestHubId, String normalizedRole, UUID userHubId) {
+        if (!ROLE_HUB_MANAGER.equals(normalizedRole)) {
+            return;
+        }
+
+        // 허브 관리자는 Gateway가 전달한 담당 허브 ID와 요청 허브 ID가 일치할 때만 업체를 생성할 수 있다.
+        if (userHubId == null || !userHubId.equals(requestHubId)) {
             throw new BaseException(CommonErrorCode.FORBIDDEN);
         }
     }

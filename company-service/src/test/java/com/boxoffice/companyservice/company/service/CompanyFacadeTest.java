@@ -42,26 +42,67 @@ class CompanyFacadeTest {
     @Mock
     private CompanyService companyService;
 
-    @ParameterizedTest(name = "성공 - role={0}이면 Hub 검증 후 업체를 생성한다")
-    @ValueSource(strings = {"MASTER", "HUB_MANAGER", " hub_manager "})
-    void createCompanyWithAllowedRole(String userRole) {
+    @Test
+    @DisplayName("성공 - MASTER는 담당 허브 헤더 없이 업체를 생성한다")
+    void createCompanyWithMasterRole() {
         // given
-        // " hub_manager "는 공백/소문자가 섞인 role도 정규화되어 허용되는지 확인하는 케이스다.
         CompanyCreateRequestDto request = createRequest(UUID.randomUUID());
         CompanyCreateResponseDto expectedResponse = mock(CompanyCreateResponseDto.class);
         when(companyService.createCompany(request)).thenReturn(expectedResponse);
 
         // when
-        CompanyCreateResponseDto response = companyFacade.createCompany(request, userRole);
+        CompanyCreateResponseDto response = companyFacade.createCompany(request, "MASTER", null);
 
         // then
         assertThat(response).isSameAs(expectedResponse);
-        // Facade는 권한 통과 후 Hub 검증을 먼저 하고, 그 다음 저장 서비스로 위임해야 한다.
-        InOrder inOrder = inOrder(hubValidator, companyService);
-        inOrder.verify(hubValidator).validateHubActive(request.getHubId());
-        inOrder.verify(companyService).createCompany(request);
-        // 성공 흐름에서 의도한 두 호출 외에 다른 협력 객체 호출이 없어야 한다.
-        verifyNoMoreInteractions(hubValidator, companyService);
+        verifyCreateOrder(request);
+    }
+
+    @ParameterizedTest(name = "성공 - role={0}이고 담당 허브가 일치하면 업체를 생성한다")
+    @ValueSource(strings = {"HUB_MANAGER", " hub_manager "})
+    void createCompanyWithHubManagerRoleAndSameHub(String userRole) {
+        // given
+        // " hub_manager "는 공백/소문자가 섞인 role도 정규화되어 허용되는지 확인하는 케이스다.
+        UUID hubId = UUID.randomUUID();
+        CompanyCreateRequestDto request = createRequest(hubId);
+        CompanyCreateResponseDto expectedResponse = mock(CompanyCreateResponseDto.class);
+        when(companyService.createCompany(request)).thenReturn(expectedResponse);
+
+        // when
+        CompanyCreateResponseDto response = companyFacade.createCompany(request, userRole, hubId);
+
+        // then
+        assertThat(response).isSameAs(expectedResponse);
+        verifyCreateOrder(request);
+    }
+
+    @Test
+    @DisplayName("실패 - HUB_MANAGER의 담당 허브 헤더가 없으면 업체를 생성할 수 없다")
+    void createCompanyWithHubManagerRoleAndMissingUserHubId() {
+        // given
+        CompanyCreateRequestDto request = createRequest(UUID.randomUUID());
+
+        // when
+        Throwable throwable = catchThrowable(() -> companyFacade.createCompany(request, "HUB_MANAGER", null));
+
+        // then
+        assertForbidden(throwable);
+        verifyNoInteractions(hubValidator, companyService);
+    }
+
+    @Test
+    @DisplayName("실패 - HUB_MANAGER의 담당 허브와 요청 허브가 다르면 업체를 생성할 수 없다")
+    void createCompanyWithHubManagerRoleAndDifferentHub() {
+        // given
+        CompanyCreateRequestDto request = createRequest(UUID.randomUUID());
+        UUID userHubId = UUID.randomUUID();
+
+        // when
+        Throwable throwable = catchThrowable(() -> companyFacade.createCompany(request, "HUB_MANAGER", userHubId));
+
+        // then
+        assertForbidden(throwable);
+        verifyNoInteractions(hubValidator, companyService);
     }
 
     @Test
@@ -76,7 +117,7 @@ class CompanyFacadeTest {
                 .validateHubActive(request.getHubId());
 
         // when
-        Throwable throwable = catchThrowable(() -> companyFacade.createCompany(request, "MASTER"));
+        Throwable throwable = catchThrowable(() -> companyFacade.createCompany(request, "MASTER", null));
 
         // then
         assertThat(throwable).isSameAs(hubException);
@@ -92,7 +133,7 @@ class CompanyFacadeTest {
         CompanyCreateRequestDto request = createRequest(UUID.randomUUID());
 
         // when
-        Throwable throwable = catchThrowable(() -> companyFacade.createCompany(request, null));
+        Throwable throwable = catchThrowable(() -> companyFacade.createCompany(request, null, null));
 
         // then
         assertThat(throwable)
@@ -108,7 +149,7 @@ class CompanyFacadeTest {
         CompanyCreateRequestDto request = createRequest(UUID.randomUUID());
 
         // when
-        Throwable throwable = catchThrowable(() -> companyFacade.createCompany(request, "   "));
+        Throwable throwable = catchThrowable(() -> companyFacade.createCompany(request, "   ", null));
 
         // then
         assertThat(throwable)
@@ -117,25 +158,37 @@ class CompanyFacadeTest {
         verifyNoInteractions(hubValidator, companyService);
     }
 
-    @Test
-    @DisplayName("실패 - DELIVERY_MANAGER는 업체를 생성할 수 없다")
-    void createCompanyWithForbiddenRole() {
+    @ParameterizedTest(name = "실패 - role={0}은 업체를 생성할 수 없다")
+    @ValueSource(strings = {"DELIVERY_MANAGER", "SUPPLIER_MANAGER"})
+    void createCompanyWithForbiddenRole(String userRole) {
         // given
         CompanyCreateRequestDto request = createRequest(UUID.randomUUID());
 
         // when
-        Throwable throwable = catchThrowable(() -> companyFacade.createCompany(request, "DELIVERY_MANAGER"));
+        Throwable throwable = catchThrowable(() -> companyFacade.createCompany(request, userRole, null));
 
         // then
+        assertForbidden(throwable);
+        verifyNoInteractions(hubValidator, companyService);
+    }
+
+    private void verifyCreateOrder(CompanyCreateRequestDto request) {
+        // Facade는 권한과 담당 허브를 먼저 확인한 뒤 Hub 검증, 저장 순서로 진행해야 한다.
+        InOrder inOrder = inOrder(hubValidator, companyService);
+        inOrder.verify(hubValidator).validateHubActive(request.getHubId());
+        inOrder.verify(companyService).createCompany(request);
+        verifyNoMoreInteractions(hubValidator, companyService);
+    }
+
+    private void assertForbidden(Throwable throwable) {
         assertThat(throwable)
                 .isInstanceOfSatisfying(BaseException.class,
                         exception -> assertThat(exception.getErrorCode()).isEqualTo(CommonErrorCode.FORBIDDEN));
-        verifyNoInteractions(hubValidator, companyService);
     }
 
     private CompanyCreateRequestDto createRequest(UUID hubId) {
         CompanyCreateRequestDto request = new CompanyCreateRequestDto();
-        // Request DTO는 setter가 없으므로 Facade 단위 테스트에서 필요한 hubId만 주입한다.
+        // Request DTO는 setter가 없으므로 Facade 단위 테스트에 필요한 hubId만 주입한다.
         ReflectionTestUtils.setField(request, "hubId", hubId);
         return request;
     }

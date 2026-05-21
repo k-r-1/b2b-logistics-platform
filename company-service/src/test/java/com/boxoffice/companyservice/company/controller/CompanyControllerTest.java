@@ -48,7 +48,7 @@ class CompanyControllerTest {
         UUID hubId = UUID.randomUUID();
         CompanyCreateResponseDto response = createResponse(companyId, hubId);
 
-        when(companyFacade.createCompany(any(), eq("MASTER"))).thenReturn(response);
+        when(companyFacade.createCompany(any(), eq("MASTER"), isNull())).thenReturn(response);
 
         String requestBody = createRequestBody(hubId);
 
@@ -62,7 +62,33 @@ class CompanyControllerTest {
                 .andExpect(jsonPath("$.message", is("SUCCESS")))
                 .andExpect(jsonPath("$.data.companyId", is(companyId.toString())));
 
-        verify(companyFacade).createCompany(any(), eq("MASTER"));
+        verify(companyFacade).createCompany(any(), eq("MASTER"), isNull());
+        verifyNoMoreInteractions(companyFacade);
+    }
+
+    @Test
+    @DisplayName("성공 - X-User-Hub-Id 헤더를 Facade로 전달한다")
+    void createCompanyPassesUserHubIdHeader() throws Exception {
+        // given
+        UUID companyId = UUID.randomUUID();
+        UUID hubId = UUID.randomUUID();
+        CompanyCreateResponseDto response = createResponse(companyId, hubId);
+
+        when(companyFacade.createCompany(any(), eq("HUB_MANAGER"), eq(hubId))).thenReturn(response);
+
+        String requestBody = createRequestBody(hubId);
+
+        // when & then
+        mockMvc.perform(post("/api/v1/companies")
+                        .header("X-User-Role", "HUB_MANAGER")
+                        .header("X-User-Hub-Id", hubId.toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status", is(201)))
+                .andExpect(jsonPath("$.data.companyId", is(companyId.toString())));
+
+        verify(companyFacade).createCompany(any(), eq("HUB_MANAGER"), eq(hubId));
         verifyNoMoreInteractions(companyFacade);
     }
 
@@ -72,7 +98,7 @@ class CompanyControllerTest {
         // given
         UUID hubId = UUID.randomUUID();
         // X-User-Role은 required=false로 받고, Facade에서 공통 인증 실패 예외로 변환한다.
-        when(companyFacade.createCompany(any(), isNull()))
+        when(companyFacade.createCompany(any(), isNull(), isNull()))
                 .thenThrow(new BaseException(CommonErrorCode.UNAUTHORIZED));
 
         String requestBody = createRequestBody(hubId);
@@ -85,7 +111,7 @@ class CompanyControllerTest {
                 .andExpect(jsonPath("$.status", is(401)))
                 .andExpect(jsonPath("$.message", is(CommonErrorCode.UNAUTHORIZED.getCode())));
 
-        verify(companyFacade).createCompany(any(), isNull());
+        verify(companyFacade).createCompany(any(), isNull(), isNull());
         verifyNoMoreInteractions(companyFacade);
     }
 

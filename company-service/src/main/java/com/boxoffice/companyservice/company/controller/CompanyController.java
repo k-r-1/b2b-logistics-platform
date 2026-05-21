@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.UUID;
+
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/companies")
@@ -24,9 +26,10 @@ public class CompanyController {
     @PostMapping
     public ResponseEntity<ApiResponse<CompanyCreateResponseDto>> createCompany(
             @RequestHeader(value = "X-User-Role", required = false) String userRole,
+            @RequestHeader(value = "X-User-Hub-Id", required = false) UUID userHubId,
             @Valid @RequestBody CompanyCreateRequestDto request
     ) {
-        CompanyCreateResponseDto response = companyFacade.createCompany(request, userRole);
+        CompanyCreateResponseDto response = companyFacade.createCompany(request, userRole, userHubId);
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
