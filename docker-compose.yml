@@ -10,7 +10,7 @@ services:
       - "5432:5432"
     volumes:
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
-      - postgres_data:/var/lib/postgresql/data
+      - ./docker_data/postgres:/var/lib/postgresql/data
 
   redis-cache:
     image: redis:7-alpine
@@ -72,10 +72,6 @@ services:
     ports:
       - "8089:8080"
     volumes:
-      - keycloak_data:/opt/keycloak/data
+      - ./docker_data/keycloak:/opt/keycloak/data
     depends_on:
       - postgres-db
-
-volumes:
-  postgres_data:
-  keycloak_data:

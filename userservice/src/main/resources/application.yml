@@ -41,3 +41,11 @@ eureka:
   client:
     service-url:
       defaultZone: http://localhost:8761/eureka/
+
+keycloak:
+  url: http://localhost:8089
+  realm: boxoffice-realm
+  admin:
+    username: admin
+    password: boxoffice123
+    client-id: admin-cli

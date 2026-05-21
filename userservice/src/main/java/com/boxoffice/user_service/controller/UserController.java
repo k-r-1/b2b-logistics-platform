@@ -10,6 +10,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/users")
+//: 내 정보 조회, 사용자 목록 검색, 회원 탈퇴 등 관리
 public class UserController {
 
     @GetMapping
