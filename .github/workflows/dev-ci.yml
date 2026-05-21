@@ -189,18 +189,19 @@ jobs:
             && COLOR=5763719  && TITLE="✅  CI Passed — Dev CI" \
             || COLOR=15548997 && TITLE="❌  CI Failed — Dev CI"
 
-          SERVICE_LIST=$(
-            [[ -z "$CHANGED_SVCS" || "$CHANGED_SVCS" == "none" ]] \
-              && echo "변경된 서비스 없음" \
-              || echo "$CHANGED_SVCS" | tr ',' '\n' | sed 's/^/• /' | paste -sd '\n'
-          )
+          if [[ -z "$CHANGED_SVCS" || "$CHANGED_SVCS" == "none" ]]; then
+            SERVICE_LIST="변경된 서비스 없음"
+          else
+            SERVICE_LIST=$(echo "$CHANGED_SVCS" | tr ',' '\n' | sed 's/^/• /' | awk '{printf "%s\\n", $0}' | sed 's/\\n$//')
+          fi
 
-          JOB_RESULTS="\
-          $(job_emoji $R_DETECT) detect-changes\n\
-          $(job_emoji $R_GW) ci-api-gateway\n\
-          $(job_emoji $R_DM) ci-delivery-manager\n\
-          $(job_emoji $R_EU) ci-eureka-server\n\
-          $(job_emoji $R_US) ci-user-service"
+          JOB_RESULTS=$(printf '%s %s\n%s %s\n%s %s\n%s %s\n%s %s' \
+            "$(job_emoji $R_DETECT)" "detect-changes" \
+            "$(job_emoji $R_GW)"     "ci-api-gateway" \
+            "$(job_emoji $R_DM)"     "ci-delivery-manager" \
+            "$(job_emoji $R_EU)"     "ci-eureka-server" \
+            "$(job_emoji $R_US)"     "ci-user-service" \
+            | awk '{printf "%s\\n", $0}' | sed 's/\\n$//')
 
           FAILED_LINKS=""
           [[ "$R_DETECT" == "failure" ]] && FAILED_LINKS+="• [detect-changes 로그](${RUN_URL})\n"
