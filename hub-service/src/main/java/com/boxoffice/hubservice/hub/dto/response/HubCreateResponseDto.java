@@ -9,7 +9,9 @@ import java.util.UUID;
 public record HubCreateResponseDto(
         UUID hubId,
         String name,
+        String zipCode,
         String address,
+        String detailAddress,
         Double latitude,
         Double longitude,
         HubType hubType,
@@ -20,7 +22,9 @@ public record HubCreateResponseDto(
         return new HubCreateResponseDto(
                 hub.getId(),
                 hub.getName(),
+                hub.getAddress().getZipCode(),
                 hub.getAddress().getAddress(),
+                hub.getAddress().getDetailAddress(),
                 hub.getCoordinate().getLatitude(),
                 hub.getCoordinate().getLongitude(),
                 hub.getHubType(),
