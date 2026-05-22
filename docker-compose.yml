@@ -21,13 +21,13 @@ services:
   # ─── 여기 아래부터 우리 애플리케이션 코드를 도커로 연결하는 설정입니다 ───
   
   eureka-server:
-    build: ./eureka-server
+    build: ./eurekaserver
     container_name: boxoffice-eureka
     ports:
       - "8761:8761"
 
   api-gateway:
-    build: ./api-gateway
+    build: ./apigateway
     container_name: boxoffice-gateway
     ports:
       - "8080:8080"
@@ -37,7 +37,7 @@ services:
       - eureka-server
 
   user-service:
-    build: ./user-service
+    build: ./userservice
     container_name: boxoffice-user-service
     ports:
       - "8081:8081"
@@ -64,7 +64,7 @@ services:
 
   # 6. 배송 담당자 서비스
   delivery-manager-service:
-    build: ./delivery_manager_service
+    build: ./deliverymanagerservice
     container_name: boxoffice-delivery-manager
     ports:
       - "8086:8086"
@@ -74,5 +74,23 @@ services:
       - eureka-server
       - postgres-db
 
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0.0
+    container_name: boxoffice-keycloak
+    command: start-dev
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USER}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_HTTP_PORT: 8080
+      KC_HEALTH_ENABLED: "true"
+      KC_METRICS_ENABLED: "true"
+    ports:
+      - "8089:8080"
+    volumes:
+      - keycloak_data:/opt/keycloak/data
+    depends_on:
+      - postgres-db
+
 volumes:
   postgres_data:
+  keycloak_data:

@@ -1,11 +1,9 @@
 plugins {
-	// 하위 프로젝트들이 가져다 쓸 수 있도록 엔진 버전만 먼저 정의해 둡니다 (apply false)
 	id 'org.springframework.boot' version '3.5.14' apply false
 	id 'io.spring.dependency-management' version '1.1.7' apply false
 	id 'java'
 }
 
-// include된 모든 하위 도메인 프로젝트에 공통으로 강제 주입할 설정
 subprojects {
 	apply plugin: 'java'
 	apply plugin: 'org.springframework.boot'
@@ -32,15 +30,10 @@ subprojects {
 	}
 
 	ext {
-		// 모든 서비스가 공유할 스프링 클라우드 버전 축 고정
-		set('springCloudVersion', "2024.0.0")
+		set('springCloudVersion', "2025.0.2")
 	}
 
-	// ★ [핵심] 모든 도메인이 숨만 쉬어도 가지게 될 "공통 의존성" 목록
 	dependencies {
-		compileOnly 'org.projectlombok:lombok'
-		annotationProcessor 'org.projectlombok:lombok'
-
 		testImplementation 'org.springframework.boot:spring-boot-starter-test'
 		testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 	}
