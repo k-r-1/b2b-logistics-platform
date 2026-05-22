@@ -83,7 +83,8 @@ class CompanyFacadeTest {
         verifyCreateOrder(request);
     }
 
-    @ParameterizedTest(name = "성공 - role={0}이고 담당 허브가 일치하면 업체를 생성한다")
+    @DisplayName("성공 - HUB_MANAGER는 담당 허브가 일치하면 업체를 생성한다")
+    @ParameterizedTest(name = "role={0}")
     @ValueSource(strings = {"HUB_MANAGER", " hub_manager "})
     void createCompanyWithHubManagerRoleAndSameHub(String userRole) {
         // given
@@ -183,7 +184,8 @@ class CompanyFacadeTest {
         verifyNoInteractions(hubValidator, companyService);
     }
 
-    @ParameterizedTest(name = "실패 - role={0}은 업체를 생성할 수 없다")
+    @DisplayName("실패 - 업체 생성 권한이 없는 role은 업체를 생성할 수 없다")
+    @ParameterizedTest(name = "role={0}")
     @ValueSource(strings = {"DELIVERY_MANAGER", "SUPPLIER_MANAGER", "UNKNOWN_ROLE"})
     void createCompanyWithForbiddenRole(String userRole) {
         // given
