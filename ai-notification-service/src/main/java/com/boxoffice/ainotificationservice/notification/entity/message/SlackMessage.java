@@ -15,11 +15,13 @@ import java.util.Optional;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.SQLRestriction;
 
 // Slack 메시지 본체. 상태 전이·멱등성·원인 이벤트·발송 시도 횟수를 추적.
 // Recipient/EventCause VO는 컬럼으로 분해 저장(JPA + record @Embeddable 제약).
 @Getter
 @Entity
+@SQLRestriction("deleted_at IS NULL")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(
         name = "slack_message",
