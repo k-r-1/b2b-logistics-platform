@@ -4,6 +4,7 @@ import com.boxoffice.common.exception.BaseException;
 import com.boxoffice.common.exception.CommonErrorCode;
 import com.boxoffice.companyservice.company.dto.request.CompanyCreateRequestDto;
 import com.boxoffice.companyservice.company.dto.response.CompanyCreateResponseDto;
+import com.boxoffice.companyservice.company.dto.response.CompanyResponseDto;
 import com.boxoffice.companyservice.company.exception.CompanyErrorCode;
 import com.boxoffice.companyservice.company.validator.HubValidator;
 import org.junit.jupiter.api.DisplayName;
@@ -192,6 +193,70 @@ class CompanyFacadeTest {
 
         // when
         Throwable throwable = catchThrowable(() -> companyFacade.createCompany(request, userRole, null));
+
+        // then
+        assertForbidden(throwable);
+        verifyNoInteractions(hubValidator, companyService);
+    }
+
+    @ParameterizedTest(name = "성공 - role={0}은 업체 상세 조회가 가능하다")
+    @ValueSource(strings = {"MASTER", "HUB_MANAGER", " hub_manager ", "DELIVERY_MANAGER", "SUPPLIER_MANAGER"})
+    void getCompanyWithReadableRole(String userRole) {
+        // given
+        UUID companyId = UUID.randomUUID();
+        CompanyResponseDto expectedResponse = mock(CompanyResponseDto.class);
+        when(companyService.getCompany(companyId)).thenReturn(expectedResponse);
+
+        // when
+        CompanyResponseDto response = companyFacade.getCompany(companyId, userRole);
+
+        // then
+        assertThat(response).isSameAs(expectedResponse);
+        verify(companyService).getCompany(companyId);
+        verifyNoMoreInteractions(companyService);
+        verifyNoInteractions(hubValidator);
+    }
+
+    @Test
+    @DisplayName("실패 - role 헤더가 없으면 업체 상세 조회를 할 수 없다")
+    void getCompanyWithoutRole() {
+        // given
+        UUID companyId = UUID.randomUUID();
+
+        // when
+        Throwable throwable = catchThrowable(() -> companyFacade.getCompany(companyId, null));
+
+        // then
+        assertThat(throwable)
+                .isInstanceOfSatisfying(BaseException.class,
+                        exception -> assertThat(exception.getErrorCode()).isEqualTo(CommonErrorCode.UNAUTHORIZED));
+        verifyNoInteractions(hubValidator, companyService);
+    }
+
+    @Test
+    @DisplayName("실패 - role 헤더가 공백이면 업체 상세 조회를 할 수 없다")
+    void getCompanyWithBlankRole() {
+        // given
+        UUID companyId = UUID.randomUUID();
+
+        // when
+        Throwable throwable = catchThrowable(() -> companyFacade.getCompany(companyId, "   "));
+
+        // then
+        assertThat(throwable)
+                .isInstanceOfSatisfying(BaseException.class,
+                        exception -> assertThat(exception.getErrorCode()).isEqualTo(CommonErrorCode.UNAUTHORIZED));
+        verifyNoInteractions(hubValidator, companyService);
+    }
+
+    @ParameterizedTest(name = "실패 - role={0}은 업체 상세 조회가 불가능하다")
+    @ValueSource(strings = {"UNKNOWN_ROLE"})
+    void getCompanyWithInvalidRole(String userRole) {
+        // given
+        UUID companyId = UUID.randomUUID();
+
+        // when
+        Throwable throwable = catchThrowable(() -> companyFacade.getCompany(companyId, userRole));
 
         // then
         assertForbidden(throwable);

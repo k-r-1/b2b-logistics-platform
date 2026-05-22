@@ -5,6 +5,7 @@ import com.boxoffice.common.exception.CommonErrorCode;
 import com.boxoffice.companyservice.company.domain.CompanyUserRole;
 import com.boxoffice.companyservice.company.dto.request.CompanyCreateRequestDto;
 import com.boxoffice.companyservice.company.dto.response.CompanyCreateResponseDto;
+import com.boxoffice.companyservice.company.dto.response.CompanyResponseDto;
 import com.boxoffice.companyservice.company.validator.HubValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -27,6 +28,11 @@ public class CompanyFacade {
         return companyService.createCompany(request);
     }
 
+    public CompanyResponseDto getCompany(UUID companyId, String userRoleStr) {
+        validateCompanyReadPermission(userRoleStr);
+        return companyService.getCompany(companyId);
+    }
+
     private void validateCreateRequest(CompanyCreateRequestDto request) {
         if (request == null || request.getHubId() == null) {
             throw new BaseException(CommonErrorCode.INVALID_INPUT);
@@ -46,6 +52,22 @@ public class CompanyFacade {
         }
 
         return role;
+    }
+
+    private void validateCompanyReadPermission(String userRoleStr) {
+        if (userRoleStr == null || userRoleStr.isBlank()) {
+            throw new BaseException(CommonErrorCode.UNAUTHORIZED);
+        }
+
+        CompanyUserRole role = CompanyUserRole.fromString(userRoleStr);
+        boolean canReadCompany = role == CompanyUserRole.MASTER
+                || role == CompanyUserRole.HUB_MANAGER
+                || role == CompanyUserRole.DELIVERY_MANAGER
+                || role == CompanyUserRole.SUPPLIER_MANAGER;
+
+        if (!canReadCompany) {
+            throw new BaseException(CommonErrorCode.FORBIDDEN);
+        }
     }
 
     private void validateHubManagerCanCreateCompany(UUID requestHubId, CompanyUserRole role, UUID userHubId) {
