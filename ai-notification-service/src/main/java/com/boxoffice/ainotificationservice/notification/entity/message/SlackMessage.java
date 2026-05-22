@@ -86,7 +86,7 @@ public class SlackMessage extends BaseEntity {
         this.attemptCount = 0;
     }
 
-    // 직접 발송 API (§3.4). 원인 이벤트 없음.
+    // 직접 발송 API
     public static SlackMessage direct(String idempotencyKey,
             Recipient recipient,
             TemplateType templateType,
@@ -94,7 +94,7 @@ public class SlackMessage extends BaseEntity {
         return new SlackMessage(idempotencyKey, recipient, templateType, body, null);
     }
 
-    // Kafka/외부 이벤트 트리거 (§3.1, §3.3). cause 필수.
+    // Kafka/외부 이벤트 트리거
     public static SlackMessage fromEvent(String idempotencyKey,
             Recipient recipient,
             TemplateType templateType,
@@ -154,6 +154,10 @@ public class SlackMessage extends BaseEntity {
 
     public boolean isTerminal() {
         return status.isTerminal();
+    }
+
+    public boolean canBeRetried() {
+        return status == NotificationStatus.PENDING;
     }
 
     public Recipient recipient() {
