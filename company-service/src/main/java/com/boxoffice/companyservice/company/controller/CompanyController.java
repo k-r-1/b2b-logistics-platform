@@ -19,6 +19,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -55,7 +56,6 @@ public class CompanyController {
         );
 
         Page<CompanyResponseDto> companies = companyFacade.searchCompanies(condition, validPageable, userRole);
-        // 요청 정렬이 있으면 실제 적용값을, 없으면 기본 정렬(createdAt,DESC)을 응답에 표시한다.
         String sort = validPageable.getSort().stream()
                 .findFirst()
                 .map(order -> order.getProperty() + "," + order.getDirection())
@@ -103,4 +103,16 @@ public class CompanyController {
         return ResponseEntity.noContent().build();
     }
 
+    @Operation(summary = "업체 삭제", description = "MASTER 또는 담당 허브 HUB_MANAGER가 업체를 삭제합니다.")
+    @DeleteMapping("/{companyId}")
+    public ResponseEntity<Void> deleteCompany(
+            @RequestHeader(value = "X-User-Role", required = false) String userRole,
+            @RequestHeader(value = "X-User-Hub-Id", required = false) UUID userHubId,
+            @RequestHeader(value = "X-User-Id", required = false) String keycloakSub,
+            @PathVariable("companyId") UUID companyId
+    ) {
+        companyFacade.deleteCompany(companyId, userRole, userHubId, keycloakSub);
+
+        return ResponseEntity.noContent().build();
+    }
 }

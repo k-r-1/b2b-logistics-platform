@@ -78,6 +78,11 @@ public class CompanyService {
         company.update(request.getName(), request.getType(), address);
     }
 
+    @Transactional
+    public void deleteCompany(Company company, UUID deletedBy) {
+        company.softDelete(deletedBy);
+    }
+
     @Transactional(readOnly = true)
     public Page<CompanyResponseDto> searchCompanies(CompanySearchCondition condition, CompanyType type, Pageable pageable) {
         Page<Company> companies = companyRepository.searchCompanies(condition, type, pageable);

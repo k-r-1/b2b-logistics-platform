@@ -37,6 +37,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -319,6 +320,23 @@ class CompanyControllerTest {
                 .andExpect(jsonPath("$.data.companyId", is(companyId.toString())));
 
         verify(companyFacade).createCompany(any(), eq("MASTER"), isNull());
+        verifyNoMoreInteractions(companyFacade);
+    }
+
+    @Test
+    @DisplayName("성공 - 업체 삭제 요청 시 Facade로 삭제 요청을 전달하고 204를 반환한다")
+    void deleteCompanyReturnsNoContent() throws Exception {
+        UUID companyId = UUID.randomUUID();
+        UUID userHubId = UUID.randomUUID();
+        String keycloakSub = UUID.randomUUID().toString();
+
+        mockMvc.perform(delete("/api/v1/companies/{companyId}", companyId)
+                        .header("X-User-Role", "MASTER")
+                        .header("X-User-Hub-Id", userHubId.toString())
+                        .header("X-User-Id", keycloakSub))
+                .andExpect(status().isNoContent());
+
+        verify(companyFacade).deleteCompany(companyId, "MASTER", userHubId, keycloakSub);
         verifyNoMoreInteractions(companyFacade);
     }
 
