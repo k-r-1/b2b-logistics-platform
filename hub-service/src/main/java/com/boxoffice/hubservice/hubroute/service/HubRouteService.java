@@ -15,6 +15,7 @@ import com.boxoffice.hubservice.hubroute.entity.HubRoute;
 import com.boxoffice.hubservice.hubroute.repository.HubRouteRepository;
 import com.querydsl.core.BooleanBuilder;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.AuditorAware;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -35,6 +36,7 @@ public class HubRouteService {
 
     private final HubRouteRepository hubRouteRepository;
     private final HubRepository hubRepository;
+    private final AuditorAware<UUID> auditorAware;
 
     @Transactional
     public HubRouteCreateResponseDto createHubRoute(HubRouteCreateRequestDto request) {
@@ -120,5 +122,13 @@ public class HubRouteService {
                 .orElseThrow(() -> new BaseException(HubErrorCode.HUB_NOT_FOUND));
 
         return HubRouteGetResponseDto.from(route, originHub, destinationHub);
+    }
+
+    @Transactional
+    public void deleteHubRoute(UUID routeId) {
+        HubRoute route = hubRouteRepository.findById(routeId)
+                .orElseThrow(() -> new BaseException(HubErrorCode.HUB_ROUTE_NOT_FOUND));
+        UUID deletedBy = auditorAware.getCurrentAuditor().orElse(null);
+        route.softDelete(deletedBy);
     }
 }
