@@ -12,6 +12,7 @@ import com.boxoffice.hubservice.hubroute.dto.request.HubRouteCreateRequestDto;
 import com.boxoffice.hubservice.hubroute.dto.request.HubRouteUpdateRequestDto;
 import com.boxoffice.hubservice.hubroute.dto.response.HubRouteCreateResponseDto;
 import com.boxoffice.hubservice.hubroute.dto.response.HubRouteGetResponseDto;
+import com.boxoffice.hubservice.hubroute.dto.response.HubRoutePathResponseDto;
 import com.boxoffice.hubservice.hubroute.entity.HubRoute;
 import com.boxoffice.hubservice.hubroute.repository.HubRouteRepository;
 import org.junit.jupiter.api.DisplayName;
@@ -576,4 +577,447 @@ class HubRouteServiceTest {
                         .isEqualTo(HubErrorCode.HUB_ROUTE_NOT_FOUND));
     }
 
+    @Test
+    @DisplayName("직접 경로 존재 시 1구간 반환 성공")
+    void calculatePath_directRoute_success() {
+        // given
+        Hub origin = buildHub("서울특별시 센터", HubType.REGIONAL);
+        Hub destination = buildHub("인천광역시 센터", HubType.REGIONAL);
+        HubRoute directRoute = buildSavedRoute(origin.getId(), destination.getId());
+
+        given(hubRepository.findById(origin.getId())).willReturn(Optional.of(origin));
+        given(hubRepository.findById(destination.getId())).willReturn(Optional.of(destination));
+        given(hubRouteRepository.findByOriginHubIdAndDestinationHubId(origin.getId(), destination.getId()))
+                .willReturn(Optional.of(directRoute));
+
+        // when
+        HubRoutePathResponseDto result = hubRouteService.calculatePath(origin.getId(), destination.getId());
+
+        // then
+        assertThat(result.segments()).hasSize(1);
+        assertThat(result.segments().get(0).sequence()).isEqualTo(1);
+        assertThat(result.originHub().hubId()).isEqualTo(origin.getId());
+        assertThat(result.destinationHub().hubId()).isEqualTo(destination.getId());
+        assertThat(result.totalDurationMin()).isEqualTo(120);
+        verify(hubRepository, never()).findAllByHubType(any());
+    }
+
+    @Test
+    @DisplayName("같은 그룹 REGIONAL → REGIONAL Hub&Spoke 경로 계산 성공 (2구간)")
+    void calculatePath_sameGroupRegionalToRegional_success() {
+        // given
+        Hub central = buildHub("경기남부 센터", HubType.CENTRAL);
+        Hub origin = buildHub("서울특별시 센터", HubType.REGIONAL);
+        Hub destination = buildHub("인천광역시 센터", HubType.REGIONAL);
+        HubRoute routeOriginToCentral = buildSavedRoute(origin.getId(), central.getId());
+        HubRoute routeDestToCentral = buildSavedRoute(destination.getId(), central.getId());
+        HubRoute routeCentralToDest = buildSavedRoute(central.getId(), destination.getId());
+
+        given(hubRepository.findById(origin.getId())).willReturn(Optional.of(origin));
+        given(hubRepository.findById(destination.getId())).willReturn(Optional.of(destination));
+        given(hubRouteRepository.findByOriginHubIdAndDestinationHubId(origin.getId(), destination.getId()))
+                .willReturn(Optional.empty());
+        given(hubRepository.findAllByHubType(HubType.CENTRAL)).willReturn(List.of(central));
+        given(hubRouteRepository.findAllByOriginHubId(origin.getId()))
+                .willReturn(List.of(routeOriginToCentral));
+        given(hubRepository.findById(central.getId())).willReturn(Optional.of(central));
+        given(hubRouteRepository.findAllByOriginHubId(destination.getId()))
+                .willReturn(List.of(routeDestToCentral));
+        given(hubRouteRepository.findByOriginHubIdAndDestinationHubId(origin.getId(), central.getId()))
+                .willReturn(Optional.of(routeOriginToCentral));
+        given(hubRouteRepository.findByOriginHubIdAndDestinationHubId(central.getId(), destination.getId()))
+                .willReturn(Optional.of(routeCentralToDest));
+        given(hubRepository.findAllById(any())).willReturn(List.of(origin, central, destination));
+
+        // when
+        HubRoutePathResponseDto result = hubRouteService.calculatePath(origin.getId(), destination.getId());
+
+        // then
+        assertThat(result.segments()).hasSize(2);
+        assertThat(result.segments().get(0).sequence()).isEqualTo(1);
+        assertThat(result.segments().get(0).originHub().hubId()).isEqualTo(origin.getId());
+        assertThat(result.segments().get(0).destinationHub().hubId()).isEqualTo(central.getId());
+        assertThat(result.segments().get(1).sequence()).isEqualTo(2);
+        assertThat(result.segments().get(1).originHub().hubId()).isEqualTo(central.getId());
+        assertThat(result.segments().get(1).destinationHub().hubId()).isEqualTo(destination.getId());
+        assertThat(result.totalDurationMin()).isEqualTo(240);
+    }
+
+    @Test
+    @DisplayName("다른 그룹 REGIONAL → REGIONAL Hub&Spoke 경로 계산 성공 (3구간)")
+    void calculatePath_differentGroupRegionalToRegional_success() {
+        // given
+        Hub central1 = buildHub("경기남부 센터", HubType.CENTRAL);
+        Hub central2 = buildHub("대구광역시 센터", HubType.CENTRAL);
+        Hub origin = buildHub("서울특별시 센터", HubType.REGIONAL);
+        Hub destination = buildHub("부산광역시 센터", HubType.REGIONAL);
+        HubRoute routeOriginToCentral1 = buildSavedRoute(origin.getId(), central1.getId());
+        HubRoute routeDestToCentral2 = buildSavedRoute(destination.getId(), central2.getId());
+        HubRoute routeCentral1ToCentral2 = buildSavedRoute(central1.getId(), central2.getId());
+        HubRoute routeCentral2ToDest = buildSavedRoute(central2.getId(), destination.getId());
+
+        given(hubRepository.findById(origin.getId())).willReturn(Optional.of(origin));
+        given(hubRepository.findById(destination.getId())).willReturn(Optional.of(destination));
+        given(hubRouteRepository.findByOriginHubIdAndDestinationHubId(origin.getId(), destination.getId()))
+                .willReturn(Optional.empty());
+        given(hubRepository.findAllByHubType(HubType.CENTRAL)).willReturn(List.of(central1, central2));
+        given(hubRouteRepository.findAllByOriginHubId(origin.getId()))
+                .willReturn(List.of(routeOriginToCentral1));
+        given(hubRepository.findById(central1.getId())).willReturn(Optional.of(central1));
+        given(hubRouteRepository.findAllByOriginHubId(destination.getId()))
+                .willReturn(List.of(routeDestToCentral2));
+        given(hubRepository.findById(central2.getId())).willReturn(Optional.of(central2));
+        given(hubRouteRepository.findByOriginHubIdAndDestinationHubId(origin.getId(), central1.getId()))
+                .willReturn(Optional.of(routeOriginToCentral1));
+        given(hubRouteRepository.findByOriginHubIdAndDestinationHubId(central1.getId(), central2.getId()))
+                .willReturn(Optional.of(routeCentral1ToCentral2));
+        given(hubRouteRepository.findByOriginHubIdAndDestinationHubId(central2.getId(), destination.getId()))
+                .willReturn(Optional.of(routeCentral2ToDest));
+        given(hubRepository.findAllById(any())).willReturn(List.of(origin, central1, central2, destination));
+
+        // when
+        HubRoutePathResponseDto result = hubRouteService.calculatePath(origin.getId(), destination.getId());
+
+        // then
+        assertThat(result.segments()).hasSize(3);
+        assertThat(result.segments().get(0).originHub().hubId()).isEqualTo(origin.getId());
+        assertThat(result.segments().get(0).destinationHub().hubId()).isEqualTo(central1.getId());
+        assertThat(result.segments().get(1).originHub().hubId()).isEqualTo(central1.getId());
+        assertThat(result.segments().get(1).destinationHub().hubId()).isEqualTo(central2.getId());
+        assertThat(result.segments().get(2).originHub().hubId()).isEqualTo(central2.getId());
+        assertThat(result.segments().get(2).destinationHub().hubId()).isEqualTo(destination.getId());
+        assertThat(result.totalDurationMin()).isEqualTo(360);
+    }
+
+    @Test
+    @DisplayName("REGIONAL → 자신의 CENTRAL 경로 계산 성공 (1구간)")
+    void calculatePath_regionalToOwnCentral_success() {
+        // given
+        Hub central = buildHub("경기남부 센터", HubType.CENTRAL);
+        Hub origin = buildHub("서울특별시 센터", HubType.REGIONAL);
+        HubRoute routeOriginToCentral = buildSavedRoute(origin.getId(), central.getId());
+
+        given(hubRepository.findById(origin.getId())).willReturn(Optional.of(origin));
+        given(hubRepository.findById(central.getId())).willReturn(Optional.of(central));
+        // 직접 경로 없음 → 두 번째 호출(구간 조립)에서 반환
+        given(hubRouteRepository.findByOriginHubIdAndDestinationHubId(origin.getId(), central.getId()))
+                .willReturn(Optional.empty())
+                .willReturn(Optional.of(routeOriginToCentral));
+        given(hubRepository.findAllByHubType(HubType.CENTRAL)).willReturn(List.of(central));
+        given(hubRouteRepository.findAllByOriginHubId(origin.getId()))
+                .willReturn(List.of(routeOriginToCentral));
+        given(hubRepository.findAllById(any())).willReturn(List.of(origin, central));
+
+        // when
+        HubRoutePathResponseDto result = hubRouteService.calculatePath(origin.getId(), central.getId());
+
+        // then
+        assertThat(result.segments()).hasSize(1);
+        assertThat(result.segments().get(0).originHub().hubId()).isEqualTo(origin.getId());
+        assertThat(result.segments().get(0).destinationHub().hubId()).isEqualTo(central.getId());
+    }
+
+    @Test
+    @DisplayName("CENTRAL → 같은 그룹 REGIONAL 경로 계산 성공 (1구간)")
+    void calculatePath_centralToOwnGroupRegional_success() {
+        // given
+        Hub central = buildHub("경기남부 센터", HubType.CENTRAL);
+        Hub destination = buildHub("서울특별시 센터", HubType.REGIONAL);
+        HubRoute routeCentralToDest = buildSavedRoute(central.getId(), destination.getId());
+        HubRoute routeDestToCentral = buildSavedRoute(destination.getId(), central.getId());
+
+        given(hubRepository.findById(central.getId())).willReturn(Optional.of(central));
+        given(hubRepository.findById(destination.getId())).willReturn(Optional.of(destination));
+        // 직접 경로 없음 → 두 번째 호출(구간 조립)에서 반환
+        given(hubRouteRepository.findByOriginHubIdAndDestinationHubId(central.getId(), destination.getId()))
+                .willReturn(Optional.empty())
+                .willReturn(Optional.of(routeCentralToDest));
+        given(hubRepository.findAllByHubType(HubType.CENTRAL)).willReturn(List.of(central));
+        given(hubRouteRepository.findAllByOriginHubId(destination.getId()))
+                .willReturn(List.of(routeDestToCentral));
+        given(hubRepository.findAllById(any())).willReturn(List.of(central, destination));
+
+        // when
+        HubRoutePathResponseDto result = hubRouteService.calculatePath(central.getId(), destination.getId());
+
+        // then
+        assertThat(result.segments()).hasSize(1);
+        assertThat(result.segments().get(0).originHub().hubId()).isEqualTo(central.getId());
+        assertThat(result.segments().get(0).destinationHub().hubId()).isEqualTo(destination.getId());
+    }
+
+    @Test
+    @DisplayName("CENTRAL → 다른 그룹 REGIONAL 경로 계산 성공 (2구간)")
+    void calculatePath_centralToDifferentGroupRegional_success() {
+        // given
+        Hub central1 = buildHub("경기남부 센터", HubType.CENTRAL);
+        Hub central2 = buildHub("대구광역시 센터", HubType.CENTRAL);
+        Hub destination = buildHub("부산광역시 센터", HubType.REGIONAL);
+        HubRoute routeDestToCentral2 = buildSavedRoute(destination.getId(), central2.getId());
+        HubRoute routeCentral1ToCentral2 = buildSavedRoute(central1.getId(), central2.getId());
+        HubRoute routeCentral2ToDest = buildSavedRoute(central2.getId(), destination.getId());
+
+        given(hubRepository.findById(central1.getId())).willReturn(Optional.of(central1));
+        given(hubRepository.findById(destination.getId())).willReturn(Optional.of(destination));
+        given(hubRouteRepository.findByOriginHubIdAndDestinationHubId(central1.getId(), destination.getId()))
+                .willReturn(Optional.empty());
+        given(hubRepository.findAllByHubType(HubType.CENTRAL)).willReturn(List.of(central1, central2));
+        given(hubRouteRepository.findAllByOriginHubId(destination.getId()))
+                .willReturn(List.of(routeDestToCentral2));
+        given(hubRepository.findById(central2.getId())).willReturn(Optional.of(central2));
+        given(hubRouteRepository.findByOriginHubIdAndDestinationHubId(central1.getId(), central2.getId()))
+                .willReturn(Optional.of(routeCentral1ToCentral2));
+        given(hubRouteRepository.findByOriginHubIdAndDestinationHubId(central2.getId(), destination.getId()))
+                .willReturn(Optional.of(routeCentral2ToDest));
+        given(hubRepository.findAllById(any())).willReturn(List.of(central1, central2, destination));
+
+        // when
+        HubRoutePathResponseDto result = hubRouteService.calculatePath(central1.getId(), destination.getId());
+
+        // then
+        assertThat(result.segments()).hasSize(2);
+        assertThat(result.segments().get(0).originHub().hubId()).isEqualTo(central1.getId());
+        assertThat(result.segments().get(0).destinationHub().hubId()).isEqualTo(central2.getId());
+        assertThat(result.segments().get(1).originHub().hubId()).isEqualTo(central2.getId());
+        assertThat(result.segments().get(1).destinationHub().hubId()).isEqualTo(destination.getId());
+        assertThat(result.totalDurationMin()).isEqualTo(240);
+    }
+
+    @Test
+    @DisplayName("CENTRAL → CENTRAL Hub&Spoke 경로 계산 성공 (1구간)")
+    void calculatePath_centralToCentral_success() {
+        // given
+        Hub central1 = buildHub("경기남부 센터", HubType.CENTRAL);
+        Hub central2 = buildHub("대구광역시 센터", HubType.CENTRAL);
+        HubRoute routeCentral1ToCentral2 = buildSavedRoute(central1.getId(), central2.getId());
+
+        given(hubRepository.findById(central1.getId())).willReturn(Optional.of(central1));
+        given(hubRepository.findById(central2.getId())).willReturn(Optional.of(central2));
+        given(hubRouteRepository.findByOriginHubIdAndDestinationHubId(central1.getId(), central2.getId()))
+                .willReturn(Optional.empty())
+                .willReturn(Optional.of(routeCentral1ToCentral2));
+        given(hubRepository.findAllByHubType(HubType.CENTRAL)).willReturn(List.of(central1, central2));
+        given(hubRepository.findAllById(any())).willReturn(List.of(central1, central2));
+
+        // when
+        HubRoutePathResponseDto result = hubRouteService.calculatePath(central1.getId(), central2.getId());
+
+        // then
+        assertThat(result.segments()).hasSize(1);
+        assertThat(result.segments().get(0).originHub().hubId()).isEqualTo(central1.getId());
+        assertThat(result.segments().get(0).destinationHub().hubId()).isEqualTo(central2.getId());
+        assertThat(result.originHub().hubId()).isEqualTo(central1.getId());
+        assertThat(result.destinationHub().hubId()).isEqualTo(central2.getId());
+    }
+
+    // ====== calculatePath 실패 케이스 ======
+
+    @Test
+    @DisplayName("출발 허브와 도착 허브가 같으면 예외 발생")
+    void calculatePath_sameHub_throwsException() {
+        // given
+        UUID hubId = UUID.randomUUID();
+
+        // when & then
+        assertThatThrownBy(() -> hubRouteService.calculatePath(hubId, hubId))
+                .isInstanceOf(BaseException.class)
+                .satisfies(e -> assertThat(((BaseException) e).getErrorCode())
+                        .isEqualTo(HubErrorCode.SAME_HUB_PATH));
+        verify(hubRepository, never()).findById(any());
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 출발 허브 경로 계산 시 예외 발생")
+    void calculatePath_originNotFound_throwsException() {
+        // given
+        UUID originId = UUID.randomUUID();
+        UUID destinationId = UUID.randomUUID();
+        given(hubRepository.findById(originId)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> hubRouteService.calculatePath(originId, destinationId))
+                .isInstanceOf(BaseException.class)
+                .satisfies(e -> assertThat(((BaseException) e).getErrorCode())
+                        .isEqualTo(HubErrorCode.HUB_NOT_FOUND));
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 도착 허브 경로 계산 시 예외 발생")
+    void calculatePath_destinationNotFound_throwsException() {
+        // given
+        Hub origin = buildHub("서울특별시 센터", HubType.REGIONAL);
+        UUID destinationId = UUID.randomUUID();
+        given(hubRepository.findById(origin.getId())).willReturn(Optional.of(origin));
+        given(hubRepository.findById(destinationId)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> hubRouteService.calculatePath(origin.getId(), destinationId))
+                .isInstanceOf(BaseException.class)
+                .satisfies(e -> assertThat(((BaseException) e).getErrorCode())
+                        .isEqualTo(HubErrorCode.HUB_NOT_FOUND));
+    }
+
+    @Test
+    @DisplayName("INACTIVE 출발 허브 경로 계산 시 예외 발생")
+    void calculatePath_originInactive_throwsException() {
+        // given
+        Hub origin = buildHub("폐쇄 센터", HubType.REGIONAL);
+        origin.startClosing("종료");
+        origin.deactivate();
+        Hub destination = buildHub("부산광역시 센터", HubType.REGIONAL);
+        given(hubRepository.findById(origin.getId())).willReturn(Optional.of(origin));
+        given(hubRepository.findById(destination.getId())).willReturn(Optional.of(destination));
+
+        // when & then
+        assertThatThrownBy(() -> hubRouteService.calculatePath(origin.getId(), destination.getId()))
+                .isInstanceOf(BaseException.class)
+                .satisfies(e -> assertThat(((BaseException) e).getErrorCode())
+                        .isEqualTo(HubErrorCode.HUB_INACTIVE_IN_PATH));
+    }
+
+    @Test
+    @DisplayName("CLOSING 출발 허브 경로 계산 시 예외 발생")
+    void calculatePath_originClosing_throwsException() {
+        // given
+        Hub origin = buildHub("마감 예정 센터", HubType.REGIONAL);
+        origin.startClosing("마감");
+        Hub destination = buildHub("부산광역시 센터", HubType.REGIONAL);
+        given(hubRepository.findById(origin.getId())).willReturn(Optional.of(origin));
+        given(hubRepository.findById(destination.getId())).willReturn(Optional.of(destination));
+
+        // when & then
+        assertThatThrownBy(() -> hubRouteService.calculatePath(origin.getId(), destination.getId()))
+                .isInstanceOf(BaseException.class)
+                .satisfies(e -> assertThat(((BaseException) e).getErrorCode())
+                        .isEqualTo(HubErrorCode.HUB_INACTIVE_IN_PATH));
+    }
+
+    @Test
+    @DisplayName("INACTIVE 도착 허브 경로 계산 시 예외 발생")
+    void calculatePath_destinationInactive_throwsException() {
+        // given
+        Hub origin = buildHub("서울특별시 센터", HubType.REGIONAL);
+        Hub destination = buildHub("폐쇄 센터", HubType.REGIONAL);
+        destination.startClosing("종료");
+        destination.deactivate();
+        given(hubRepository.findById(origin.getId())).willReturn(Optional.of(origin));
+        given(hubRepository.findById(destination.getId())).willReturn(Optional.of(destination));
+
+        // when & then
+        assertThatThrownBy(() -> hubRouteService.calculatePath(origin.getId(), destination.getId()))
+                .isInstanceOf(BaseException.class)
+                .satisfies(e -> assertThat(((BaseException) e).getErrorCode())
+                        .isEqualTo(HubErrorCode.HUB_INACTIVE_IN_PATH));
+    }
+
+    @Test
+    @DisplayName("CLOSING 도착 허브 경로 계산 시 예외 발생")
+    void calculatePath_destinationClosing_throwsException() {
+        // given
+        Hub origin = buildHub("서울특별시 센터", HubType.REGIONAL);
+        Hub destination = buildHub("마감 예정 센터", HubType.REGIONAL);
+        destination.startClosing("마감");
+        given(hubRepository.findById(origin.getId())).willReturn(Optional.of(origin));
+        given(hubRepository.findById(destination.getId())).willReturn(Optional.of(destination));
+
+        // when & then
+        assertThatThrownBy(() -> hubRouteService.calculatePath(origin.getId(), destination.getId()))
+                .isInstanceOf(BaseException.class)
+                .satisfies(e -> assertThat(((BaseException) e).getErrorCode())
+                        .isEqualTo(HubErrorCode.HUB_INACTIVE_IN_PATH));
+    }
+
+    @Test
+    @DisplayName("출발 허브에서 중앙 허브로 가는 경로 없을 때 예외 발생")
+    void calculatePath_noRouteFromOriginToCentral_throwsException() {
+        // given
+        Hub central = buildHub("경기남부 센터", HubType.CENTRAL);
+        Hub origin = buildHub("서울특별시 센터", HubType.REGIONAL);
+        Hub destination = buildHub("인천광역시 센터", HubType.REGIONAL);
+
+        given(hubRepository.findById(origin.getId())).willReturn(Optional.of(origin));
+        given(hubRepository.findById(destination.getId())).willReturn(Optional.of(destination));
+        given(hubRouteRepository.findByOriginHubIdAndDestinationHubId(origin.getId(), destination.getId()))
+                .willReturn(Optional.empty());
+        given(hubRepository.findAllByHubType(HubType.CENTRAL)).willReturn(List.of(central));
+        given(hubRouteRepository.findAllByOriginHubId(origin.getId()))
+                .willReturn(Collections.emptyList()); // CENTRAL로 가는 경로 없음
+
+        // when & then
+        assertThatThrownBy(() -> hubRouteService.calculatePath(origin.getId(), destination.getId()))
+                .isInstanceOf(BaseException.class)
+                .satisfies(e -> assertThat(((BaseException) e).getErrorCode())
+                        .isEqualTo(HubErrorCode.HUB_ROUTE_NOT_FOUND));
+    }
+
+    @Test
+    @DisplayName("중앙 허브 간 경로 없을 때 예외 발생")
+    void calculatePath_noRouteBetweenCentrals_throwsException() {
+        // given
+        Hub central1 = buildHub("경기남부 센터", HubType.CENTRAL);
+        Hub central2 = buildHub("대구광역시 센터", HubType.CENTRAL);
+        Hub origin = buildHub("서울특별시 센터", HubType.REGIONAL);
+        Hub destination = buildHub("부산광역시 센터", HubType.REGIONAL);
+        HubRoute routeOriginToCentral1 = buildSavedRoute(origin.getId(), central1.getId());
+        HubRoute routeDestToCentral2 = buildSavedRoute(destination.getId(), central2.getId());
+
+        given(hubRepository.findById(origin.getId())).willReturn(Optional.of(origin));
+        given(hubRepository.findById(destination.getId())).willReturn(Optional.of(destination));
+        given(hubRouteRepository.findByOriginHubIdAndDestinationHubId(origin.getId(), destination.getId()))
+                .willReturn(Optional.empty());
+        given(hubRepository.findAllByHubType(HubType.CENTRAL)).willReturn(List.of(central1, central2));
+        given(hubRouteRepository.findAllByOriginHubId(origin.getId()))
+                .willReturn(List.of(routeOriginToCentral1));
+        given(hubRepository.findById(central1.getId())).willReturn(Optional.of(central1));
+        given(hubRouteRepository.findAllByOriginHubId(destination.getId()))
+                .willReturn(List.of(routeDestToCentral2));
+        given(hubRepository.findById(central2.getId())).willReturn(Optional.of(central2));
+        given(hubRouteRepository.findByOriginHubIdAndDestinationHubId(origin.getId(), central1.getId()))
+                .willReturn(Optional.of(routeOriginToCentral1));
+        given(hubRouteRepository.findByOriginHubIdAndDestinationHubId(central1.getId(), central2.getId()))
+                .willReturn(Optional.empty()); // 중앙 허브 간 경로 없음
+
+        // when & then
+        assertThatThrownBy(() -> hubRouteService.calculatePath(origin.getId(), destination.getId()))
+                .isInstanceOf(BaseException.class)
+                .satisfies(e -> assertThat(((BaseException) e).getErrorCode())
+                        .isEqualTo(HubErrorCode.HUB_ROUTE_NOT_FOUND));
+    }
+
+    @Test
+    @DisplayName("도착 중앙 허브에서 도착 허브로 가는 경로 없을 때 예외 발생")
+    void calculatePath_noRouteFromCentralToDestination_throwsException() {
+        // given
+        Hub central1 = buildHub("경기남부 센터", HubType.CENTRAL);
+        Hub central2 = buildHub("대구광역시 센터", HubType.CENTRAL);
+        Hub origin = buildHub("서울특별시 센터", HubType.REGIONAL);
+        Hub destination = buildHub("부산광역시 센터", HubType.REGIONAL);
+        HubRoute routeOriginToCentral1 = buildSavedRoute(origin.getId(), central1.getId());
+        HubRoute routeDestToCentral2 = buildSavedRoute(destination.getId(), central2.getId());
+        HubRoute routeCentral1ToCentral2 = buildSavedRoute(central1.getId(), central2.getId());
+
+        given(hubRepository.findById(origin.getId())).willReturn(Optional.of(origin));
+        given(hubRepository.findById(destination.getId())).willReturn(Optional.of(destination));
+        given(hubRouteRepository.findByOriginHubIdAndDestinationHubId(origin.getId(), destination.getId()))
+                .willReturn(Optional.empty());
+        given(hubRepository.findAllByHubType(HubType.CENTRAL)).willReturn(List.of(central1, central2));
+        given(hubRouteRepository.findAllByOriginHubId(origin.getId()))
+                .willReturn(List.of(routeOriginToCentral1));
+        given(hubRepository.findById(central1.getId())).willReturn(Optional.of(central1));
+        given(hubRouteRepository.findAllByOriginHubId(destination.getId()))
+                .willReturn(List.of(routeDestToCentral2));
+        given(hubRepository.findById(central2.getId())).willReturn(Optional.of(central2));
+        given(hubRouteRepository.findByOriginHubIdAndDestinationHubId(origin.getId(), central1.getId()))
+                .willReturn(Optional.of(routeOriginToCentral1));
+        given(hubRouteRepository.findByOriginHubIdAndDestinationHubId(central1.getId(), central2.getId()))
+                .willReturn(Optional.of(routeCentral1ToCentral2));
+        given(hubRouteRepository.findByOriginHubIdAndDestinationHubId(central2.getId(), destination.getId()))
+                .willReturn(Optional.empty()); // 도착 CENTRAL → 도착 허브 경로 없음
+
+        // when & then
+        assertThatThrownBy(() -> hubRouteService.calculatePath(origin.getId(), destination.getId()))
+                .isInstanceOf(BaseException.class)
+                .satisfies(e -> assertThat(((BaseException) e).getErrorCode())
+                        .isEqualTo(HubErrorCode.HUB_ROUTE_NOT_FOUND));
+    }
 }
