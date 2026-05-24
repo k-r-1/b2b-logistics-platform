@@ -21,6 +21,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import com.querydsl.core.types.Predicate;
+import org.springframework.data.domain.AuditorAware;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -50,6 +51,9 @@ class HubRouteServiceTest {
 
     @Mock
     private HubRepository hubRepository;
+
+    @Mock
+    private AuditorAware<UUID> auditorAware;
 
     private Hub buildHub(String name, HubType hubType) {
         Hub hub = Hub.builder()
@@ -542,4 +546,34 @@ class HubRouteServiceTest {
                 .satisfies(e -> assertThat(((BaseException) e).getErrorCode())
                         .isEqualTo(HubErrorCode.HUB_NOT_FOUND));
     }
+
+    @Test
+    @DisplayName("허브 경로 삭제 성공")
+    void deleteHubRoute_success() {
+        // given
+        HubRoute route = buildSavedRoute(UUID.randomUUID(), UUID.randomUUID());
+        given(hubRouteRepository.findById(route.getId())).willReturn(Optional.of(route));
+        given(auditorAware.getCurrentAuditor()).willReturn(Optional.empty());
+
+        hubRouteService.deleteHubRoute(route.getId());
+
+        assertThat(route.isDeleted()).isTrue();
+        assertThat(route.getDeletedAt()).isNotNull();
+        assertThat(route.getDeletedBy()).isNull();
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 경로 삭제 시 예외 발생")
+    void deleteHubRoute_routeNotFound_throwsException() {
+        // given
+        UUID routeId = UUID.randomUUID();
+        given(hubRouteRepository.findById(routeId)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> hubRouteService.deleteHubRoute(routeId))
+                .isInstanceOf(BaseException.class)
+                .satisfies(e -> assertThat(((BaseException) e).getErrorCode())
+                        .isEqualTo(HubErrorCode.HUB_ROUTE_NOT_FOUND));
+    }
+
 }
