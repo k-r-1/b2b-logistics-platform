@@ -2,6 +2,7 @@ package com.boxoffice.hubservice.hubroute.service;
 
 import com.boxoffice.common.entity.AddressVO;
 import com.boxoffice.common.exception.BaseException;
+import com.boxoffice.common.response.PageResponse;
 import com.boxoffice.hubservice.exception.HubErrorCode;
 import com.boxoffice.hubservice.hub.entity.CoordinateVO;
 import com.boxoffice.hubservice.hub.entity.Hub;
@@ -9,6 +10,7 @@ import com.boxoffice.hubservice.hub.entity.HubType;
 import com.boxoffice.hubservice.hub.repository.HubRepository;
 import com.boxoffice.hubservice.hubroute.dto.request.HubRouteCreateRequestDto;
 import com.boxoffice.hubservice.hubroute.dto.response.HubRouteCreateResponseDto;
+import com.boxoffice.hubservice.hubroute.dto.response.HubRouteGetResponseDto;
 import com.boxoffice.hubservice.hubroute.entity.HubRoute;
 import com.boxoffice.hubservice.hubroute.repository.HubRouteRepository;
 import org.junit.jupiter.api.DisplayName;
@@ -17,10 +19,15 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import com.querydsl.core.types.Predicate;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -260,5 +267,160 @@ class HubRouteServiceTest {
                 .satisfies(e -> assertThat(((BaseException) e).getErrorCode())
                         .isEqualTo(HubErrorCode.HUB_INACTIVE_IN_PATH));
         verify(hubRouteRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("허브 경로 단건 조회 성공")
+    void getHubRoute_success() {
+        // given
+        Hub origin = buildHub("서울특별시 센터", HubType.CENTRAL);
+        Hub destination = buildHub("대전광역시 센터", HubType.REGIONAL);
+        HubRoute route = buildSavedRoute(origin.getId(), destination.getId());
+        UUID routeId = route.getId();
+
+        given(hubRouteRepository.findById(routeId)).willReturn(Optional.of(route));
+        given(hubRepository.findById(origin.getId())).willReturn(Optional.of(origin));
+        given(hubRepository.findById(destination.getId())).willReturn(Optional.of(destination));
+
+        // when
+        HubRouteGetResponseDto response = hubRouteService.getHubRoute(routeId);
+
+        // then
+        assertThat(response.routeId()).isEqualTo(routeId);
+        assertThat(response.originHub().hubId()).isEqualTo(origin.getId());
+        assertThat(response.destinationHub().hubId()).isEqualTo(destination.getId());
+        assertThat(response.estimatedDurationMin()).isEqualTo(120);
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 경로 단건 조회 시 예외 발생")
+    void getHubRoute_routeNotFound_throwsException() {
+        // given
+        UUID routeId = UUID.randomUUID();
+        given(hubRouteRepository.findById(routeId)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> hubRouteService.getHubRoute(routeId))
+                .isInstanceOf(BaseException.class)
+                .satisfies(e -> assertThat(((BaseException) e).getErrorCode())
+                        .isEqualTo(HubErrorCode.HUB_ROUTE_NOT_FOUND));
+        verify(hubRepository, never()).findById(any());
+    }
+
+    @Test
+    @DisplayName("출발 허브가 삭제된 경우 단건 조회 시 예외 발생")
+    void getHubRoute_originHubNotFound_throwsException() {
+        // given
+        Hub destination = buildHub("대전광역시 센터", HubType.REGIONAL);
+        UUID originId = UUID.randomUUID();
+        HubRoute route = buildSavedRoute(originId, destination.getId());
+
+        given(hubRouteRepository.findById(route.getId())).willReturn(Optional.of(route));
+        given(hubRepository.findById(originId)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> hubRouteService.getHubRoute(route.getId()))
+                .isInstanceOf(BaseException.class)
+                .satisfies(e -> assertThat(((BaseException) e).getErrorCode())
+                        .isEqualTo(HubErrorCode.HUB_NOT_FOUND));
+    }
+
+    @Test
+    @DisplayName("도착 허브가 삭제된 경우 단건 조회 시 예외 발생")
+    void getHubRoute_destinationHubNotFound_throwsException() {
+        // given
+        Hub origin = buildHub("서울특별시 센터", HubType.CENTRAL);
+        UUID destinationId = UUID.randomUUID();
+        HubRoute route = buildSavedRoute(origin.getId(), destinationId);
+
+        given(hubRouteRepository.findById(route.getId())).willReturn(Optional.of(route));
+        given(hubRepository.findById(origin.getId())).willReturn(Optional.of(origin));
+        given(hubRepository.findById(destinationId)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> hubRouteService.getHubRoute(route.getId()))
+                .isInstanceOf(BaseException.class)
+                .satisfies(e -> assertThat(((BaseException) e).getErrorCode())
+                        .isEqualTo(HubErrorCode.HUB_NOT_FOUND));
+    }
+
+    @Test
+    @DisplayName("허브 경로 목록 조회 - 필터 없음")
+    void getHubRoutes_noFilter_returnsAll() {
+        // given
+        Hub origin = buildHub("서울특별시 센터", HubType.CENTRAL);
+        Hub destination = buildHub("대전광역시 센터", HubType.REGIONAL);
+        HubRoute route = buildSavedRoute(origin.getId(), destination.getId());
+
+        given(hubRouteRepository.findAll(any(Predicate.class), any(Pageable.class)))
+                .willReturn(new PageImpl<>(List.of(route)));
+        given(hubRepository.findAllById(any()))
+                .willReturn(List.of(origin, destination));
+
+        // when
+        PageResponse<HubRouteGetResponseDto> response = hubRouteService.getHubRoutes(null, null, 0, 10);
+
+        // then
+        assertThat(response.getContent()).hasSize(1);
+        assertThat(response.getContent().get(0).originHub().hubId()).isEqualTo(origin.getId());
+        assertThat(response.getContent().get(0).destinationHub().hubId()).isEqualTo(destination.getId());
+    }
+
+    @Test
+    @DisplayName("허브 경로 목록 조회 - 출발 허브 필터 적용")
+    void getHubRoutes_filteredByOriginHubId() {
+        // given
+        Hub origin = buildHub("서울특별시 센터", HubType.CENTRAL);
+        Hub destination = buildHub("대전광역시 센터", HubType.REGIONAL);
+        HubRoute route = buildSavedRoute(origin.getId(), destination.getId());
+
+        given(hubRouteRepository.findAll(any(Predicate.class), any(Pageable.class)))
+                .willReturn(new PageImpl<>(List.of(route)));
+        given(hubRepository.findAllById(any()))
+                .willReturn(List.of(origin, destination));
+
+        // when
+        PageResponse<HubRouteGetResponseDto> response = hubRouteService.getHubRoutes(origin.getId(), null, 0, 10);
+
+        // then
+        assertThat(response.getContent()).hasSize(1);
+        assertThat(response.getContent().get(0).originHub().hubId()).isEqualTo(origin.getId());
+    }
+
+    @Test
+    @DisplayName("허브 경로 목록 조회 - 도착 허브 필터 적용")
+    void getHubRoutes_filteredByDestinationHubId() {
+        // given
+        Hub origin = buildHub("서울특별시 센터", HubType.CENTRAL);
+        Hub destination = buildHub("대전광역시 센터", HubType.REGIONAL);
+        HubRoute route = buildSavedRoute(origin.getId(), destination.getId());
+
+        given(hubRouteRepository.findAll(any(Predicate.class), any(Pageable.class)))
+                .willReturn(new PageImpl<>(List.of(route)));
+        given(hubRepository.findAllById(any()))
+                .willReturn(List.of(origin, destination));
+
+        // when
+        PageResponse<HubRouteGetResponseDto> response = hubRouteService.getHubRoutes(null, destination.getId(), 0, 10);
+
+        // then
+        assertThat(response.getContent()).hasSize(1);
+        assertThat(response.getContent().get(0).destinationHub().hubId()).isEqualTo(destination.getId());
+    }
+
+    @Test
+    @DisplayName("허브 경로 목록 조회 - 결과 없음")
+    void getHubRoutes_emptyResult() {
+        // given
+        given(hubRouteRepository.findAll(any(Predicate.class), any(Pageable.class)))
+                .willReturn(new PageImpl<>(Collections.emptyList()));
+        given(hubRepository.findAllById(any()))
+                .willReturn(Collections.emptyList());
+
+        // when
+        PageResponse<HubRouteGetResponseDto> response = hubRouteService.getHubRoutes(null, null, 0, 10);
+
+        // then
+        assertThat(response.getContent()).isEmpty();
     }
 }
