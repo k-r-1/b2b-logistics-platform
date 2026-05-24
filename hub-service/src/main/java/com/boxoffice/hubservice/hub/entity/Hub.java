@@ -34,8 +34,8 @@ public class Hub extends BaseEntity {
     @Column(name = "manager_id")
     private UUID managerId;
 
-    @Column(name = "deleted_reason", length = 500)
-    private String deletedReason;
+    @Column(name = "closing_reason", length = 500)
+    private String closingReason;
 
     @Builder
     private Hub(String name, AddressVO address, CoordinateVO coordinate, HubType hubType) {
@@ -55,10 +55,18 @@ public class Hub extends BaseEntity {
         this.managerId = managerId;
     }
 
+    public void startClosing(String reason) {
+        this.hubType = HubType.CLOSING;
+        this.closingReason = reason;
+    }
+
+    public boolean isClosing() {
+        return this.hubType == HubType.CLOSING;
+    }
+
     // p_hub_routes는 여기서 삭제하지 않음. 진행 중 배송 완료 후 DELETE 2단계에서 처리
-    public void deactivate(String reason) {
+    public void deactivate() {
         this.hubType = HubType.INACTIVE;
-        this.deletedReason = reason;
     }
 
     public boolean isInactive() {
