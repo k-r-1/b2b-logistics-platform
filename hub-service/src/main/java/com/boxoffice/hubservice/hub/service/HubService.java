@@ -147,4 +147,25 @@ public class HubService {
         hub.deactivate();
         return HubDeactivateResponseDto.from(hub);
     }
+
+    public HubGetResponseDto getActiveHub(UUID hubId) {
+        Hub hub = hubRepository.findById(hubId)
+                .orElseThrow(() -> new BaseException(HubErrorCode.HUB_NOT_FOUND));
+        if (hub.isInactive()) {
+            throw new BaseException(HubErrorCode.HUB_INACTIVE);
+        }
+        if (hub.isClosing()) {
+            throw new BaseException(HubErrorCode.HUB_CLOSING);
+        }
+        return HubGetResponseDto.from(hub);
+    }
+
+    @Transactional
+    @CacheEvict(cacheNames = "hub", key = "#hubId")
+    public HubGetResponseDto assignManager(UUID hubId, UUID managerId) {
+        Hub hub = hubRepository.findById(hubId)
+                .orElseThrow(() -> new BaseException(HubErrorCode.HUB_NOT_FOUND));
+        hub.assignManager(managerId);
+        return HubGetResponseDto.from(hub);
+    }
 }
