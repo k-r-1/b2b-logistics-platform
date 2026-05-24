@@ -5,6 +5,7 @@ import com.boxoffice.common.exception.CommonErrorCode;
 import com.boxoffice.common.response.ApiResponse;
 import com.boxoffice.common.response.PageResponse;
 import com.boxoffice.hubservice.hubroute.dto.request.HubRouteCreateRequestDto;
+import com.boxoffice.hubservice.hubroute.dto.request.HubRouteUpdateRequestDto;
 import com.boxoffice.hubservice.hubroute.dto.response.HubRouteCreateResponseDto;
 import com.boxoffice.hubservice.hubroute.dto.response.HubRouteGetResponseDto;
 import com.boxoffice.hubservice.hubroute.service.HubRouteService;
@@ -53,4 +54,18 @@ public class HubRouteController {
         return ResponseEntity.ok(ApiResponse.success(
                 hubRouteService.getHubRoutes(originHubId, destinationHubId, page, size)));
     }
+
+    @PatchMapping("/{routeId}")
+    public ResponseEntity<ApiResponse<HubRouteGetResponseDto>> updateHubRoute(
+            @RequestHeader("X-User-Role") String role,
+            @PathVariable UUID routeId,
+            @Valid
+            @RequestBody HubRouteUpdateRequestDto request
+    ) {
+        if (!"MASTER".equals(role)) {
+            throw new BaseException(CommonErrorCode.FORBIDDEN);
+        }
+        return ResponseEntity.ok(ApiResponse.success(hubRouteService.updateHubRoute(routeId, request)));
+    }
+
 }
