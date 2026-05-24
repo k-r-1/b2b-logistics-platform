@@ -54,6 +54,7 @@ class HubServiceTest {
         assertThat(response.name()).isEqualTo("서울특별시 센터");
         assertThat(response.hubType()).isEqualTo(HubType.REGIONAL);
         assertThat(response.latitude()).isEqualTo(37.4956);
+        assertThat(response.createdBy()).isNull();
         verify(hubRepository).save(any(Hub.class));
     }
 

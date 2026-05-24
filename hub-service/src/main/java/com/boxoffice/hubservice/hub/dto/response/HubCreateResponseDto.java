@@ -16,7 +16,8 @@ public record HubCreateResponseDto(
         Double longitude,
         HubType hubType,
         UUID managerId,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        UUID createdBy
 ) {
     public static HubCreateResponseDto from(Hub hub) {
         return new HubCreateResponseDto(
@@ -29,7 +30,8 @@ public record HubCreateResponseDto(
                 hub.getCoordinate().getLongitude(),
                 hub.getHubType(),
                 hub.getManagerId(),
-                hub.getCreatedAt()
+                hub.getCreatedAt(),
+                hub.getCreatedBy()
         );
     }
 }
