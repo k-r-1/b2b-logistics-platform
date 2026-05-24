@@ -5,6 +5,7 @@ import com.boxoffice.common.response.PageResponse;
 import com.boxoffice.common.util.PageableUtils;
 import com.boxoffice.hubservice.exception.HubErrorCode;
 import com.boxoffice.hubservice.hub.entity.Hub;
+import com.boxoffice.hubservice.hubroute.dto.request.HubRouteUpdateRequestDto;
 import com.boxoffice.hubservice.hubroute.entity.QHubRoute;
 import com.boxoffice.hubservice.hub.repository.HubRepository;
 import com.boxoffice.hubservice.hubroute.dto.request.HubRouteCreateRequestDto;
@@ -100,5 +101,24 @@ public class HubRouteService {
                         hubMap.get(r.getOriginHubId()),
                         hubMap.get(r.getDestinationHubId()))
         ));
+    }
+
+    @Transactional
+    public HubRouteGetResponseDto updateHubRoute(UUID routeId, HubRouteUpdateRequestDto request) {
+        HubRoute route = hubRouteRepository.findById(routeId)
+                .orElseThrow(() -> new BaseException(HubErrorCode.HUB_ROUTE_NOT_FOUND));
+
+        BigDecimal distanceKm = request.estimatedDistanceKm() != null
+                ? BigDecimal.valueOf(request.estimatedDistanceKm())
+                : null;
+
+        route.update(request.estimatedDurationMin(), distanceKm);
+
+        Hub originHub = hubRepository.findById(route.getOriginHubId())
+                .orElseThrow(() -> new BaseException(HubErrorCode.HUB_NOT_FOUND));
+        Hub destinationHub = hubRepository.findById(route.getDestinationHubId())
+                .orElseThrow(() -> new BaseException(HubErrorCode.HUB_NOT_FOUND));
+
+        return HubRouteGetResponseDto.from(route, originHub, destinationHub);
     }
 }
