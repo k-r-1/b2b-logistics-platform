@@ -2,9 +2,15 @@ package com.boxoffice.companyservice.company.service;
 
 import com.boxoffice.common.exception.BaseException;
 import com.boxoffice.common.exception.CommonErrorCode;
+import com.boxoffice.companyservice.company.client.UserClient;
+import com.boxoffice.companyservice.company.client.dto.UserResponseDto;
+import com.boxoffice.companyservice.company.client.dto.UserResponseWrapperDto;
 import com.boxoffice.companyservice.company.dto.request.CompanyCreateRequestDto;
+import com.boxoffice.companyservice.company.dto.request.CompanyUpdateRequestDto;
 import com.boxoffice.companyservice.company.dto.response.CompanyCreateResponseDto;
 import com.boxoffice.companyservice.company.dto.response.CompanyResponseDto;
+import com.boxoffice.companyservice.company.entity.Company;
+import com.boxoffice.companyservice.company.entity.CompanyType;
 import com.boxoffice.companyservice.company.exception.CompanyErrorCode;
 import com.boxoffice.companyservice.company.validator.HubValidator;
 import org.junit.jupiter.api.DisplayName;
@@ -25,6 +31,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
+import java.lang.reflect.Constructor;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.Mockito.doThrow;
@@ -44,6 +51,9 @@ class CompanyFacadeTest {
 
     @Mock
     private HubValidator hubValidator;
+
+    @Mock
+    private UserClient userClient;
 
     @Mock
     private CompanyService companyService;
@@ -336,6 +346,136 @@ class CompanyFacadeTest {
         verifyNoInteractions(hubValidator, companyService);
     }
 
+    @Test
+    @DisplayName("성공 - MASTER는 업체를 수정할 수 있다")
+    void updateCompanyWithMasterRole() {
+        // given
+        UUID companyId = UUID.randomUUID();
+        UUID hubId = UUID.randomUUID();
+        Company company = createCompany(companyId, UUID.randomUUID());
+        CompanyUpdateRequestDto request = createUpdateRequest("수정 업체", CompanyType.RECEIVER, hubId);
+
+        when(companyService.getCompanyEntity(companyId)).thenReturn(company);
+
+        // when
+        companyFacade.updateCompany(companyId, request, "MASTER", null, null);
+
+        // then
+        verify(companyService).getCompanyEntity(companyId);
+        verify(hubValidator).validateHubActive(hubId);
+        verify(companyService).updateCompany(company, request);
+        verifyNoMoreInteractions(hubValidator, userClient, companyService);
+    }
+
+    @Test
+    @DisplayName("실패 - DELIVERY_MANAGER는 업체를 수정할 수 없다")
+    void updateCompanyWithDeliveryManagerRole() {
+        // given
+        UUID companyId = UUID.randomUUID();
+        Company company = createCompany(companyId, UUID.randomUUID());
+        CompanyUpdateRequestDto request = createUpdateRequest("수정 업체", null, null);
+
+        when(companyService.getCompanyEntity(companyId)).thenReturn(company);
+
+        // when
+        Throwable throwable = catchThrowable(() ->
+                companyFacade.updateCompany(companyId, request, "DELIVERY_MANAGER", null, null)
+        );
+
+        // then
+        assertForbidden(throwable);
+        verify(companyService).getCompanyEntity(companyId);
+        verifyNoMoreInteractions(companyService);
+        verifyNoInteractions(hubValidator, userClient);
+    }
+
+    @Test
+    @DisplayName("실패 - 존재하지 않거나 삭제된 업체는 수정할 수 없다")
+    void updateCompanyWithUnknownCompanyIdThrowsNotFound() {
+        // given
+        UUID companyId = UUID.randomUUID();
+        CompanyUpdateRequestDto request = createUpdateRequest("수정 업체", null, null);
+
+        when(companyService.getCompanyEntity(companyId))
+                .thenThrow(new BaseException(CompanyErrorCode.COMPANY_NOT_FOUND));
+
+        // when
+        Throwable throwable = catchThrowable(() ->
+                companyFacade.updateCompany(companyId, request, "MASTER", null, null)
+        );
+
+        // then
+        assertThat(throwable)
+                .isInstanceOfSatisfying(BaseException.class,
+                        exception -> assertThat(exception.getErrorCode()).isEqualTo(CompanyErrorCode.COMPANY_NOT_FOUND));
+        verify(companyService).getCompanyEntity(companyId);
+        verifyNoMoreInteractions(companyService);
+        verifyNoInteractions(hubValidator, userClient);
+    }
+
+    @Test
+    @DisplayName("실패 - HUB_MANAGER는 담당 허브가 아닌 업체를 수정할 수 없다")
+    void updateCompanyWithHubManagerRoleAndDifferentCompanyHub() {
+        // given
+        UUID companyId = UUID.randomUUID();
+        Company company = createCompany(companyId, UUID.randomUUID());
+        CompanyUpdateRequestDto request = createUpdateRequest("수정 업체", null, null);
+
+        when(companyService.getCompanyEntity(companyId)).thenReturn(company);
+
+        // when
+        Throwable throwable = catchThrowable(() ->
+                companyFacade.updateCompany(companyId, request, "HUB_MANAGER", UUID.randomUUID(), null)
+        );
+
+        // then
+        assertForbidden(throwable);
+        verify(companyService).getCompanyEntity(companyId);
+        verifyNoMoreInteractions(companyService);
+        verifyNoInteractions(hubValidator, userClient);
+    }
+
+    @Test
+    @DisplayName("성공 - SUPPLIER_MANAGER는 본인 업체를 수정할 수 있다")
+    void updateCompanyWithSupplierManagerRoleAndOwnCompany() {
+        // given
+        UUID companyId = UUID.randomUUID();
+        String keycloakSub = UUID.randomUUID().toString();
+        Company company = createCompany(companyId, UUID.randomUUID());
+        CompanyUpdateRequestDto request = createUpdateRequest("수정 업체", null, null);
+        UserResponseWrapperDto userResponse = createUserResponse(companyId);
+
+        when(companyService.getCompanyEntity(companyId)).thenReturn(company);
+        when(userClient.getUserByKeycloakSub(keycloakSub)).thenReturn(userResponse);
+
+        // when
+        companyFacade.updateCompany(companyId, request, "SUPPLIER_MANAGER", null, keycloakSub);
+
+        // then
+        verify(companyService).getCompanyEntity(companyId);
+        verify(userClient).getUserByKeycloakSub(keycloakSub);
+        verify(companyService).updateCompany(company, request);
+        verifyNoMoreInteractions(userClient, companyService);
+        verifyNoInteractions(hubValidator);
+    }
+
+    @Test
+    @DisplayName("실패 - 수정할 필드가 없으면 입력값 오류로 처리한다")
+    void updateCompanyWithoutUpdateField() {
+        // given
+        UUID companyId = UUID.randomUUID();
+        CompanyUpdateRequestDto request = createUpdateRequest(null, null, null);
+
+        // when
+        Throwable throwable = catchThrowable(() ->
+                companyFacade.updateCompany(companyId, request, "MASTER", null, null)
+        );
+
+        // then
+        assertInvalidInput(throwable);
+        verifyNoInteractions(hubValidator, userClient, companyService);
+    }
+
     private void verifyCreateOrder(CompanyCreateRequestDto request) {
         // Facade는 권한과 담당 허브를 먼저 확인한 뒤 Hub 검증, 저장 순서로 진행해야 한다.
         InOrder inOrder = inOrder(hubValidator, companyService);
@@ -361,5 +501,44 @@ class CompanyFacadeTest {
         ReflectionTestUtils.setField(request, "hubId", hubId);
         ReflectionTestUtils.setField(request, "managerUserId", UUID.randomUUID());
         return request;
+    }
+    private Company createCompany(UUID companyId, UUID hubId) {
+        Company company = Company.create(
+                "기존 업체",
+                CompanyType.SUPPLIER,
+                hubId,
+                null
+        );
+        ReflectionTestUtils.setField(company, "id", companyId);
+        return company;
+    }
+
+    private CompanyUpdateRequestDto createUpdateRequest(String name, CompanyType type, UUID hubId) {
+        CompanyUpdateRequestDto request = createEmptyUpdateRequest();
+        ReflectionTestUtils.setField(request, "name", name);
+        ReflectionTestUtils.setField(request, "type", type);
+        ReflectionTestUtils.setField(request, "hubId", hubId);
+        return request;
+    }
+
+    private CompanyUpdateRequestDto createEmptyUpdateRequest() {
+        try {
+            Constructor<CompanyUpdateRequestDto> constructor = CompanyUpdateRequestDto.class.getDeclaredConstructor();
+            constructor.setAccessible(true);
+            return constructor.newInstance();
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException("CompanyUpdateRequestDto 테스트 객체를 생성할 수 없습니다.", e);
+        }
+    }
+
+    private UserResponseWrapperDto createUserResponse(UUID companyId) {
+        UserResponseDto user = new UserResponseDto();
+        ReflectionTestUtils.setField(user, "companyId", companyId);
+
+        UserResponseWrapperDto response = new UserResponseWrapperDto();
+        ReflectionTestUtils.setField(response, "status", 200);
+        ReflectionTestUtils.setField(response, "message", "SUCCESS");
+        ReflectionTestUtils.setField(response, "data", user);
+        return response;
     }
 }

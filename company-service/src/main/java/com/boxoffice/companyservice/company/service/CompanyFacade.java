@@ -3,10 +3,14 @@ package com.boxoffice.companyservice.company.service;
 import com.boxoffice.common.exception.BaseException;
 import com.boxoffice.common.exception.CommonErrorCode;
 import com.boxoffice.companyservice.company.domain.CompanyUserRole;
+import com.boxoffice.companyservice.company.client.UserClient;
+import com.boxoffice.companyservice.company.client.dto.UserResponseWrapperDto;
 import com.boxoffice.companyservice.company.dto.request.CompanyCreateRequestDto;
+import com.boxoffice.companyservice.company.dto.request.CompanyUpdateRequestDto;
 import com.boxoffice.companyservice.company.dto.response.CompanyCreateResponseDto;
 import com.boxoffice.companyservice.company.dto.response.CompanyResponseDto;
 import com.boxoffice.companyservice.company.dto.search.CompanySearchCondition;
+import com.boxoffice.companyservice.company.entity.Company;
 import com.boxoffice.companyservice.company.entity.CompanyType;
 import com.boxoffice.companyservice.company.validator.HubValidator;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +25,7 @@ import java.util.UUID;
 public class CompanyFacade {
 
     private final HubValidator hubValidator;
+    private final UserClient userClient;
     private final CompanyService companyService;
 
     public CompanyCreateResponseDto createCompany(CompanyCreateRequestDto request, String userRoleStr, UUID userHubId) {
@@ -52,8 +57,29 @@ public class CompanyFacade {
         return companyService.searchCompanies(condition, parsedType, pageable);
     }
 
+    public void updateCompany(UUID companyId, CompanyUpdateRequestDto request, String userRoleStr, UUID userHubId, String keycloakSub) {
+        validateUpdateRequest(companyId, request);
+        Company company = companyService.getCompanyEntity(companyId);
+        CompanyUserRole role = validateCompanyUpdatePermission(userRoleStr);
+
+        validateCompanyUpdateScope(company, role, userHubId, keycloakSub);
+        validateHubManagerCanUpdateHub(request.getHubId(), role, userHubId);
+
+        if (request.getHubId() != null) {
+            hubValidator.validateHubActive(request.getHubId());
+        }
+
+        companyService.updateCompany(company, request);
+    }
+
     private void validateCreateRequest(CompanyCreateRequestDto request) {
         if (request == null || request.getHubId() == null) {
+            throw new BaseException(CommonErrorCode.INVALID_INPUT);
+        }
+    }
+
+    private void validateUpdateRequest(UUID companyId, CompanyUpdateRequestDto request) {
+        if (companyId == null || request == null || !request.hasUpdateField() || request.hasBlankName()) {
             throw new BaseException(CommonErrorCode.INVALID_INPUT);
         }
     }
@@ -89,6 +115,38 @@ public class CompanyFacade {
         }
     }
 
+    private CompanyUserRole validateCompanyUpdatePermission(String userRoleStr) {
+        if (userRoleStr == null || userRoleStr.isBlank()) {
+            throw new BaseException(CommonErrorCode.UNAUTHORIZED);
+        }
+
+        CompanyUserRole role = CompanyUserRole.fromString(userRoleStr);
+        boolean canUpdateCompany = role == CompanyUserRole.MASTER
+                || role == CompanyUserRole.HUB_MANAGER
+                || role == CompanyUserRole.SUPPLIER_MANAGER;
+
+        if (!canUpdateCompany) {
+            throw new BaseException(CommonErrorCode.FORBIDDEN);
+        }
+
+        return role;
+    }
+
+    private void validateCompanyUpdateScope(Company company, CompanyUserRole role, UUID userHubId, String keycloakSub) {
+        if (role == CompanyUserRole.MASTER) {
+            return;
+        }
+
+        if (role == CompanyUserRole.HUB_MANAGER) {
+            validateHubManagerCanUpdateCompany(company, userHubId);
+            return;
+        }
+
+        if (role == CompanyUserRole.SUPPLIER_MANAGER) {
+            validateSupplierManagerCanUpdateCompany(company.getId(), keycloakSub);
+        }
+    }
+
     private void validateHubManagerCanCreateCompany(UUID requestHubId, CompanyUserRole role, UUID userHubId) {
         if (role != CompanyUserRole.HUB_MANAGER) {
             return;
@@ -96,6 +154,37 @@ public class CompanyFacade {
 
         // 허브 관리자는 Gateway가 전달한 담당 허브 ID와 요청 허브 ID가 일치할 때만 업체를 생성할 수 있다.
         if (userHubId == null || !userHubId.equals(requestHubId)) {
+            throw new BaseException(CommonErrorCode.FORBIDDEN);
+        }
+    }
+
+    private void validateHubManagerCanUpdateCompany(Company company, UUID userHubId) {
+        if (userHubId == null || !userHubId.equals(company.getHubId())) {
+            throw new BaseException(CommonErrorCode.FORBIDDEN);
+        }
+    }
+
+    private void validateHubManagerCanUpdateHub(UUID requestHubId, CompanyUserRole role, UUID userHubId) {
+        if (role != CompanyUserRole.HUB_MANAGER || requestHubId == null) {
+            return;
+        }
+
+        if (userHubId == null || !userHubId.equals(requestHubId)) {
+            throw new BaseException(CommonErrorCode.FORBIDDEN);
+        }
+    }
+
+    private void validateSupplierManagerCanUpdateCompany(UUID companyId, String keycloakSub) {
+        if (keycloakSub == null || keycloakSub.isBlank()) {
+            throw new BaseException(CommonErrorCode.UNAUTHORIZED);
+        }
+
+        UserResponseWrapperDto response = userClient.getUserByKeycloakSub(keycloakSub);
+        if (response == null || response.getData() == null || response.getData().getCompanyId() == null) {
+            throw new BaseException(CommonErrorCode.FORBIDDEN);
+        }
+
+        if (!companyId.equals(response.getData().getCompanyId())) {
             throw new BaseException(CommonErrorCode.FORBIDDEN);
         }
     }

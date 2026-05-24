@@ -1,9 +1,11 @@
 package com.boxoffice.companyservice.company.service;
 
+import com.boxoffice.common.entity.AddressVO;
 import com.boxoffice.common.exception.BaseException;
 import com.boxoffice.companyservice.company.client.UserClient;
 import com.boxoffice.companyservice.company.client.dto.UserCompanyUpdateRequestDto;
 import com.boxoffice.companyservice.company.dto.request.CompanyCreateRequestDto;
+import com.boxoffice.companyservice.company.dto.request.CompanyUpdateRequestDto;
 import com.boxoffice.companyservice.company.dto.response.CompanyCreateResponseDto;
 import com.boxoffice.companyservice.company.dto.response.CompanyResponseDto;
 import com.boxoffice.companyservice.company.dto.search.CompanySearchCondition;
@@ -59,6 +61,19 @@ public class CompanyService {
                 .orElseThrow(() -> new BaseException(CompanyErrorCode.COMPANY_NOT_FOUND));
 
         return CompanyResponseDto.from(company);
+    }
+
+    @Transactional(readOnly = true)
+    public Company getCompanyEntity(UUID companyId) {
+        // Facade 권한 검증에서 대상 업체의 현재 소속 허브와 식별자를 확인하기 위한 내부 조회 메서드다.
+        return companyRepository.findById(companyId)
+                .orElseThrow(() -> new BaseException(CompanyErrorCode.COMPANY_NOT_FOUND));
+    }
+
+    @Transactional
+    public void updateCompany(Company company, CompanyUpdateRequestDto request) {
+        AddressVO address = request.getAddress() == null ? null : request.getAddress().toAddressVO();
+        company.update(request.getName(), request.getType(), request.getHubId(), address);
     }
 
     @Transactional(readOnly = true)
