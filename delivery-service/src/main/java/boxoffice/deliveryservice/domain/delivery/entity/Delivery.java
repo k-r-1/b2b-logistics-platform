@@ -35,5 +35,14 @@ public class Delivery extends BaseEntity {
     private String recipientSlackId;
     @NotNull
     @Enumerated(EnumType.STRING)
+
     private DeliveryStatus deliveryStatus;
+
+    // 정적 팩토리 메서드
+    public static Delivery create(UUID orderId, UUID originHubId, UUID destinationHubId,
+                                  AddressVO deliveryAddress, String recipientName, String recipientSlackId) {
+        return new Delivery(orderId, originHubId, destinationHubId, deliveryAddress,
+                null, recipientName, recipientSlackId, DeliveryStatus.WAITING);
+    }
+
 }
