@@ -135,9 +135,6 @@ public class UserService {
         return path.substring(path.lastIndexOf("/") + 1);
     }
 
-    /**
-     * 🌟 일반 유저 로그인 로직 (토큰 대리 발급)
-     */
     public String login(UserLoginRequestDto request) {
         Map<String, String> formParams = new HashMap<>();
         formParams.put("client_id", userClientId);
@@ -156,9 +153,6 @@ public class UserService {
         }
     }
 
-    /**
-     * 🌟 내 정보 조회 (Gateway 헤더 기반)
-     */
     @Transactional(readOnly = true)
     public UserResponseDto getMyInfo(String keycloakSub) {
         User user = userRepository.findByKeycloakSub(keycloakSub)
@@ -170,9 +164,6 @@ public class UserService {
         return UserResponseDto.from(user);
     }
 
-    /**
-     * 🌟 사용자 목록 검색 (권한별 데이터 격리 + 페이징 적용)
-     */
     @Transactional(readOnly = true)
     public Page<UserResponseDto> getUserList(String requesterSub, Pageable pageable) {
 
@@ -197,9 +188,6 @@ public class UserService {
         return userPage.map(UserResponseDto::from);
     }
 
-    /**
-     * 🌟 가입 승인/거절 (상태 변경)
-     */
     @Transactional
     public UserResponseDto updateUserStatus(UUID targetUserId, String requesterSub, UserStatusUpdateRequestDto request) {
 
@@ -228,9 +216,6 @@ public class UserService {
         return UserResponseDto.from(targetUser);
     }
 
-    /**
-     * 🌟 사용자 삭제 (논리적 삭제 - Soft Delete)
-     */
     @Transactional
     public void deleteUser(UUID targetUserId, String requesterSub) {
 
@@ -251,9 +236,6 @@ public class UserService {
         log.info("[UserDelete] 유저 논리적 삭제 완료. TargetUserId: {}", targetUserId);
     }
 
-    /**
-     * 🌟 사용자 로그아웃 (Redis 블랙리스트 등록)
-     */
     public void logout(String authHeader) {
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             throw new BaseException(CommonErrorCode.INVALID_INPUT);
@@ -279,9 +261,6 @@ public class UserService {
         }
     }
 
-    /**
-     * 🌟 외부 마이크로서비스(주문 등) 통신용 유저 단건 조회 (ID 기반)
-     */
     @Transactional(readOnly = true)
     public UserResponseDto getUserById(UUID userId) {
         User user = userRepository.findById(userId)
@@ -289,10 +268,6 @@ public class UserService {
         return UserResponseDto.from(user);
     }
 
-    /**
-     * 🌟 [Internal] 타 서비스용 유저 단건 조회 (Keycloak Sub 기반)
-     * 다른 서비스가 Gateway에서 전달받은 X-User-Id(sub) 값을 그대로 사용하여 조회할 수 있게 합니다.
-     */
     @Transactional(readOnly = true)
     public UserResponseDto getUserBySub(String keycloakSub) {
         User user = userRepository.findByKeycloakSub(keycloakSub)

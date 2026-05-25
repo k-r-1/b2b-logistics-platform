@@ -19,19 +19,9 @@ import org.springframework.data.domain.Pageable;
 @RestController
 @RequestMapping("/api/v1/users")
 @RequiredArgsConstructor
-//: 내 정보 조회, 사용자 목록 검색, 회원 탈퇴 등 관리
 public class UserController {
 
     private final UserService userService;
-
-//    @GetMapping
-//    public ResponseEntity<List<Map<String, String>>> getUserList() {
-//        List<Map<String, String>> mockUsers = List.of(
-//                Map.of("id", "1", "username", "user1", "name", "홍길동", "status", "인증 파이프라인 개통 완료! 🎉")
-//        );
-//
-//        return ResponseEntity.ok(mockUsers);
-//    }
 
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<UserResponseDto>> getMyInfo(
@@ -57,7 +47,6 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.success(responseDtoPage));
     }
 
-    // 🌟 가입 승인/거절 API
     @PatchMapping("/{id}/status")
     public ResponseEntity<ApiResponse<UserResponseDto>> updateUserStatus(
             @PathVariable UUID id,
@@ -71,7 +60,6 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.success(responseDto));
     }
 
-    // 🌟 사용자 삭제 API
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteUser(
             @PathVariable UUID id,
