@@ -136,6 +136,10 @@ public class HubService {
         Hub hub = hubRepository.findById(hubId)
                 .orElseThrow(() -> new BaseException(HubErrorCode.HUB_NOT_FOUND));
 
+        if (hub.getHubType() == HubType.CENTRAL) {
+            throw new BaseException(HubErrorCode.CENTRAL_HUB_CANNOT_DEACTIVATE);
+        }
+
         if (hub.isInactive()) {
             throw new BaseException(HubErrorCode.HUB_ALREADY_INACTIVE);
         }
