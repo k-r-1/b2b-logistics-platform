@@ -1,5 +1,6 @@
 package com.boxoffice.userservice.client;
 
+import com.boxoffice.userservice.client.dto.KeycloakUserCreateRequestDto;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;

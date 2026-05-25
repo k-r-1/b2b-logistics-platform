@@ -2,8 +2,10 @@ package com.boxoffice.userservice.service;
 
 import com.boxoffice.common.exception.BaseException;
 import com.boxoffice.common.exception.CommonErrorCode;
+import com.boxoffice.userservice.client.HubServiceClient;
 import com.boxoffice.userservice.client.KeycloakClient;
-import com.boxoffice.userservice.client.KeycloakUserCreateRequestDto;
+import com.boxoffice.userservice.client.dto.HubManagerRegisterRequestDto;
+import com.boxoffice.userservice.client.dto.KeycloakUserCreateRequestDto;
 import com.boxoffice.userservice.dto.UserLoginRequestDto;
 import com.boxoffice.userservice.dto.UserResponseDto;
 import com.boxoffice.userservice.dto.UserSignupRequestDto;
@@ -41,6 +43,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final KeycloakClient keycloakClient;
+    private final HubServiceClient hubServiceClient;
 
     @Value("${keycloak.realm:boxoffice-realm}")
     private String realm;
@@ -85,14 +88,25 @@ public class UserService {
         if (response.getStatusCode().is2xxSuccessful()) {
             String keycloakSub = extractKeycloakSub(response);
 
+            UUID hubIdVo = null;
+            if (request.getHubId() != null && !request.getHubId().isBlank()) {
+                try {
+                    hubIdVo = UUID.fromString(request.getHubId());
+                } catch (IllegalArgumentException e) {
+                    log.error("[Signup] 올바르지 않은 UUID 형식의 hubId 요청: {}", request.getHubId());
+                    throw new BaseException(CommonErrorCode.INVALID_INPUT);
+                }
+            }
+
             Email emailVo = new Email(request.getEmail());
+
             User user = User.builder()
                     .keycloakSub(keycloakSub)
                     .email(emailVo)
                     .name(request.getName())
                     .role(request.getRole())
                     .status(UserStatus.PENDING)
-                    .hubId(request.getHubId())
+                    .hubId(hubIdVo)
                     .build();
 
             try {
@@ -212,6 +226,17 @@ public class UserService {
         targetUser.updateStatus(newStatus);
 
         log.info("[UserStatus] 유저 상태 변경 완료. TargetUserId: {}, NewStatus: {}", targetUserId, newStatus);
+
+        if (newStatus == UserStatus.APPROVED && targetUser.getRole() == UserRole.HUB_MANAGER && targetUser.getHubId() != null) {
+            try {
+                HubManagerRegisterRequestDto requestDto = new HubManagerRegisterRequestDto(targetUser.getId());
+                hubServiceClient.registerHubManager(targetUser.getHubId(), requestDto);
+                log.info("[Feign] 허브 매니저 등록 완료 - userId: {}, hubId: {}", targetUser.getId(), targetUser.getHubId());
+            } catch (Exception e) {
+                log.error("[Feign] 허브 매니저 등록 실패 - userId: {}", targetUser.getId(), e);
+                throw new BaseException(CommonErrorCode.INTERNAL_SERVER_ERROR);
+            }
+        }
 
         return UserResponseDto.from(targetUser);
     }

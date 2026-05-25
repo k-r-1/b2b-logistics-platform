@@ -1,4 +1,4 @@
-package com.boxoffice.userservice.client;
+package com.boxoffice.userservice.client.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
