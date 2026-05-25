@@ -95,10 +95,13 @@ public class HubRouteService {
         Map<UUID, Hub> hubMap = hubRepository.findAllById(hubIds).stream()
                 .collect(Collectors.toMap(Hub::getId, Function.identity()));
 
-        return PageResponse.of(routes.map(r ->
-                HubRouteGetResponseDto.from(r,
-                        hubMap.get(r.getOriginHubId()),
-                        hubMap.get(r.getDestinationHubId()))
-        ));
+        return PageResponse.of(routes.map(r -> {
+            Hub origin = hubMap.get(r.getOriginHubId());
+            Hub destination = hubMap.get(r.getDestinationHubId());
+            if (origin == null || destination == null) {
+                throw new BaseException(HubErrorCode.HUB_NOT_FOUND);
+            }
+            return HubRouteGetResponseDto.from(r, origin, destination);
+        }));
     }
 }
