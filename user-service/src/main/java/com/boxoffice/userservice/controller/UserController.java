@@ -77,7 +77,7 @@ public class UserController {
             summary = "[Internal] 유저 단건 조회 (FeignClient 통신용)",
             description = "타 마이크로서비스에서 유저의 companyId 등을 조회하기 위해 사용하는 내부 서버 간 통신 전용 API입니다. (프론트엔드 호출 금지)"
     )
-    @GetMapping("/{id}")
+    @GetMapping("/internal/{id}")
     public ResponseEntity<ApiResponse<UserResponseDto>> getUserById(@PathVariable UUID id) {
         log.info("[Internal Controller] 타 서비스로부터 유저 조회 요청 수신. UserId: {}", id);
         UserResponseDto response = userService.getUserById(id);
@@ -88,7 +88,7 @@ public class UserController {
             summary = "[Internal] Keycloak Sub 기반 유저 조회 (FeignClient 전용)",
             description = "타 서비스가 Gateway에서 전파받은 X-User-Id 헤더(Keycloak Sub)를 그대로 사용하여 유저 정보와 companyId를 조회하는 API입니다."
     )
-    @GetMapping("/keycloak/{keycloakSub}")
+    @GetMapping("/internal/keycloak/{keycloakSub}")
     public ResponseEntity<ApiResponse<UserResponseDto>> getUserBySub(@PathVariable String keycloakSub) {
         log.info("[Internal Controller] Keycloak Sub 기반 유저 조회 요청 수신. Sub: {}", keycloakSub);
         UserResponseDto response = userService.getUserBySub(keycloakSub);
@@ -96,7 +96,7 @@ public class UserController {
     }
 
 
-    @PatchMapping("/internal/users/{userId}/company")
+    @PatchMapping("/internal/{userId}/company")
     public ResponseEntity<UserResponseDto> updateUserCompany(
             @PathVariable("userId") UUID userId,
             @RequestBody UserCompanyUpdateRequestDto request) {
