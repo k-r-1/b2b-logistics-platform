@@ -71,7 +71,8 @@ class HubServiceTest {
                 null,
                 37.4956,
                 127.1236,
-                HubType.REGIONAL
+                HubType.REGIONAL,
+                null
         );
 
         given(hubRepository.existsByName(request.name())).willReturn(false);
@@ -98,7 +99,8 @@ class HubServiceTest {
                 null,
                 37.2749,
                 127.4431,
-                HubType.CENTRAL
+                HubType.CENTRAL,
+                null
         );
         given(hubRepository.existsByName(request.name())).willReturn(false);
         given(hubRepository.save(any(Hub.class))).willAnswer(i -> i.getArgument(0));
@@ -116,7 +118,7 @@ class HubServiceTest {
         // given
         HubCreateRequestDto request = new HubCreateRequestDto(
                 "테스트 센터", null, "서울특별시 송파구 송파대로 55", null,
-                37.4956, 127.1236, HubType.CLOSING
+                37.4956, 127.1236, HubType.CLOSING, null
         );
 
         // when & then
@@ -139,7 +141,8 @@ class HubServiceTest {
                 null,
                 37.4956,
                 127.1236,
-                HubType.INACTIVE
+                HubType.INACTIVE,
+                null
         );
 
         // when & then
@@ -162,7 +165,8 @@ class HubServiceTest {
                 null,
                 37.4956,
                 127.1236,
-                HubType.REGIONAL
+                HubType.REGIONAL,
+                null
         );
 
         given(hubRepository.existsByName(request.name())).willReturn(true);
