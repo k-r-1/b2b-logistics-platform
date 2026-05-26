@@ -24,7 +24,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-@ExtendWith(MockitoExtension.class) // Mockito 환경에서 실행 (가짜 객체 주입)
+@ExtendWith(MockitoExtension.class)
 class DeliveryManagerServiceTest {
 
     @Mock
@@ -41,24 +41,26 @@ class DeliveryManagerServiceTest {
     @Test
     @DisplayName("배송 담당자 생성 성공 - MASTER 권한")
     void createDeliveryManager_Success() {
-        // Given (준비)
+        // Given
         DeliveryManagerCreateRequestDto request = mock(DeliveryManagerCreateRequestDto.class);
         when(request.getUserId()).thenReturn(userId);
         when(request.getHubId()).thenReturn(hubId);
         when(request.getType()).thenReturn(DeliveryType.HUB_TO_HUB);
 
-        // 중복 회원이 없는 상황 가정
         when(deliveryManagerRepository.findByUserId(userId)).thenReturn(Optional.empty());
 
-        // When (실행)
+        // When
         DeliveryManagerResponseDto response = deliveryManagerService.createDeliveryManager(request, "MASTER");
 
-        // Then (검증)
+        // Then
         assertNotNull(response);
         assertEquals(userId, response.getUserId());
         assertEquals(hubId, response.getHubId());
 
-        // save 메서드가 1번 호출되었는지 검증
+        // 🌟 [추가] 새로 추가된 필드의 기본값이 정상적으로 들어갔는지 검증
+        assertEquals("NOT_REGISTERED", response.getSlackId());
+        assertEquals(ManagerStatus.WAITING, response.getStatus());
+
         verify(deliveryManagerRepository, times(1)).save(any(DeliveryManager.class));
     }
 
@@ -93,24 +95,23 @@ class DeliveryManagerServiceTest {
 
         when(deliveryManagerRepository.findById(managerId)).thenReturn(Optional.of(manager));
 
-        // When (본인 userId로 요청)
+        // When
         DeliveryManagerResponseDto response = deliveryManagerService.getDeliveryManager(managerId, userId.toString(), "USER");
 
         // Then
         assertNotNull(response);
         assertEquals(userId, response.getUserId());
+        assertEquals("TEST_SLACK", response.getSlackId()); // 🌟 새로 추가된 응답 필드 검증
     }
 
     @Test
     @DisplayName("배송 담당자 단건 조회 실패 - 권한 없음 (남의 정보 조회)")
     void getDeliveryManager_Fail_Forbidden() {
         // Given
-        DeliveryManager manager = DeliveryManager.builder()
-                .userId(userId) // 실제 주인의 ID
-                .build();
+        DeliveryManager manager = DeliveryManager.builder().userId(userId).build();
         when(deliveryManagerRepository.findById(managerId)).thenReturn(Optional.of(manager));
 
-        String otherUserId = UUID.randomUUID().toString(); // 남의 ID
+        String otherUserId = UUID.randomUUID().toString();
 
         // When & Then
         BaseException exception = assertThrows(BaseException.class, () ->
@@ -133,9 +134,11 @@ class DeliveryManagerServiceTest {
                 .type(DeliveryType.HUB_TO_HUB)
                 .slackId("TEST")
                 .status(ManagerStatus.WAITING)
-                .build()); // id가 null이므로 아래에서 별도 처리, 여기선 객체 생성을 확인
+                .build());
 
-        when(deliveryManagerRepository.findFirstByHubIdAndTypeAndIsDeletedFalseOrderByLastAssignedAtAsc(hubId, DeliveryType.HUB_TO_HUB))
+        // 🌟 [수정] 바뀐 Repository 메서드 이름과 ManagerStatus.WAITING 파라미터를 정확히 모킹(Mocking)
+        when(deliveryManagerRepository.findFirstByHubIdAndTypeAndStatusAndIsDeletedFalseOrderByLastAssignedAtAsc(
+                hubId, DeliveryType.HUB_TO_HUB, ManagerStatus.WAITING))
                 .thenReturn(Optional.of(manager));
 
         // When
@@ -143,6 +146,6 @@ class DeliveryManagerServiceTest {
 
         // Then
         assertNotNull(response);
-        verify(manager, times(1)).recordAssignment(); // 마지막 배정 시간 최신화가 호출되었는지 검증
+        verify(manager, times(1)).recordAssignment();
     }
 }
