@@ -2,6 +2,9 @@ package com.boxoffice.companyservice.product.controller;
 
 import com.boxoffice.common.response.ApiResponse;
 import com.boxoffice.companyservice.product.dto.request.HubStockCountRequestDto;
+import com.boxoffice.companyservice.product.dto.request.ProductStockDeductRequestDto;
+import com.boxoffice.companyservice.product.dto.request.ProductStockRequestDto;
+import com.boxoffice.companyservice.product.dto.request.ProductStockRestoreRequestDto;
 import com.boxoffice.companyservice.product.dto.response.HubStockCountResponseDto;
 import com.boxoffice.companyservice.product.service.ProductService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -35,5 +38,32 @@ public class ProductInternalController {
         log.info("Internal hub stock counts requested. hubCount={}", request.getHubIds().size());
 
         return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @PostMapping("/stocks/check")
+    public ResponseEntity<ApiResponse<Void>> checkStocks(
+            @Valid @RequestBody ProductStockRequestDto request
+    ) {
+        productService.checkStocks(request);
+
+        return ResponseEntity.ok(ApiResponse.success());
+    }
+
+    @PostMapping("/stocks/deduct")
+    public ResponseEntity<ApiResponse<Void>> deductStocks(
+            @Valid @RequestBody ProductStockDeductRequestDto request
+    ) {
+        productService.deductStocks(request);
+
+        return ResponseEntity.ok(ApiResponse.success());
+    }
+
+    @PostMapping("/stocks/restore")
+    public ResponseEntity<ApiResponse<Void>> restoreStocks(
+            @Valid @RequestBody ProductStockRestoreRequestDto request
+    ) {
+        productService.restoreStocks(request);
+
+        return ResponseEntity.ok(ApiResponse.success());
     }
 }
