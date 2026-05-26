@@ -25,10 +25,6 @@ public class TotalPrice {
     return price;
   }
 
-  public TotalPrice add(TotalPrice other) {
-    return TotalPrice.create(this.value + other.value);
-  }
-
   private static void validate(Integer value) {
     if (value == null || value < 0)
       throw new BaseException(OrderErrorCode.INVALID_PRICE);

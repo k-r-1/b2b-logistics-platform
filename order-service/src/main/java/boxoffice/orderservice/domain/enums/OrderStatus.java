@@ -12,13 +12,4 @@ public enum OrderStatus {
 
   private final String description;
 
-  private static final Map<OrderStatus, Set<OrderStatus>> ALLOWED_TRANSITIONS = Map.of(
-      PENDING, Set.of(CONFIRMED, CANCELLED),
-      CONFIRMED, Set.of(),
-      CANCELLED, Set.of()
-  );
-
-  public boolean canTransitionTo(OrderStatus next) {
-    return ALLOWED_TRANSITIONS.getOrDefault(this, Set.of()).contains(next);
-  }
 }

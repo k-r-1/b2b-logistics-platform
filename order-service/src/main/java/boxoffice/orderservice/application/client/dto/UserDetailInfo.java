@@ -11,4 +11,19 @@ public record UserDetailInfo(
     String status,
     UUID companyId
 ) {
+  public boolean isMaster() {
+    return "MASTER".equals(this.role);
+  }
+
+  public boolean isHubManager() {
+    return "HUB_MANAGER".equals(this.role);
+  }
+
+  public boolean isDeliveryManager() {
+    return "DELIVERY_MANAGER".equals(this.role);
+  }
+
+  public boolean isSupplierManager() {
+    return "SUPPLIER_MANAGER".equals(this.role);
+  }
 }

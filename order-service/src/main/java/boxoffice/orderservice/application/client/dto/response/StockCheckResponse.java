@@ -9,6 +9,8 @@ public record StockCheckResponse(
 ) {
   public record StockDetail(
       UUID productId,
+      String productName,
+      Integer unitPrice,
       boolean isOrderable
   ) {}
 }

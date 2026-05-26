@@ -3,6 +3,7 @@ package boxoffice.orderservice.domain.entity;
 import boxoffice.orderservice.domain.enums.OrderStatus;
 import boxoffice.orderservice.domain.vo.TotalPrice;
 import boxoffice.orderservice.infra.exception.OrderDomainErrorCode;
+import boxoffice.orderservice.infra.exception.OrderErrorCode;
 import com.boxoffice.common.entity.BaseEntity;
 import com.boxoffice.common.exception.BaseException;
 import jakarta.persistence.CollectionTable;
@@ -31,24 +32,18 @@ import org.hibernate.annotations.SQLRestriction;
 @Table(
     name = "p_orders",
     indexes = {
-        @Index(name = "idx_order_producer_company", columnList = "producer_company_id"),
-        @Index(name = "idx_order_origin_hub", columnList = "origin_hub_id")
+        @Index(name = "idx_order_supplier", columnList = "supplier_id"),
+        @Index(name = "idx_order_receiver", columnList = "receiver_id")
     }
 )
 @SQLRestriction("deleted_at IS NULL")
 public class Order extends BaseEntity {
 
-  @Column(name = "producer_company_id", nullable = false)
-  private UUID producerCompanyId;
+  @Column(name = "supplier_id", nullable = false)
+  private UUID supplierId;
 
-  @Column(name = "receiver_company_id", nullable = false)
-  private UUID receiverCompanyId;
-
-  @Column(name = "origin_hub_id")
-  private UUID originHubId;
-
-  @Column(name = "destination_hub_id")
-  private UUID destinationHubId;
+  @Column(name = "receiver_id", nullable = false)
+  private UUID receiverId;
 
   @Column(name = "delivery_id")
   private UUID deliveryId;
@@ -71,21 +66,17 @@ public class Order extends BaseEntity {
   private List<OrderProduct> orderProducts = new ArrayList<>();
 
   public static Order create(
-      UUID producerCompanyId,
-      UUID receiverCompanyId,
-      UUID originHubId,
-      UUID destinationHubId,
+      UUID supplierId,
+      UUID receiverId,
       String request,
       List<OrderProduct> orderProducts) {
-    validateCompanyId(producerCompanyId);
-    validateCompanyId(receiverCompanyId);
+    validateCompanyId(supplierId);
+    validateCompanyId(receiverId);
     validateOrderProducts(orderProducts);
 
     Order order = new Order();
-    order.producerCompanyId = producerCompanyId;
-    order.receiverCompanyId = receiverCompanyId;
-    order.originHubId = originHubId;
-    order.destinationHubId = destinationHubId;
+    order.supplierId = supplierId;
+    order.receiverId = receiverId;
     order.request = request;
     order.status = OrderStatus.PENDING;
     order.orderProducts = new ArrayList<>(orderProducts);
@@ -93,21 +84,15 @@ public class Order extends BaseEntity {
     return order;
   }
 
-  public void assignDelivery(UUID deliveryId, UUID originHubId, UUID destinationHubId) {
-    if (deliveryId == null) {
-      throw new BaseException(OrderDomainErrorCode.INVALID_DELIVERY_ID);
-    }
-    if (originHubId == null || destinationHubId == null) {
-      throw new BaseException(OrderDomainErrorCode.INVALID_DELIVERY_ID);
-    }
-    this.deliveryId = deliveryId;
-    this.originHubId = originHubId;
-    this.destinationHubId = destinationHubId;
+  public void updateOrderRequest(String request) {
+    this.request = request;
   }
 
-  public void updateStatus(OrderStatus newStatus) {
-    validateStatusTransition(this.status, newStatus);
-    this.status = newStatus;
+  public void cancel() {
+    if (this.status != OrderStatus.PENDING) {
+      throw new BaseException(OrderErrorCode.INVALID_STATUS);
+    }
+    this.status = OrderStatus.CANCELLED;
   }
 
   private int calculateTotalPrice() {
@@ -133,10 +118,5 @@ public class Order extends BaseEntity {
   private static void validateCompanyId(UUID companyId) {
     if (companyId == null)
       throw new BaseException(OrderDomainErrorCode.INVALID_COMPANY_ID);
-  }
-
-  private static void validateStatusTransition(OrderStatus current, OrderStatus newStatus) {
-    if (!current.canTransitionTo(newStatus))
-      throw new BaseException(OrderDomainErrorCode.INVALID_STATUS_TRANSITION);
   }
 }
