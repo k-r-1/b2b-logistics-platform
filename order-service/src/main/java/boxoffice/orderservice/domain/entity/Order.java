@@ -12,6 +12,7 @@ import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Table;
 import java.util.ArrayList;
@@ -21,12 +22,20 @@ import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.SQLRestriction;
 
 @Getter
 @Entity
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Table(name = "p_orders")
+@Table(
+    name = "p_orders",
+    indexes = {
+        @Index(name = "idx_order_producer_company", columnList = "producer_company_id"),
+        @Index(name = "idx_order_origin_hub", columnList = "origin_hub_id")
+    }
+)
+@SQLRestriction("deleted_at IS NULL")
 public class Order extends BaseEntity {
 
   @Column(name = "producer_company_id", nullable = false)
