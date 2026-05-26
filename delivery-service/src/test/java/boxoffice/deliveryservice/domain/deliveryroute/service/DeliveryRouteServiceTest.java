@@ -41,7 +41,7 @@ class DeliveryRouteServiceTest {
 
     private Delivery createDelivery() {
         return Delivery.create(
-                UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
                 new AddressRequest("12345", "서울시 송파구 송파대로 55", "101호").toAddressVO(),
                 "홍길동", "U12345"
         );
