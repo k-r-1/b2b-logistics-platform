@@ -12,5 +12,5 @@ public interface HubRouteRepository extends JpaRepository<HubRoute, UUID>, Query
     boolean existsByOriginHubIdAndDestinationHubId(UUID originHubId, UUID destinationHubId);
     Optional<HubRoute> findByOriginHubIdAndDestinationHubId(UUID originHubId, UUID destinationHubId);
     List<HubRoute> findAllByOriginHubId(UUID originHubId);
+    List<HubRoute> findAllByOriginHubIdOrDestinationHubId(UUID originHubId, UUID destinationHubId);
 }
-
