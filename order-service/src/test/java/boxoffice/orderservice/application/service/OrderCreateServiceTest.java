@@ -101,7 +101,7 @@ class OrderCreateServiceTest {
       given(mockTotalPrice.getValue()).willReturn(30000);
       given(mockOrder.getTotalPrice()).willReturn(mockTotalPrice);
 
-      given(orderCommandService.saveOrder(any(), any(), any(), any())).willReturn(mockOrder);
+      given(orderCommandService.saveOrder(any(), any(), any(), any(), any(), any())).willReturn(mockOrder);
 
       // When
       CreateOrderResponseDto response = orderCreateService.createOrder(mockRequest, requesterId);
@@ -110,7 +110,7 @@ class OrderCreateServiceTest {
       assertThat(response).isNotNull();
 
       // 검증(Verify) 시에도 명확하게 호출 여부를 확인합니다.
-      verify(orderCommandService).saveOrder(any(), any(), any(), any());
+      verify(orderCommandService).saveOrder(any(), any(), any(), any(), any(), any());
       verify(eventPublisher).orderCreateEvent(any(OrderCreatedEvent.class));
     }
 
@@ -144,14 +144,14 @@ class OrderCreateServiceTest {
 
       // 2. 어떤 파라미터가 들어오더라도 위에서 정의한 mockOrder가 반환되도록 given을 설정합니다.
       // (기존의 mock(Order.class)를 그대로 넘겼거나 파라미터가 불일치하여 null이 반환되던 문제를 해결합니다.)
-      given(orderCommandService.saveOrder(any(), any(), any(), any())).willReturn(mockOrder);
+      given(orderCommandService.saveOrder(any(), any(), any(), any(), any(), any())).willReturn(mockOrder);
 
       // When
       CreateOrderResponseDto response = orderCreateService.createOrder(mockRequest, requesterId);
 
       // Then
       assertThat(response).isNotNull();
-      verify(orderCommandService).saveOrder(any(), any(), any(), any());
+      verify(orderCommandService).saveOrder(any(), any(), any(), any(), any(), any());
       verify(eventPublisher).orderCreateEvent(any(OrderCreatedEvent.class));
     }
 
@@ -199,7 +199,7 @@ class OrderCreateServiceTest {
       given(companyProductFeignClient.deductStocks(anyList())).willReturn(mock(StockDeductResponse.class));
 
       // 주문 저장 시 강제로 RuntimeException 발생
-      given(orderCommandService.saveOrder(any(), any(), any(), any()))
+      given(orderCommandService.saveOrder(any(), any(), any(), any(), any(), any()))
           .willThrow(new RuntimeException("DB Timeout"));
 
       // When & Then
@@ -221,7 +221,7 @@ class OrderCreateServiceTest {
 
       given(companyProductFeignClient.deductStocks(anyList())).willReturn(mock(StockDeductResponse.class));
 
-      given(orderCommandService.saveOrder(any(), any(), any(), any()))
+      given(orderCommandService.saveOrder(any(), any(), any(), any(), any(), any()))
           .willThrow(new RuntimeException("DB Timeout"));
 
       // 보상 트랜잭션(재고 복구)조차 실패하는 상황 가정

@@ -16,7 +16,7 @@ public class OrderCommandService {
   private final OrderRepository orderRepository;
 
   @Transactional
-  public Order saveOrder(UUID supplierId, UUID receiverId, String request, StockDeductResponse stocks) {
+  public Order saveOrder(UUID supplierId, UUID receiverId, UUID sourceHubId, UUID destinationHubId, String request, StockDeductResponse stocks) {
     List<OrderProduct> products = stocks.details().stream()
         .map(detail -> OrderProduct.create(
             detail.productId(),
@@ -26,7 +26,7 @@ public class OrderCommandService {
         ))
         .toList();
 
-    Order order = Order.create(supplierId, receiverId, request, products);
+    Order order = Order.create(supplierId, receiverId, sourceHubId, destinationHubId, request, products);
     return orderRepository.save(order);
   }
 }

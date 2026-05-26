@@ -43,7 +43,10 @@ public class OrderCreateService {
     Order order;
     try {
       // Order
-      order = orderCommandService.saveOrder(request.supplierId(), request.receiverId(), request.request(), response);
+      order = orderCommandService.saveOrder(
+          request.supplierId(), request.receiverId(),
+          response.sourceHubId(), response.destinationHubId(),
+          request.request(), response);
 
     } catch (Exception e) {
       log.error("주문 저장중 에러가 발생해 보상 트랜잭션이 수행됩니다.", e);

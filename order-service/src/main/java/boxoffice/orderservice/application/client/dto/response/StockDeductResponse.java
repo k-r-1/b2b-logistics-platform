@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.UUID;
 
 public record StockDeductResponse(
+    UUID sourceHubId,
+    UUID destinationHubId,
     List<ProductStockResult> details
 ) {
   public record ProductStockResult(

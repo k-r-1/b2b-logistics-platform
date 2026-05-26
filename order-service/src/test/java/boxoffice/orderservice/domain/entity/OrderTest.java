@@ -21,6 +21,8 @@ class OrderTest {
 
   private final UUID supplierId = UUID.randomUUID();
   private final UUID receiverId = UUID.randomUUID();
+  private final UUID sourceHubId = UUID.randomUUID();
+  private final UUID destinationHubId = UUID.randomUUID();
   private final String request = "문 앞 배송 부탁드립니다.";
 
   @Nested
@@ -42,11 +44,13 @@ class OrderTest {
       List<OrderProduct> products = List.of(mockProduct1, mockProduct2);
 
       // When
-      Order order = Order.create(supplierId, receiverId, request, products);
+      Order order = Order.create(supplierId, receiverId, sourceHubId, destinationHubId, request, products);
 
       // Then
       assertThat(order.getSupplierId()).isEqualTo(supplierId);
       assertThat(order.getReceiverId()).isEqualTo(receiverId);
+      assertThat(order.getSourceHubId()).isEqualTo(sourceHubId);
+      assertThat(order.getDestinationHubId()).isEqualTo(destinationHubId);
       assertThat(order.getRequest()).isEqualTo(request);
       assertThat(order.getStatus()).isEqualTo(OrderStatus.PENDING);
       assertThat(order.getOrderProducts()).hasSize(2);
@@ -62,7 +66,7 @@ class OrderTest {
       List<OrderProduct> products = List.of(mock(OrderProduct.class));
 
       // When & Then
-      assertThatThrownBy(() -> Order.create(null, receiverId, request, products))
+      assertThatThrownBy(() -> Order.create(null, receiverId, sourceHubId, destinationHubId, request, products))
           .isInstanceOf(BaseException.class)
           .hasFieldOrPropertyWithValue("errorCode", OrderDomainErrorCode.INVALID_COMPANY_ID);
 
@@ -75,9 +79,33 @@ class OrderTest {
       List<OrderProduct> products = List.of(mock(OrderProduct.class));
 
       // When & Then
-      assertThatThrownBy(() -> Order.create(supplierId, null, request, products))
+      assertThatThrownBy(() -> Order.create(supplierId, null, sourceHubId, destinationHubId, request, products))
           .isInstanceOf(BaseException.class)
           .hasFieldOrPropertyWithValue("errorCode", OrderDomainErrorCode.INVALID_COMPANY_ID);
+    }
+
+    @Test
+    @DisplayName("[예외] sourceHubId가 null이면 BaseException을 발생시킨다.")
+    void exception_when_sourceHubId_is_null() {
+      // Given
+      List<OrderProduct> products = List.of(mock(OrderProduct.class));
+
+      // When & Then
+      assertThatThrownBy(() -> Order.create(supplierId, receiverId, null, destinationHubId, request, products))
+          .isInstanceOf(BaseException.class)
+          .hasFieldOrPropertyWithValue("errorCode", OrderDomainErrorCode.MISSING_HUB_ID);
+    }
+
+    @Test
+    @DisplayName("[예외] destinationHubId가 null이면 BaseException을 발생시킨다.")
+    void exception_when_destinationHubId_is_null() {
+      // Given
+      List<OrderProduct> products = List.of(mock(OrderProduct.class));
+
+      // When & Then
+      assertThatThrownBy(() -> Order.create(supplierId, receiverId, sourceHubId, null, request, products))
+          .isInstanceOf(BaseException.class)
+          .hasFieldOrPropertyWithValue("errorCode", OrderDomainErrorCode.MISSING_HUB_ID);
     }
 
     @Test
@@ -87,7 +115,7 @@ class OrderTest {
       List<OrderProduct> nullProducts = null;
 
       // When & Then
-      assertThatThrownBy(() -> Order.create(supplierId, receiverId, request, nullProducts))
+      assertThatThrownBy(() -> Order.create(supplierId, receiverId, sourceHubId, destinationHubId, request, nullProducts))
           .isInstanceOf(BaseException.class)
           .hasFieldOrPropertyWithValue("errorCode", OrderDomainErrorCode.EMPTY_ORDER_PRODUCT);
     }
@@ -99,7 +127,7 @@ class OrderTest {
       List<OrderProduct> emptyProducts = Collections.emptyList();
 
       // When & Then
-      assertThatThrownBy(() -> Order.create(supplierId, receiverId, request, emptyProducts))
+      assertThatThrownBy(() -> Order.create(supplierId, receiverId, sourceHubId, destinationHubId, request, emptyProducts))
           .isInstanceOf(BaseException.class)
           .hasFieldOrPropertyWithValue("errorCode", OrderDomainErrorCode.EMPTY_ORDER_PRODUCT);
     }
@@ -116,7 +144,7 @@ class OrderTest {
       List<OrderProduct> products = List.of(mockProduct);
 
       // When & Then
-      assertThatThrownBy(() -> Order.create(supplierId, receiverId, request, products))
+      assertThatThrownBy(() -> Order.create(supplierId, receiverId, sourceHubId, destinationHubId, request, products))
           .isInstanceOf(ArithmeticException.class)
           .hasMessageContaining("integer overflow");
     }
@@ -130,7 +158,7 @@ class OrderTest {
     @DisplayName("[성공] 새로운 요청사항이 주어지면 주문의 요청사항을 업데이트한다.")
     void success_update_request() {
       // Given
-      Order order = Order.create(supplierId, receiverId, request, List.of(mock(OrderProduct.class)));
+      Order order = Order.create(supplierId, receiverId, sourceHubId, destinationHubId, request, List.of(mock(OrderProduct.class)));
       String newRequest = "경비실에 맡겨주세요.";
 
       // When
@@ -149,7 +177,7 @@ class OrderTest {
     @DisplayName("[성공] 주문 상태가 PENDING일 때, 상태를 CANCELLED로 변경한다.")
     void success_cancel_order() {
       // Given
-      Order order = Order.create(supplierId, receiverId, request, List.of(mock(OrderProduct.class)));
+      Order order = Order.create(supplierId, receiverId, sourceHubId, destinationHubId, request, List.of(mock(OrderProduct.class)));
 
       // When
       order.cancel();
@@ -162,7 +190,7 @@ class OrderTest {
     @DisplayName("[예외] 주문 상태가 PENDING이 아닐 때 취소하려 하면 BaseException을 발생시킨다.")
     void exception_when_status_is_not_pending() {
       // Given
-      Order order = Order.create(supplierId, receiverId, request, List.of(mock(OrderProduct.class)));
+      Order order = Order.create(supplierId, receiverId, sourceHubId, destinationHubId, request, List.of(mock(OrderProduct.class)));
 
       // 리플렉션을 통해 강제로 상태를 변경 (테스트 격리)
       ReflectionTestUtils.setField(order, "status", OrderStatus.CONFIRMED);
