@@ -26,6 +26,8 @@ public class Delivery extends BaseEntity {
     @NotNull
     private UUID orderId;
     @NotNull
+    private UUID companyId;
+    @NotNull
     private UUID originHubId;
     @NotNull
     private UUID destinationHubId;
@@ -53,9 +55,13 @@ public class Delivery extends BaseEntity {
     }
 
     // 정적 팩토리 메서드
-    public static Delivery create(UUID orderId, UUID originHubId, UUID destinationHubId,
+    public void assignDeliveryPerson(UUID deliveryPersonId) {
+        this.deliveryPersonId = deliveryPersonId;
+    }
+
+    public static Delivery create(UUID orderId, UUID companyId, UUID originHubId, UUID destinationHubId,
                                   AddressVO deliveryAddress, String recipientName, String recipientSlackId) {
-        return new Delivery(orderId, originHubId, destinationHubId, deliveryAddress,
+        return new Delivery(orderId, companyId, originHubId, destinationHubId, deliveryAddress,
                 null, recipientName, recipientSlackId, DeliveryStatus.WAITING);
     }
 }

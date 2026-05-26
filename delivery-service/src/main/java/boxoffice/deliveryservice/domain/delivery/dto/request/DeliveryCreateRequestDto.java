@@ -9,6 +9,7 @@ import java.util.UUID;
 
 public record DeliveryCreateRequestDto(
         @NotNull UUID orderId,
+        @NotNull UUID companyId,
         @NotNull UUID originHubId,
         @NotNull UUID destinationHubId,
         @Valid @NotNull AddressVO deliveryAddress,
