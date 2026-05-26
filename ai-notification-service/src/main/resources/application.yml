@@ -1,0 +1,34 @@
+server:
+  port: 8087
+
+spring:
+  application:
+    name: ai-notification-service
+
+  cloud:
+    compatibility-verifier:
+      enabled: false
+
+  datasource:
+    # 일단 단일 DB 환경 세팅이므로 동일 DB 사용
+    url: jdbc:postgresql://localhost:5432/${DB_NAME:sparta_logistics}?currentSchema=notification_schema
+    username: ${DB_USERNAME:sparta_admin}
+    password: ${DB_PASSWORD:password123}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      # 개발 단계 update 사용
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        default_schema: notification_schema
+
+notification:
+  dispatch:
+    max-attempts: 3
+  recovery:
+    stale-after: PT5M
+    interval-ms: 60000
