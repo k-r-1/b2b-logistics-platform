@@ -1,3 +1,4 @@
 rootProject.name = 'boxoffice'
 
-include 'eureka-server', 'api-gateway', 'user-service', 'delivery-manager-service', 'common'
+include 'eureka-server', 'api-gateway', 'user-service', 'delivery-manager-service', 'common', 'ai-notification-service', 'hub-service'
+
