@@ -9,6 +9,7 @@ CREATE TABLE p_hubs
     latitude       DOUBLE PRECISION NOT NULL,
     longitude      DOUBLE PRECISION NOT NULL,
     manager_id     UUID,
+    capacity       INTEGER,
     deleted_reason VARCHAR(500),
     created_at     TIMESTAMP      NOT NULL,
     created_by     UUID,
