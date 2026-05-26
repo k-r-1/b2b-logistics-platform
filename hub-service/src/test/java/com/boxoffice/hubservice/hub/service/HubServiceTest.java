@@ -2,7 +2,9 @@ package com.boxoffice.hubservice.hub.service;
 
 import com.boxoffice.common.entity.AddressVO;
 import com.boxoffice.common.exception.BaseException;
+import com.boxoffice.common.response.ApiResponse;
 import com.boxoffice.common.response.PageResponse;
+import com.boxoffice.hubservice.client.*;
 import com.boxoffice.hubservice.exception.HubErrorCode;
 import com.boxoffice.hubservice.hub.dto.request.HubClosingRequestDto;
 import com.boxoffice.hubservice.hub.dto.request.HubCreateRequestDto;
@@ -14,15 +16,15 @@ import com.boxoffice.hubservice.hub.entity.CoordinateVO;
 import com.boxoffice.hubservice.hub.entity.Hub;
 import com.boxoffice.hubservice.hub.entity.HubType;
 import com.boxoffice.hubservice.hub.repository.HubRepository;
+import com.boxoffice.hubservice.hubroute.repository.HubRouteRepository;
 import com.querydsl.core.types.Predicate;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.AuditorAware;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -37,6 +39,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class HubServiceTest {
@@ -46,6 +49,25 @@ class HubServiceTest {
 
     @Mock
     private HubRepository hubRepository;
+
+    @Mock
+    private HubRouteRepository hubRouteRepository;
+
+    @Mock
+    @SuppressWarnings("unchecked")
+    private AuditorAware<UUID> auditorAware;
+
+    @Mock
+    private DeliveryManagerFeignClient deliveryManagerFeignClient;
+
+    @Mock
+    private UserFeignClient userFeignClient;
+
+    @Mock
+    private ProductFeignClient productFeignClient;
+
+    @Mock
+    private DeliveryFeignClient deliveryFeignClient;
 
     private Hub buildHub(String name, HubType hubType) {
         Hub hub = Hub.builder()
@@ -457,6 +479,7 @@ class HubServiceTest {
         UUID hubId = (UUID) ReflectionTestUtils.getField(hub, "id");
 
         given(hubRepository.findById(hubId)).willReturn(Optional.of(hub));
+        given(deliveryFeignClient.countActiveDeliveries(hubId)).willReturn(0);
 
         // when
         HubDeactivateResponseDto response = hubService.deactivateHub(hubId);
@@ -514,6 +537,25 @@ class HubServiceTest {
                 .satisfies(e -> assertThat(((BaseException) e).getErrorCode())
                         .isEqualTo(HubErrorCode.HUB_NOT_FOUND));
     }
+
+    @Test
+    @DisplayName("진행 중인 배송이 있는 허브 운영 중단 시 예외 발생")
+    void deactivateHub_hasActiveDelivery_throwsException() {
+        // given
+        Hub hub = buildHub("서울 센터", HubType.REGIONAL);
+        hub.startClosing("운영 종료");
+        UUID hubId = (UUID) ReflectionTestUtils.getField(hub, "id");
+
+        given(hubRepository.findById(hubId)).willReturn(Optional.of(hub));
+        given(deliveryFeignClient.countActiveDeliveries(hubId)).willReturn(3);
+
+        // when & then
+        assertThatThrownBy(() -> hubService.deactivateHub(hubId))
+                .isInstanceOf(BaseException.class)
+                .satisfies(e -> assertThat(((BaseException) e).getErrorCode())
+                        .isEqualTo(HubErrorCode.HUB_HAS_ACTIVE_DELIVERY));
+    }
+
 
     @Test
     @DisplayName("CENTRAL 허브 활성 확인 성공")
@@ -622,5 +664,114 @@ class HubServiceTest {
                 .isInstanceOf(BaseException.class)
                 .satisfies(e -> assertThat(((BaseException) e).getErrorCode())
                         .isEqualTo(HubErrorCode.HUB_NOT_FOUND));
+    }
+
+    @Test
+    @DisplayName("허브 삭제 성공")
+    void deleteHub_success() {
+        // given
+        Hub hub = buildHub("서울 센터", HubType.REGIONAL);
+        hub.startClosing("운영 종료");
+        hub.deactivate();
+        UUID hubId = (UUID) ReflectionTestUtils.getField(hub, "id");
+
+        ApiResponse<List<CompanyDetailResponseDto>> emptyResponse = mock(ApiResponse.class);
+        given(emptyResponse.getData()).willReturn(List.of());
+
+        given(hubRepository.findById(hubId)).willReturn(Optional.of(hub));
+        given(productFeignClient.getCompaniesByHubId(hubId)).willReturn(emptyResponse);
+        given(auditorAware.getCurrentAuditor()).willReturn(Optional.of(UUID.randomUUID()));
+        given(hubRouteRepository.findAllByOriginHubIdOrDestinationHubId(hubId, hubId)).willReturn(List.of());
+
+        // when
+        hubService.deleteHub(hubId);
+
+        // then
+        assertThat(hub.isDeleted()).isTrue();
+        verify(deliveryManagerFeignClient).clearHub(hubId);
+        verify(userFeignClient).clearHub(hubId);
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 허브 삭제 시 예외 발생")
+    void deleteHub_notFound_throwsException() {
+        // given
+        UUID hubId = UUID.randomUUID();
+        given(hubRepository.findById(hubId)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> hubService.deleteHub(hubId))
+                .isInstanceOf(BaseException.class)
+                .satisfies(e -> assertThat(((BaseException) e).getErrorCode())
+                        .isEqualTo(HubErrorCode.HUB_NOT_FOUND));
+    }
+
+    @Test
+    @DisplayName("CENTRAL 허브 삭제 시 예외 발생")
+    void deleteHub_centralHub_throwsException() {
+        // given
+        Hub hub = buildHub("경기 남부 센터", HubType.CENTRAL);
+        UUID hubId = (UUID) ReflectionTestUtils.getField(hub, "id");
+        given(hubRepository.findById(hubId)).willReturn(Optional.of(hub));
+
+        // when & then
+        assertThatThrownBy(() -> hubService.deleteHub(hubId))
+                .isInstanceOf(BaseException.class)
+                .satisfies(e -> assertThat(((BaseException) e).getErrorCode())
+                        .isEqualTo(HubErrorCode.CENTRAL_HUB_CANNOT_DELETE));
+    }
+
+    @Test
+    @DisplayName("INACTIVE 아닌 허브 삭제 시 예외 발생")
+    void deleteHub_notInactive_throwsException() {
+        // given
+        Hub hub = buildHub("서울 센터", HubType.REGIONAL);
+        UUID hubId = (UUID) ReflectionTestUtils.getField(hub, "id");
+        given(hubRepository.findById(hubId)).willReturn(Optional.of(hub));
+
+        // when & then
+        assertThatThrownBy(() -> hubService.deleteHub(hubId))
+                .isInstanceOf(BaseException.class)
+                .satisfies(e -> assertThat(((BaseException) e).getErrorCode())
+                        .isEqualTo(HubErrorCode.HUB_NOT_INACTIVE));
+    }
+
+    @Test
+    @DisplayName("CLOSING 허브 삭제 시 예외 발생")
+    void deleteHub_closingHub_throwsException() {
+        // given
+        Hub hub = buildHub("서울 센터", HubType.REGIONAL);
+        hub.startClosing("마감 예정");
+        UUID hubId = (UUID) ReflectionTestUtils.getField(hub, "id");
+        given(hubRepository.findById(hubId)).willReturn(Optional.of(hub));
+
+        // when & then
+        assertThatThrownBy(() -> hubService.deleteHub(hubId))
+                .isInstanceOf(BaseException.class)
+                .satisfies(e -> assertThat(((BaseException) e).getErrorCode())
+                        .isEqualTo(HubErrorCode.HUB_NOT_INACTIVE));
+    }
+
+    @Test
+    @DisplayName("소속 업체가 남아 있는 허브 삭제 시 예외 발생")
+    void deleteHub_hasCompanies_throwsException() {
+        // given
+        Hub hub = buildHub("서울 센터", HubType.REGIONAL);
+        hub.startClosing("운영 종료");
+        hub.deactivate();
+        UUID hubId = (UUID) ReflectionTestUtils.getField(hub, "id");
+
+        CompanyDetailResponseDto company = new CompanyDetailResponseDto(UUID.randomUUID(), "업체A", 10);
+        ApiResponse<List<CompanyDetailResponseDto>> response = mock(ApiResponse.class);
+        given(response.getData()).willReturn(List.of(company));
+
+        given(hubRepository.findById(hubId)).willReturn(Optional.of(hub));
+        given(productFeignClient.getCompaniesByHubId(hubId)).willReturn(response);
+
+        // when & then
+        assertThatThrownBy(() -> hubService.deleteHub(hubId))
+                .isInstanceOf(BaseException.class)
+                .satisfies(e -> assertThat(((BaseException) e).getErrorCode())
+                        .isEqualTo(HubErrorCode.HUB_HAS_COMPANIES));
     }
 }
