@@ -33,7 +33,7 @@ public class GlobalExceptionHandler {
      * ErrorCode 인터페이스 기반으로 어떤 서비스 에러든 동일하게 처리.
      *
      * @param e 발생한 예외
-     * @return 에러 코드와 HTTP 상태 코드가 담긴 응답
+     * @return 에러 코드와 HTTP 상태 메시지가 담긴 응답
      */
     @ExceptionHandler(BaseException.class)
     public ResponseEntity<ApiResponse<Void>> handleBaseException(BaseException e) {
@@ -43,7 +43,7 @@ public class GlobalExceptionHandler {
                 .status(errorCode.getHttpStatus())
                 .body(ApiResponse.error(
                         errorCode.getHttpStatus().value(),
-                        errorCode.getCode()
+                        errorCode.getMessage()
                 ));
     }
 
@@ -86,7 +86,7 @@ public class GlobalExceptionHandler {
                 .status(status)
                 .body(ApiResponse.error(
                         status.value(),
-                        CommonErrorCode.FEIGN_CLIENT_ERROR.getCode()
+                        CommonErrorCode.FEIGN_CLIENT_ERROR.getMessage()
                 ));
     }
 
@@ -103,7 +103,7 @@ public class GlobalExceptionHandler {
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.error(
                         HttpStatus.INTERNAL_SERVER_ERROR.value(),
-                        CommonErrorCode.INTERNAL_SERVER_ERROR.getCode()
+                        CommonErrorCode.INTERNAL_SERVER_ERROR.getMessage()
                 ));
     }
 }
