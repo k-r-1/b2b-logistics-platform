@@ -5,9 +5,7 @@ import com.boxoffice.common.exception.BaseException;
 import com.boxoffice.common.response.ApiResponse;
 import com.boxoffice.common.response.PageResponse;
 import com.boxoffice.common.util.PageableUtils;
-import com.boxoffice.hubservice.client.BulkStockCountRequestDto;
-import com.boxoffice.hubservice.client.BulkStockCountResponseDto;
-import com.boxoffice.hubservice.client.CompanyDetailResponseDto;
+import com.boxoffice.hubservice.client.*;
 import com.boxoffice.hubservice.exception.HubErrorCode;
 import com.boxoffice.hubservice.hub.dto.request.HubClosingRequestDto;
 import com.boxoffice.hubservice.hub.dto.request.HubCreateRequestDto;
@@ -42,10 +40,10 @@ public class HubService {
     private final HubRepository hubRepository;
     private final HubRouteRepository hubRouteRepository;
     private final AuditorAware<UUID> auditorAware;
-    private final com.boxoffice.hubservice.client.DeliveryManagerFeignClient deliveryManagerFeignClient;
-    private final com.boxoffice.hubservice.client.UserFeignClient userFeignClient;
-    private final com.boxoffice.hubservice.client.ProductFeignClient productFeignClient;
-    private final com.boxoffice.hubservice.client.DeliveryFeignClient deliveryFeignClient;
+    private final DeliveryManagerFeignClient deliveryManagerFeignClient;
+    private final UserFeignClient userFeignClient;
+    private final ProductFeignClient productFeignClient;
+    private final DeliveryFeignClient deliveryFeignClient;
 
     @Transactional
     public HubCreateResponseDto createHub(HubCreateRequestDto request) {
@@ -158,10 +156,10 @@ public class HubService {
             throw new BaseException(HubErrorCode.HUB_NOT_CLOSING);
         }
 
-         int activeDeliveries = deliveryFeignClient.countActiveDeliveries(hubId);
-         if (activeDeliveries > 0) {
-             throw new BaseException(HubErrorCode.HUB_HAS_ACTIVE_DELIVERY);
-         }
+        int activeDeliveries = deliveryFeignClient.countActiveDeliveries(hubId);
+        if (activeDeliveries > 0) {
+            throw new BaseException(HubErrorCode.HUB_HAS_ACTIVE_DELIVERY);
+        }
 
         hub.deactivate();
         return HubDeactivateResponseDto.from(hub);
@@ -202,17 +200,10 @@ public class HubService {
             throw new BaseException(HubErrorCode.HUB_NOT_INACTIVE);
         }
 
-        List<CompanyDetailResponseDto> companies = productFeignClient.getCompaniesByHubId(hubId).getData();
+        ApiResponse<List<CompanyDetailResponseDto>> res = productFeignClient.getCompaniesByHubId(hubId);
+        List<CompanyDetailResponseDto> companies = res != null ? res.getData() : null;
         if (companies != null && !companies.isEmpty()) {
             throw new BaseException(HubErrorCode.HUB_HAS_COMPANIES);
-        }
-
-        ApiResponse<List<BulkStockCountResponseDto>> response =
-                productFeignClient.getBulkStockCount(new BulkStockCountRequestDto(List.of(hubId)));
-        List<BulkStockCountResponseDto> stockCounts = response != null ? response.getData() : null;
-        boolean hasStock = stockCounts != null && stockCounts.stream().anyMatch(s -> s.stockCount() > 0);
-        if (hasStock) {
-            throw new BaseException(HubErrorCode.HUB_HAS_STOCK);
         }
 
         UUID deletedBy = auditorAware.getCurrentAuditor().orElse(null);
