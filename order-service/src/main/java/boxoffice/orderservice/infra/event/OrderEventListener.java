@@ -39,7 +39,7 @@ public class OrderEventListener {
     } catch (Exception e) {
       log.error("[EVENT FAILED] 배송 요청이 실패했습니다. orderId = {}", event.orderId());
       cancelOrderAndRestoreStock(event);
-      throw new BaseException(OrderErrorCode.INVALID_REQUEST);
+      throw new BaseException(OrderErrorCode.DELIVERY_REQUEST_FAILED);
     }
   }
 
@@ -47,7 +47,7 @@ public class OrderEventListener {
     // 주문 취소
     try {
       Order order = orderRepository.findById(event.orderId())
-          .orElseThrow(() -> new BaseException(OrderErrorCode.INVALID_REQUEST));
+          .orElseThrow(() -> new BaseException(OrderErrorCode.ORDER_NOT_FOUND));
       order.cancel();
       orderRepository.save(order);
     } catch (Exception e) {

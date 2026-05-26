@@ -16,6 +16,7 @@ public enum OrderDomainErrorCode implements ErrorCode {
   INVALID_DELIVERY_ID(HttpStatus.BAD_REQUEST, "ORDER_DOMAIN_006", "배송 ID가 잘못되었습니다."),
   MISSING_COMPANY_ID(HttpStatus.BAD_REQUEST, "ORDER_DOMAIN_007", "업체 ID가 없습니다."),
   MISSING_HUB_ID(HttpStatus.BAD_REQUEST, "ORDER_DOMAIN_008", "허브 ID가 없습니다."),
+  INVALID_PRICE(HttpStatus.BAD_REQUEST, "ORDER_DOMAIN_009", "불가한 금액입니다.")
   ;
 
   private final HttpStatus httpStatus;

@@ -1,5 +1,6 @@
 package boxoffice.orderservice.domain.vo;
 
+import boxoffice.orderservice.infra.exception.OrderDomainErrorCode;
 import boxoffice.orderservice.infra.exception.OrderErrorCode;
 import com.boxoffice.common.exception.BaseException;
 import jakarta.persistence.Column;
@@ -27,6 +28,6 @@ public class TotalPrice {
 
   private static void validate(Integer value) {
     if (value == null || value < 0)
-      throw new BaseException(OrderErrorCode.INVALID_PRICE);
+      throw new BaseException(OrderDomainErrorCode.INVALID_PRICE);
   }
 }

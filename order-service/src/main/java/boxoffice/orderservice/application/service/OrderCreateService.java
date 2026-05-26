@@ -63,10 +63,10 @@ public class OrderCreateService {
       case "HUB_MANAGER", "DELIVERY_MANAGER" -> {
         InternalCompanyHub hubResults = companyProductFeignClient.getCompanyById(supplierId, receiverId);
         if (!user.hubId().equals(hubResults.receiverHubId()) || !user.hubId().equals(receiverId)) {
-          throw new BaseException(CommonErrorCode.UNAUTHORIZED);
+          throw new BaseException(OrderErrorCode.UNAUTHORIZED_HUB_ORDER);
         }
       }
-      default -> throw new BaseException(OrderErrorCode.NO_PERMISSION);
+      default -> throw new BaseException(OrderErrorCode.UNAUTHORIZED_ORDER);
     }
   }
 

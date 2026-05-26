@@ -90,7 +90,7 @@ public class Order extends BaseEntity {
 
   public void cancel() {
     if (this.status != OrderStatus.PENDING) {
-      throw new BaseException(OrderErrorCode.INVALID_STATUS);
+      throw new BaseException(OrderDomainErrorCode.INVALID_STATUS_TRANSITION);
     }
     this.status = OrderStatus.CANCELLED;
   }
