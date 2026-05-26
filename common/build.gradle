@@ -1,7 +1,7 @@
 dependencies {
     // 1. 기본 웹 및 DB 인프라 관련
-    implementation 'org.springframework.boot:spring-boot-starter-web'
-    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    api 'org.springframework.boot:spring-boot-starter-web'
+    api 'org.springframework.boot:spring-boot-starter-data-jpa'
 
     // 2. Lombok
     compileOnly 'org.projectlombok:lombok'
@@ -11,13 +11,13 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-security'
 
     // 4. 유효성 검증
-    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    api 'org.springframework.boot:spring-boot-starter-validation'
 
     // 5. MSA 인프라 및 서비스 간 통신 관련
-    implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
+    api 'org.springframework.cloud:spring-cloud-starter-openfeign'
 
     // 6. UUID v7
-    implementation 'com.fasterxml.uuid:java-uuid-generator:5.1.0'
+    api 'com.fasterxml.uuid:java-uuid-generator:5.1.0'
 }
 
 // 루트에서 bootJar = true로 설정되어 있으므로 common은 명시적으로 재정의
