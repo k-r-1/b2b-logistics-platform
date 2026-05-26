@@ -25,6 +25,7 @@ public enum OrderErrorCode implements ErrorCode {
 
   // 외부 서비스
   DELIVERY_REQUEST_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "ORDER_021", "배송 요청에 실패했습니다."),
+  DELIVERY_CANCEL_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "ORDER_022", "배송 취소 요청에 실패했습니다."),
   ;
 
   private final HttpStatus httpStatus;

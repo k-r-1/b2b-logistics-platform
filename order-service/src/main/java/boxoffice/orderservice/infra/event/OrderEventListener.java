@@ -2,6 +2,7 @@ package boxoffice.orderservice.infra.event;
 
 import boxoffice.orderservice.application.client.CompanyProductFeignClient;
 import boxoffice.orderservice.application.client.DeliveryFeignClient;
+import boxoffice.orderservice.application.client.dto.request.DeliveryCancelRequest;
 import boxoffice.orderservice.application.client.dto.request.DeliveryCreateRequest;
 import boxoffice.orderservice.application.client.dto.request.StockRestoreRequest;
 import boxoffice.orderservice.domain.entity.Order;
@@ -40,6 +41,14 @@ public class OrderEventListener {
       log.error("[EVENT FAILED] 배송 요청이 실패했습니다. orderId = {}", event.orderId());
       cancelOrderAndRestoreStock(event);
       throw new BaseException(OrderErrorCode.DELIVERY_REQUEST_FAILED);
+    }
+  }
+
+  public void orderCancelledEvent(OrderCancelledEvent event) {
+    try {
+      deliveryFeignClient.cancelDelivery(new DeliveryCancelRequest(event.orderId()));
+    } catch (Exception e) {
+      log.error("[EVENT FAILED] 배송 취소 요청이 실패했습니다. 수동 처리 필요. orderId = {}", event.orderId(), e);
     }
   }
 

@@ -24,6 +24,13 @@ public class OrderCommandService {
   }
 
   @Transactional
+  public Order cancelOrder(Order order, UUID deletedBy) {
+    order.cancel();
+    order.softDelete(deletedBy);
+    return orderRepository.save(order);
+  }
+
+  @Transactional
   public Order saveOrder(UUID supplierId, UUID receiverId, String request, StockDeductResponse stocks) {
     List<OrderProduct> products = stocks.details().stream()
         .map(detail -> OrderProduct.create(
