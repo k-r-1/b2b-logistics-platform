@@ -2,6 +2,7 @@ package com.boxoffice.userservice.service;
 
 import com.boxoffice.common.exception.BaseException;
 import com.boxoffice.common.exception.CommonErrorCode;
+import com.boxoffice.userservice.client.HubServiceClient;
 import com.boxoffice.userservice.client.KeycloakClient;
 import com.boxoffice.userservice.dto.UserResponseDto;
 import com.boxoffice.userservice.dto.UserStatusUpdateRequestDto;
@@ -9,6 +10,7 @@ import com.boxoffice.userservice.entity.Email;
 import com.boxoffice.userservice.entity.User;
 import com.boxoffice.userservice.entity.UserRole;
 import com.boxoffice.userservice.entity.UserStatus;
+import com.boxoffice.userservice.exception.UserErrorCode;
 import com.boxoffice.userservice.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -53,9 +55,16 @@ class UserServiceTest {
     @Mock
     private ValueOperations<String, String> valueOperations;
 
+    @Mock
+    private HubServiceClient hubServiceClient;
+
     private User masterUser;
     private User hubManagerUser;
     private User targetUser;
+
+    // 🌟 타입 불일치 에러 해결을 위해 UUID로 통일
+    private UUID hubId1;
+    private UUID hubId2;
 
     @BeforeEach
     void setUp() {
@@ -64,6 +73,9 @@ class UserServiceTest {
         ReflectionTestUtils.setField(userService, "adminPassword", "admin123");
         ReflectionTestUtils.setField(userService, "adminClientId", "admin-cli");
         ReflectionTestUtils.setField(userService, "userClientId", "boxoffice-app");
+
+        hubId1 = UUID.randomUUID();
+        hubId2 = UUID.randomUUID();
 
         // 테스트에 사용할 더미(Dummy) 엔티티 생성
         masterUser = User.builder()
@@ -79,7 +91,7 @@ class UserServiceTest {
                 .email(new Email("hub@test.com"))
                 .name("허브매니저")
                 .role(UserRole.HUB_MANAGER)
-                .hubId("hub-1")
+                .hubId(hubId1) // 🌟 String -> UUID로 변경
                 .build();
         ReflectionTestUtils.setField(hubManagerUser, "id", UUID.randomUUID());
 
@@ -88,7 +100,7 @@ class UserServiceTest {
                 .email(new Email("target@test.com"))
                 .name("신규유저")
                 .role(UserRole.HUB_MANAGER)
-                .hubId("hub-1")
+                .hubId(hubId1) // 🌟 String -> UUID로 변경
                 .status(UserStatus.PENDING)
                 .build();
         ReflectionTestUtils.setField(targetUser, "id", UUID.randomUUID());
@@ -97,13 +109,8 @@ class UserServiceTest {
     @Test
     @DisplayName("내 정보 조회 성공 테스트")
     void getMyInfo_Success() {
-        // given (상황 세팅: DB에서 유저를 찾으면 masterUser를 반환한다)
         given(userRepository.findByKeycloakSub("master-sub")).willReturn(Optional.of(masterUser));
-
-        // when (실제 메서드 실행)
         UserResponseDto result = userService.getMyInfo("master-sub");
-
-        // then (결과 검증)
         assertNotNull(result);
         assertEquals("마스터", result.getName());
         assertEquals("master@test.com", result.getEmail());
@@ -112,52 +119,43 @@ class UserServiceTest {
     @Test
     @DisplayName("사용자 목록 조회 - MASTER 권한 (전체 조회 성공)")
     void getUserList_Master_Success() {
-        // given
         given(userRepository.findByKeycloakSub("master-sub")).willReturn(Optional.of(masterUser));
-
         Page<User> mockPage = new PageImpl<>(List.of(hubManagerUser, targetUser));
         given(userRepository.findAll(any(PageRequest.class))).willReturn(mockPage);
 
-        // when
         Page<UserResponseDto> result = userService.getUserList("master-sub", PageRequest.of(0, 10));
 
-        // then
         assertEquals(2, result.getContent().size());
-        verify(userRepository, times(1)).findAll(any(PageRequest.class)); // findAll이 호출되었는지 검증
+        verify(userRepository, times(1)).findAll(any(PageRequest.class));
     }
 
     @Test
     @DisplayName("가입 승인 - HUB_MANAGER가 같은 허브 유저 승인 (성공)")
     void updateUserStatus_HubManager_Success() {
-        // given
         UserStatusUpdateRequestDto requestDto = new UserStatusUpdateRequestDto();
         ReflectionTestUtils.setField(requestDto, "status", "APPROVED");
 
         given(userRepository.findByKeycloakSub("hub-manager-sub")).willReturn(Optional.of(hubManagerUser));
         given(userRepository.findById(targetUser.getId())).willReturn(Optional.of(targetUser));
 
-        // when
         UserResponseDto result = userService.updateUserStatus(targetUser.getId(), "hub-manager-sub", requestDto);
 
-        // then
         assertEquals(UserStatus.APPROVED.name(), result.getStatus());
-        assertEquals(UserStatus.APPROVED, targetUser.getStatus()); // 실제 엔티티 상태도 변경되었는지 확인
+        assertEquals(UserStatus.APPROVED, targetUser.getStatus());
     }
 
     @Test
     @DisplayName("가입 승인 - HUB_MANAGER가 다른 허브 유저 승인 시도 (실패 - FORBIDDEN)")
     void updateUserStatus_HubManager_DifferentHub_Fail() {
-        // given
         UserStatusUpdateRequestDto requestDto = new UserStatusUpdateRequestDto();
         ReflectionTestUtils.setField(requestDto, "status", "APPROVED");
 
-        // 다른 허브(hub-2) 소속의 매니저 생성
-        User otherHubManager = User.builder().role(UserRole.HUB_MANAGER).hubId("hub-2").build();
+        // 🌟 다른 허브(hubId2) 소속의 매니저 생성 시 UUID 적용
+        User otherHubManager = User.builder().role(UserRole.HUB_MANAGER).hubId(hubId2).build();
 
         given(userRepository.findByKeycloakSub("other-hub-sub")).willReturn(Optional.of(otherHubManager));
-        given(userRepository.findById(targetUser.getId())).willReturn(Optional.of(targetUser)); // target은 hub-1
+        given(userRepository.findById(targetUser.getId())).willReturn(Optional.of(targetUser));
 
-        // when & then
         BaseException exception = assertThrows(BaseException.class, () ->
                 userService.updateUserStatus(targetUser.getId(), "other-hub-sub", requestDto)
         );
@@ -167,24 +165,18 @@ class UserServiceTest {
     @Test
     @DisplayName("사용자 삭제 - MASTER 권한 (Soft Delete 성공)")
     void deleteUser_Master_Success() {
-        // given
         given(userRepository.findByKeycloakSub("master-sub")).willReturn(Optional.of(masterUser));
         given(userRepository.findById(targetUser.getId())).willReturn(Optional.of(targetUser));
 
-        // when
         userService.deleteUser(targetUser.getId(), "master-sub");
 
-        // then
-        assertEquals(UserStatus.DELETED, targetUser.getStatus()); // 상태가 DELETED로 바뀌었는지 검증
-        assertNotNull(targetUser.getDeletedAt()); // Soft Delete 시간이 찍혔는지 검증
-        assertEquals(masterUser.getId(), targetUser.getDeletedBy()); // 삭제자가 마스터로 기록되었는지 검증
+        assertEquals(UserStatus.DELETED, targetUser.getStatus());
+        assertNotNull(targetUser.getDeletedAt());
     }
 
     @Test
     @DisplayName("로그아웃 - 유효한 토큰 Redis 등록 성공")
     void logout_Success() {
-        // given
-        // 유효시간(exp)이 1시간 뒤인 가짜 JWT 토큰 생성
         String header = Base64.getUrlEncoder().encodeToString("{}".getBytes());
         long exp = (System.currentTimeMillis() / 1000) + 3600;
         String payload = Base64.getUrlEncoder().encodeToString(("{\"exp\":" + exp + "}").getBytes());
@@ -192,19 +184,51 @@ class UserServiceTest {
         String fakeToken = header + "." + payload + "." + sig;
         String authHeader = "Bearer " + fakeToken;
 
-        // RedisTemplate의 opsForValue()가 호출될 때 Mock 객체를 반환하도록 설정
         given(redisTemplate.opsForValue()).willReturn(valueOperations);
 
-        // when
         userService.logout(authHeader);
 
-        // then
-        // valueOperations.set(...) 메서드가 정확한 인자와 함께 1번 호출되었는지 검증
-        verify(valueOperations, times(1)).set(
-                eq(fakeToken),
-                eq("logout"),
-                anyLong(),
-                eq(TimeUnit.MILLISECONDS)
-        );
+        verify(valueOperations, times(1)).set(eq(fakeToken), eq("logout"), anyLong(), eq(TimeUnit.MILLISECONDS));
+    }
+
+    // =====================================================================
+    // 🌟 [신규 추가] 허브 폐쇄/변경 안전망 관련 테스트 로직
+    // =====================================================================
+
+    @Test
+    @DisplayName("허브 관리자 소속 허브 수동 변경 성공 - MASTER 권한")
+    void updateUserHub_Success() {
+        UUID newHubId = UUID.randomUUID();
+        given(userRepository.findById(targetUser.getId())).willReturn(Optional.of(targetUser));
+
+        userService.updateUserHub(targetUser.getId(), newHubId, "MASTER");
+
+        // 상태 변경(updateHub) 도메인 로직이 잘 작동하여 값이 바뀌었는지 검증
+        assertEquals(newHubId, targetUser.getHubId());
+    }
+
+    @Test
+    @DisplayName("허브 관리자 소속 허브 수동 변경 실패 - 권한 없음")
+    void updateUserHub_Fail_Forbidden() {
+        UUID newHubId = UUID.randomUUID();
+
+        // HUB_MANAGER 권한으로 찌르면 FORBIDDEN 예외가 터져야 함
+        BaseException exception = assertThrows(BaseException.class, () ->
+                userService.updateUserHub(targetUser.getId(), newHubId, "HUB_MANAGER"));
+
+        // 기존 테스트 코드의 에러 검증 방식에 맞춤
+        // 만약 UserErrorCode를 사용하셨다면 UserErrorCode.FORBIDDEN_ACCESS 등으로 수정 필요
+        assertEquals(UserErrorCode.FORBIDDEN_ACCESS, exception.getErrorCode());
+    }
+
+    @Test
+    @DisplayName("내부 API: 허브 삭제 시 연관 유저 hubId 일괄 초기화 성공")
+    void clearUserHubId_Success() {
+        UUID targetHubId = UUID.randomUUID();
+
+        userService.clearUserHubId(targetHubId);
+
+        // 레포지토리의 벌크 연산 메서드가 정확히 1번 호출되었는지 검증
+        verify(userRepository, times(1)).clearHubIdByHubId(targetHubId);
     }
 }

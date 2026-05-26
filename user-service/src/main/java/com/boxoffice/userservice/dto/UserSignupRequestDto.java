@@ -32,6 +32,5 @@ public class UserSignupRequestDto {
     @NotNull(message = "역할(Role)은 필수입니다.")
     private UserRole role;
 
-    // (일반 유저는 null 가능)
     private String hubId;
 }

@@ -57,7 +57,7 @@ class DeliveryManagerServiceTest {
         assertEquals(userId, response.getUserId());
         assertEquals(hubId, response.getHubId());
 
-        // 🌟 [추가] 새로 추가된 필드의 기본값이 정상적으로 들어갔는지 검증
+        // 새로 추가된 필드의 기본값이 정상적으로 들어갔는지 검증
         assertEquals("NOT_REGISTERED", response.getSlackId());
         assertEquals(ManagerStatus.WAITING, response.getStatus());
 
@@ -101,7 +101,7 @@ class DeliveryManagerServiceTest {
         // Then
         assertNotNull(response);
         assertEquals(userId, response.getUserId());
-        assertEquals("TEST_SLACK", response.getSlackId()); // 🌟 새로 추가된 응답 필드 검증
+        assertEquals("TEST_SLACK", response.getSlackId()); // 새로 추가된 응답 필드 검증
     }
 
     @Test
@@ -136,7 +136,7 @@ class DeliveryManagerServiceTest {
                 .status(ManagerStatus.WAITING)
                 .build());
 
-        // 🌟 [수정] 바뀐 Repository 메서드 이름과 ManagerStatus.WAITING 파라미터를 정확히 모킹(Mocking)
+        // 바뀐 Repository 메서드 이름과 ManagerStatus.WAITING 파라미터를 정확히 모킹
         when(deliveryManagerRepository.findFirstByHubIdAndTypeAndStatusAndIsDeletedFalseOrderByLastAssignedAtAsc(
                 hubId, DeliveryType.HUB_TO_HUB, ManagerStatus.WAITING))
                 .thenReturn(Optional.of(manager));
@@ -147,5 +147,24 @@ class DeliveryManagerServiceTest {
         // Then
         assertNotNull(response);
         verify(manager, times(1)).recordAssignment();
+    }
+
+    // =====================================================================
+    // 🌟 [신규 추가] 허브 폐쇄/변경 안전망 관련 배송 담당자 테스트 로직
+    // =====================================================================
+
+    @Test
+    @DisplayName("내부 API: 허브 삭제 시 연관 기사 허브 초기화 및 상태(WAITING) 변경 성공")
+    void clearDeliveryManagerHubId_Success() {
+        // Given
+        UUID targetHubId = UUID.randomUUID();
+
+        // When
+        deliveryManagerService.clearDeliveryManagerHubId(targetHubId);
+
+        // Then
+        // 벌크 연산 레포지토리 메서드가 타겟 허브 ID와 WAITING 상태값을 가지고 정확히 1번 호출되었는지 검증
+        verify(deliveryManagerRepository, times(1))
+                .clearHubIdAndChangeStatusByHubId(targetHubId, ManagerStatus.WAITING);
     }
 }
