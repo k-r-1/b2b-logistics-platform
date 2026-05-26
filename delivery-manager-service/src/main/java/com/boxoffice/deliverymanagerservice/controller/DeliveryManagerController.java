@@ -65,4 +65,16 @@ public class DeliveryManagerController {
 
         return ResponseEntity.ok(ApiResponse.success(response));
     }
+
+
+    @PatchMapping("/internal/clear-hub/{hubId}")
+    public ResponseEntity<ApiResponse<Void>> clearDeliveryManagerHubId(
+            @PathVariable("hubId") UUID hubId) {
+
+        log.info("[Internal Controller] 허브 삭제에 따른 기사님 hubId 초기화 요청 수신. TargetHubId: {}", hubId);
+
+        deliveryManagerService.clearDeliveryManagerHubId(hubId);
+
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
 }

@@ -6,6 +6,11 @@ import com.boxoffice.deliverymanagerservice.entity.ManagerStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+
 import java.util.Optional;
 import java.util.UUID;
 
@@ -17,4 +22,8 @@ public interface DeliveryManagerRepository extends JpaRepository<DeliveryManager
 
     Optional<DeliveryManager> findFirstByHubIdAndTypeAndStatusAndIsDeletedFalseOrderByLastAssignedAtAsc(
             UUID hubId, DeliveryType type, ManagerStatus status);
+
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE DeliveryManager dm SET dm.hubId = null, dm.status = :status WHERE dm.hubId = :hubId")
+    void clearHubIdAndChangeStatusByHubId(@Param("hubId") UUID hubId, @Param("status") ManagerStatus status);
 }

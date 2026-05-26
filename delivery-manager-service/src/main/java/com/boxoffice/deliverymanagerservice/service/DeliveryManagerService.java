@@ -98,4 +98,13 @@ public class DeliveryManagerService {
             throw new BaseException(DeliveryManagerErrorCode.FORBIDDEN_ACCESS);
         }
     }
+
+    @Transactional
+    public void clearDeliveryManagerHubId(UUID hubId) {
+        log.info("[DeliveryManagerHubClear] 허브 삭제에 따른 기사님 hubId 및 상태 일괄 초기화 시작. TargetHubId: {}", hubId);
+
+        deliveryManagerRepository.clearHubIdAndChangeStatusByHubId(hubId, ManagerStatus.WAITING);
+
+        log.info("[DeliveryManagerHubClear] 기사님 일괄 초기화 완료. TargetHubId: {}", hubId);
+    }
 }
