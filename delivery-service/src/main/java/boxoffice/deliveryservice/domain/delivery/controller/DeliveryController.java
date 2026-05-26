@@ -151,4 +151,21 @@ public class DeliveryController {
             @Valid @RequestBody DeliveryRouteStatusUpdateRequestDto request) {
         return ResponseEntity.ok(ApiResponse.success(deliveryService.updateDeliveryRouteStatus(keycloakSub, deliveryId, routeId, request)));
     }
+
+    @DeleteMapping("/{deliveryId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteDelivery(
+            @RequestHeader("X-User-Id") String keycloakSub,
+            @PathVariable UUID deliveryId) {
+        deliveryService.deleteDelivery(keycloakSub, deliveryId);
+    }
+
+    @DeleteMapping("/{deliveryId}/routes/{routeId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteDeliveryRoute(
+            @RequestHeader("X-User-Id") String keycloakSub,
+            @PathVariable UUID deliveryId,
+            @PathVariable UUID routeId) {
+        deliveryService.deleteDeliveryRoute(keycloakSub, deliveryId, routeId);
+    }
 }
