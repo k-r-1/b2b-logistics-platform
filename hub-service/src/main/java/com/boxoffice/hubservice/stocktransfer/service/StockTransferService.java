@@ -20,10 +20,11 @@ import com.boxoffice.hubservice.stocktransfer.dto.response.TransferPlanResponseD
 import com.boxoffice.hubservice.stocktransfer.entity.QStockTransfer;
 import com.boxoffice.hubservice.stocktransfer.entity.StockTransfer;
 import com.boxoffice.hubservice.stocktransfer.entity.TransferStatus;
-import com.boxoffice.hubservice.stocktransfer.kafka.StockTransferKafkaProducer;
+import com.boxoffice.hubservice.stocktransfer.event.TransferDispatchedEvent;
 import com.boxoffice.hubservice.stocktransfer.repository.StockTransferRepository;
 import com.querydsl.core.BooleanBuilder;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -42,7 +43,7 @@ public class StockTransferService {
     private final HubRepository hubRepository;
     private final HubRouteRepository hubRouteRepository;
     private final ProductFeignClient productFeignClient;
-    private final StockTransferKafkaProducer kafkaProducer;
+    private final ApplicationEventPublisher eventPublisher;
 
     private record Candidate(Hub hub, BigDecimal distanceKm, int availableCapacity) {
     }
@@ -179,7 +180,8 @@ public class StockTransferService {
             throw new BaseException(HubErrorCode.TRANSFER_ALREADY_IN_PROGRESS);
         }
         transfer.dispatch();
-        kafkaProducer.sendDispatched(transferId, transfer.getFromHubId(), transfer.getToHubId());
+        eventPublisher.publishEvent(
+                new TransferDispatchedEvent(transferId, transfer.getFromHubId(), transfer.getToHubId()));
         return StockTransferResponseDto.from(transfer);
     }
 
