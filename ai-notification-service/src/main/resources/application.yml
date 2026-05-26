@@ -13,6 +13,11 @@ spring:
           options:
             model: gemini-2.0-flash
 
+  data:
+    redis:
+      host: ${REDIS_HOST:}
+      port: ${REDIS_PORT:6379}
+
   cloud:
     compatibility-verifier:
       enabled: false
