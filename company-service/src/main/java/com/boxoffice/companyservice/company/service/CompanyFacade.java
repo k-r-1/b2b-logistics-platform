@@ -63,11 +63,6 @@ public class CompanyFacade {
         CompanyUserRole role = validateCompanyUpdatePermission(userRoleStr);
 
         validateCompanyUpdateScope(company, role, userHubId, keycloakSub);
-        validateHubManagerCanUpdateHub(request.getHubId(), role, userHubId);
-
-        if (request.getHubId() != null) {
-            hubValidator.validateHubActive(request.getHubId());
-        }
 
         companyService.updateCompany(company, request);
     }
@@ -160,16 +155,6 @@ public class CompanyFacade {
 
     private void validateHubManagerCanUpdateCompany(Company company, UUID userHubId) {
         if (userHubId == null || !userHubId.equals(company.getHubId())) {
-            throw new BaseException(CommonErrorCode.FORBIDDEN);
-        }
-    }
-
-    private void validateHubManagerCanUpdateHub(UUID requestHubId, CompanyUserRole role, UUID userHubId) {
-        if (role != CompanyUserRole.HUB_MANAGER || requestHubId == null) {
-            return;
-        }
-
-        if (userHubId == null || !userHubId.equals(requestHubId)) {
             throw new BaseException(CommonErrorCode.FORBIDDEN);
         }
     }

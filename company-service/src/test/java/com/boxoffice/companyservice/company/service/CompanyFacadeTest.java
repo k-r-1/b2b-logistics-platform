@@ -351,9 +351,8 @@ class CompanyFacadeTest {
     void updateCompanyWithMasterRole() {
         // given
         UUID companyId = UUID.randomUUID();
-        UUID hubId = UUID.randomUUID();
         Company company = createCompany(companyId, UUID.randomUUID());
-        CompanyUpdateRequestDto request = createUpdateRequest("수정 업체", CompanyType.RECEIVER, hubId);
+        CompanyUpdateRequestDto request = createUpdateRequest("수정 업체", CompanyType.RECEIVER);
 
         when(companyService.getCompanyEntity(companyId)).thenReturn(company);
 
@@ -362,9 +361,9 @@ class CompanyFacadeTest {
 
         // then
         verify(companyService).getCompanyEntity(companyId);
-        verify(hubValidator).validateHubActive(hubId);
         verify(companyService).updateCompany(company, request);
-        verifyNoMoreInteractions(hubValidator, userClient, companyService);
+        verifyNoMoreInteractions(userClient, companyService);
+        verifyNoInteractions(hubValidator);
     }
 
     @Test
@@ -373,7 +372,7 @@ class CompanyFacadeTest {
         // given
         UUID companyId = UUID.randomUUID();
         Company company = createCompany(companyId, UUID.randomUUID());
-        CompanyUpdateRequestDto request = createUpdateRequest("수정 업체", null, null);
+        CompanyUpdateRequestDto request = createUpdateRequest("수정 업체", null);
 
         when(companyService.getCompanyEntity(companyId)).thenReturn(company);
 
@@ -394,7 +393,7 @@ class CompanyFacadeTest {
     void updateCompanyWithUnknownCompanyIdThrowsNotFound() {
         // given
         UUID companyId = UUID.randomUUID();
-        CompanyUpdateRequestDto request = createUpdateRequest("수정 업체", null, null);
+        CompanyUpdateRequestDto request = createUpdateRequest("수정 업체", null);
 
         when(companyService.getCompanyEntity(companyId))
                 .thenThrow(new BaseException(CompanyErrorCode.COMPANY_NOT_FOUND));
@@ -419,7 +418,7 @@ class CompanyFacadeTest {
         // given
         UUID companyId = UUID.randomUUID();
         Company company = createCompany(companyId, UUID.randomUUID());
-        CompanyUpdateRequestDto request = createUpdateRequest("수정 업체", null, null);
+        CompanyUpdateRequestDto request = createUpdateRequest("수정 업체", null);
 
         when(companyService.getCompanyEntity(companyId)).thenReturn(company);
 
@@ -442,7 +441,7 @@ class CompanyFacadeTest {
         UUID companyId = UUID.randomUUID();
         String keycloakSub = UUID.randomUUID().toString();
         Company company = createCompany(companyId, UUID.randomUUID());
-        CompanyUpdateRequestDto request = createUpdateRequest("수정 업체", null, null);
+        CompanyUpdateRequestDto request = createUpdateRequest("수정 업체", null);
         UserResponseWrapperDto userResponse = createUserResponse(companyId);
 
         when(companyService.getCompanyEntity(companyId)).thenReturn(company);
@@ -464,7 +463,7 @@ class CompanyFacadeTest {
     void updateCompanyWithoutUpdateField() {
         // given
         UUID companyId = UUID.randomUUID();
-        CompanyUpdateRequestDto request = createUpdateRequest(null, null, null);
+        CompanyUpdateRequestDto request = createUpdateRequest(null, null);
 
         // when
         Throwable throwable = catchThrowable(() ->
@@ -513,11 +512,10 @@ class CompanyFacadeTest {
         return company;
     }
 
-    private CompanyUpdateRequestDto createUpdateRequest(String name, CompanyType type, UUID hubId) {
+    private CompanyUpdateRequestDto createUpdateRequest(String name, CompanyType type) {
         CompanyUpdateRequestDto request = createEmptyUpdateRequest();
         ReflectionTestUtils.setField(request, "name", name);
         ReflectionTestUtils.setField(request, "type", type);
-        ReflectionTestUtils.setField(request, "hubId", hubId);
         return request;
     }
 

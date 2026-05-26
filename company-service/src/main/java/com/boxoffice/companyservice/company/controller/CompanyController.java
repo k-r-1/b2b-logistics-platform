@@ -101,4 +101,5 @@ public class CompanyController {
 
         return ResponseEntity.noContent().build();
     }
+
 }

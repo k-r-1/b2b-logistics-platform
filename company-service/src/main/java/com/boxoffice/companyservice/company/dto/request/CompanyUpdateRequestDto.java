@@ -7,8 +7,6 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.util.UUID;
-
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class CompanyUpdateRequestDto {
@@ -18,13 +16,11 @@ public class CompanyUpdateRequestDto {
 
     private CompanyType type;
 
-    private UUID hubId;
-
     @Valid
     private AddressRequestDto address;
 
     public boolean hasUpdateField() {
-        return name != null || type != null || hubId != null || address != null;
+        return name != null || type != null || address != null;
     }
 
     public boolean hasBlankName() {

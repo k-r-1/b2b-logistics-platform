@@ -73,7 +73,7 @@ public class CompanyService {
     @Transactional
     public void updateCompany(Company company, CompanyUpdateRequestDto request) {
         AddressVO address = request.getAddress() == null ? null : request.getAddress().toAddressVO();
-        company.update(request.getName(), request.getType(), request.getHubId(), address);
+        company.update(request.getName(), request.getType(), address);
     }
 
     @Transactional(readOnly = true)
