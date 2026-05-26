@@ -231,4 +231,87 @@ class DeliveryRouteServiceTest {
                     .isInstanceOf(BaseException.class);
         }
     }
+
+    @Nested
+    @DisplayName("deleteRoute()")
+    class DeleteRoute {
+
+        @Test
+        @DisplayName("성공 - 경로 soft-delete")
+        void success() {
+            // given
+            UUID deliveryId = UUID.randomUUID();
+            UUID routeId = UUID.randomUUID();
+            UUID deletedBy = UUID.randomUUID();
+            Delivery delivery = createDelivery();
+            DeliveryRoute route = createRoute(delivery, 1);
+
+            given(deliveryRouteRepository.findByIdAndDeliveryIdAndDeletedAtIsNull(routeId, deliveryId))
+                    .willReturn(Optional.of(route));
+
+            // when
+            deliveryRouteService.deleteRoute(routeId, deliveryId, deletedBy);
+
+            // then
+            assertThat(route.isDeleted()).isTrue();
+            assertThat(route.getDeletedBy()).isEqualTo(deletedBy);
+        }
+
+        @Test
+        @DisplayName("실패 - 존재하지 않는 경로 ID")
+        void fail_not_found() {
+            // given
+            UUID deliveryId = UUID.randomUUID();
+            UUID routeId = UUID.randomUUID();
+
+            given(deliveryRouteRepository.findByIdAndDeliveryIdAndDeletedAtIsNull(routeId, deliveryId))
+                    .willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> deliveryRouteService.deleteRoute(routeId, deliveryId, UUID.randomUUID()))
+                    .isInstanceOf(BaseException.class);
+        }
+    }
+
+    @Nested
+    @DisplayName("deleteAllByDelivery()")
+    class DeleteAllByDelivery {
+
+        @Test
+        @DisplayName("성공 - 배송에 속한 모든 경로 soft-delete")
+        void success() {
+            // given
+            UUID deliveryId = UUID.randomUUID();
+            UUID deletedBy = UUID.randomUUID();
+            Delivery delivery = createDelivery();
+            DeliveryRoute route1 = createRoute(delivery, 1);
+            DeliveryRoute route2 = createRoute(delivery, 2);
+
+            given(deliveryRouteRepository.findAllByDeliveryIdAndDeletedAtIsNull(deliveryId))
+                    .willReturn(List.of(route1, route2));
+
+            // when
+            deliveryRouteService.deleteAllByDelivery(deliveryId, deletedBy);
+
+            // then
+            assertThat(route1.isDeleted()).isTrue();
+            assertThat(route2.isDeleted()).isTrue();
+            assertThat(route1.getDeletedBy()).isEqualTo(deletedBy);
+            assertThat(route2.getDeletedBy()).isEqualTo(deletedBy);
+        }
+
+        @Test
+        @DisplayName("성공 - 경로가 없어도 예외 없이 종료")
+        void success_empty_routes() {
+            // given
+            UUID deliveryId = UUID.randomUUID();
+            UUID deletedBy = UUID.randomUUID();
+
+            given(deliveryRouteRepository.findAllByDeliveryIdAndDeletedAtIsNull(deliveryId))
+                    .willReturn(List.of());
+
+            // when & then (no exception)
+            deliveryRouteService.deleteAllByDelivery(deliveryId, deletedBy);
+        }
+    }
 }
