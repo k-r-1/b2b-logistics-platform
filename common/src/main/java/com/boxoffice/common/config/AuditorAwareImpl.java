@@ -2,7 +2,6 @@ package com.boxoffice.common.config;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.AuditorAware;
-import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
@@ -19,7 +18,6 @@ import java.util.UUID;
  *       SecurityContext 방식으로 변경 여부 검토 필요.
  */
 @Slf4j
-@Component
 public class AuditorAwareImpl implements AuditorAware<UUID> {
 
     private static final String USER_ID_HEADER = "X-User-Id";
