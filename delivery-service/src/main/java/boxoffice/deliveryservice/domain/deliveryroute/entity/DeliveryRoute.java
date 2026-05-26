@@ -53,4 +53,13 @@ public class DeliveryRoute extends BaseEntity {
     private BigDecimal actualDistance;
     private Integer actualDuration;
     private Integer sequence;
+
+    public void updateActual(BigDecimal actualDistance, Integer actualDuration) {
+        this.actualDistance = actualDistance;
+        this.actualDuration = actualDuration;
+    }
+
+    public void updateStatus(DeliveryRouteStatus status) {
+        this.status = status;
+    }
 }
