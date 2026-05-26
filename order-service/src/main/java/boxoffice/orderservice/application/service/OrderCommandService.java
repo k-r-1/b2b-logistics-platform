@@ -16,6 +16,14 @@ public class OrderCommandService {
   private final OrderRepository orderRepository;
 
   @Transactional
+  public Order updateOrder(Order order, String request) {
+    if (request != null) {
+      order.updateOrderRequest(request);
+    }
+    return orderRepository.save(order);
+  }
+
+  @Transactional
   public Order saveOrder(UUID supplierId, UUID receiverId, String request, StockDeductResponse stocks) {
     List<OrderProduct> products = stocks.details().stream()
         .map(detail -> OrderProduct.create(
