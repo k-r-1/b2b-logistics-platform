@@ -23,41 +23,39 @@ public class DeliveryManagerController {
 
     @PostMapping
     public ResponseEntity<ApiResponse<DeliveryManagerResponseDto>> createDeliveryManager(
-            @RequestBody DeliveryManagerCreateRequestDto request) {
-        log.info("[Controller] 배송 담당자 등록 요청 수신. UserId: {}", request.getUserId());
-        DeliveryManagerResponseDto response = deliveryManagerService.createDeliveryManager(request);
+            @RequestBody DeliveryManagerCreateRequestDto request,
+            @RequestHeader("X-User-Role") String role) {
+        DeliveryManagerResponseDto response = deliveryManagerService.createDeliveryManager(request, role);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<DeliveryManagerResponseDto>> getDeliveryManager(
-            @PathVariable UUID id) {
-        log.info("[Controller] 배송 담당자 단건 조회 요청 수신. ManagerId: {}", id);
-        DeliveryManagerResponseDto response = deliveryManagerService.getDeliveryManager(id);
+            @PathVariable UUID id,
+            @RequestHeader("X-User-Id") String userId,
+            @RequestHeader("X-User-Role") String role) {
+        DeliveryManagerResponseDto response = deliveryManagerService.getDeliveryManager(id, userId, role);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @PatchMapping("/{id}")
     public ResponseEntity<ApiResponse<DeliveryManagerResponseDto>> updateDeliveryManager(
             @PathVariable UUID id,
-            @RequestBody DeliveryManagerUpdateRequestDto request) {
-        log.info("[Controller] 배송 담당자 정보 수정 요청 수신. ManagerId: {}", id);
-        DeliveryManagerResponseDto response = deliveryManagerService.updateDeliveryManager(id, request);
+            @RequestBody DeliveryManagerUpdateRequestDto request,
+            @RequestHeader("X-User-Role") String role) {
+        DeliveryManagerResponseDto response = deliveryManagerService.updateDeliveryManager(id, request, role);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
-
+    @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteDeliveryManager(
             @PathVariable UUID id,
-            @RequestHeader("X-User-Id") String requesterId) {
-        log.info("[Controller] 배송 담당자 삭제 요청 수신. ManagerId: {}, RequesterId: {}", id, requesterId);
-        deliveryManagerService.deleteDeliveryManager(id, requesterId);
+            @RequestHeader("X-User-Id") String requesterId,
+            @RequestHeader("X-User-Role") String role) {
+        deliveryManagerService.deleteDeliveryManager(id, requesterId, role);
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 
-    /**
-     * [Internal] 라운드 로빈 기반 배송 담당자 배정 (타 마이크로서비스 전용)
-     */
     @PostMapping("/internal/assign")
     public ResponseEntity<ApiResponse<DeliveryAssignResponseDto>> assignNextManager(
             @RequestBody DeliveryAssignRequestDto request) {
