@@ -3,13 +3,17 @@ package boxoffice.orderservice.presentation.controller;
 import boxoffice.orderservice.application.service.DeleteOrderService;
 import boxoffice.orderservice.application.service.GetOrderService;
 import boxoffice.orderservice.application.service.OrderCreateService;
+import boxoffice.orderservice.application.service.SearchOrdersService;
 import boxoffice.orderservice.application.service.UpdateOrderService;
 import boxoffice.orderservice.presentation.dto.request.CreateOrderRequestDto;
 import boxoffice.orderservice.presentation.dto.request.UpdateOrderRequest;
 import boxoffice.orderservice.presentation.dto.response.CreateOrderResponseDto;
+import boxoffice.orderservice.presentation.dto.response.OrderSummaryResponse;
+import com.boxoffice.common.response.PageResponse;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -20,6 +24,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -30,6 +35,17 @@ public class OrderController {
   private final GetOrderService getOrderService;
   private final UpdateOrderService updateOrderService;
   private final DeleteOrderService deleteOrderService;
+  private final SearchOrdersService searchOrdersService;
+
+  @GetMapping
+  public ResponseEntity<PageResponse<OrderSummaryResponse>> searchOrders(
+      @RequestHeader("X-User-Id") String keycloakId,
+      @RequestParam(defaultValue = "0") int page,
+      @RequestParam(defaultValue = "10") int size
+  ) {
+    Page<OrderSummaryResponse> result = searchOrdersService.searchOrders(keycloakId, page, size);
+    return ResponseEntity.ok(PageResponse.of(result));
+  }
 
   @PostMapping
   public ResponseEntity<CreateOrderResponseDto> createOrder(
