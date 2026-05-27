@@ -2,6 +2,7 @@ package com.boxoffice.companyservice.company.controller;
 
 import com.boxoffice.common.exception.GlobalExceptionHandler;
 import com.boxoffice.companyservice.company.dto.response.HubCompanyStockResponseDto;
+import com.boxoffice.companyservice.company.dto.response.InternalCompanyHubResponseDto;
 import com.boxoffice.companyservice.company.service.CompanyInternalFacade;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -58,6 +59,30 @@ class CompanyInternalControllerTest {
                 .andExpect(jsonPath("$.data[1].stockCount", is(0)));
 
         verify(companyInternalFacade).getCompaniesByHubId(hubId);
+        verifyNoMoreInteractions(companyInternalFacade);
+    }
+
+    @Test
+    @DisplayName("성공 - 공급업체와 수령업체의 허브 ID를 반환한다")
+    void getCompanyHubsReturnsSupplierAndReceiverHubIds() throws Exception {
+        UUID supplierId = UUID.randomUUID();
+        UUID receiverId = UUID.randomUUID();
+        UUID supplierHubId = UUID.randomUUID();
+        UUID receiverHubId = UUID.randomUUID();
+
+        when(companyInternalFacade.getCompanyHubs(supplierId, receiverId))
+                .thenReturn(new InternalCompanyHubResponseDto(supplierHubId, receiverHubId));
+
+        mockMvc.perform(get("/internal/companies/hubs")
+                        .param("supplierId", supplierId.toString())
+                        .param("receiverId", receiverId.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status", is(200)))
+                .andExpect(jsonPath("$.message", is("SUCCESS")))
+                .andExpect(jsonPath("$.data.supplierHubId", is(supplierHubId.toString())))
+                .andExpect(jsonPath("$.data.receiverHubId", is(receiverHubId.toString())));
+
+        verify(companyInternalFacade).getCompanyHubs(supplierId, receiverId);
         verifyNoMoreInteractions(companyInternalFacade);
     }
 

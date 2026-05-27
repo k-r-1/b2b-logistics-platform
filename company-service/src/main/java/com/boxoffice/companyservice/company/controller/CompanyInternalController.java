@@ -3,6 +3,7 @@ package com.boxoffice.companyservice.company.controller;
 import com.boxoffice.common.response.ApiResponse;
 import com.boxoffice.companyservice.company.dto.request.BulkHubTransferRequestDto;
 import com.boxoffice.companyservice.company.dto.response.HubCompanyStockResponseDto;
+import com.boxoffice.companyservice.company.dto.response.InternalCompanyHubResponseDto;
 import com.boxoffice.companyservice.company.service.CompanyInternalFacade;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -36,6 +37,18 @@ public class CompanyInternalController {
     ) {
         List<HubCompanyStockResponseDto> response = companyInternalFacade.getCompaniesByHubId(hubId);
         log.info("Internal companies by hub requested. hubId={}, companyCount={}", hubId, response.size());
+
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @Operation(summary = "업체별 허브 조회", description = "주문 생성 연동을 위해 공급 업체와 수령 업체의 소속 허브를 조회합니다.")
+    @GetMapping("/hubs")
+    public ResponseEntity<ApiResponse<InternalCompanyHubResponseDto>> getCompanyHubs(
+            @RequestParam("supplierId") UUID supplierId,
+            @RequestParam("receiverId") UUID receiverId
+    ) {
+        InternalCompanyHubResponseDto response = companyInternalFacade.getCompanyHubs(supplierId, receiverId);
+        log.info("Internal company hubs requested. supplierId={}, receiverId={}", supplierId, receiverId);
 
         return ResponseEntity.ok(ApiResponse.success(response));
     }

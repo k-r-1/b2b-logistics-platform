@@ -2,6 +2,7 @@ package com.boxoffice.companyservice.company.service;
 
 import com.boxoffice.companyservice.company.dto.request.BulkHubTransferRequestDto;
 import com.boxoffice.companyservice.company.dto.response.HubCompanyStockResponseDto;
+import com.boxoffice.companyservice.company.dto.response.InternalCompanyHubResponseDto;
 import com.boxoffice.companyservice.company.entity.Company;
 import com.boxoffice.companyservice.company.entity.CompanyType;
 import com.boxoffice.companyservice.company.validator.HubValidator;
@@ -88,6 +89,28 @@ class CompanyInternalFacadeTest {
         verify(hubValidator).validateHubActive(toHubId);
         verify(companyService).transferCompaniesHub(List.of(firstCompanyId, secondCompanyId), toHubId);
         verifyNoMoreInteractions(hubValidator, companyService);
+    }
+
+    @Test
+    @DisplayName("성공 - 공급업체와 수령업체의 허브 ID를 반환한다")
+    void getCompanyHubsReturnsSupplierAndReceiverHubIds() {
+        UUID supplierId = UUID.randomUUID();
+        UUID receiverId = UUID.randomUUID();
+        UUID supplierHubId = UUID.randomUUID();
+        UUID receiverHubId = UUID.randomUUID();
+        Company supplier = createCompany(supplierId, "supplier", supplierHubId);
+        Company receiver = createCompany(receiverId, "receiver", receiverHubId);
+
+        when(companyService.getCompanyEntity(supplierId)).thenReturn(supplier);
+        when(companyService.getCompanyEntity(receiverId)).thenReturn(receiver);
+
+        InternalCompanyHubResponseDto response = companyInternalFacade.getCompanyHubs(supplierId, receiverId);
+
+        assertThat(response.supplierHubId()).isEqualTo(supplierHubId);
+        assertThat(response.receiverHubId()).isEqualTo(receiverHubId);
+        verify(companyService).getCompanyEntity(supplierId);
+        verify(companyService).getCompanyEntity(receiverId);
+        verifyNoMoreInteractions(companyService);
     }
 
     private Company createCompany(UUID companyId, String name, UUID hubId) {

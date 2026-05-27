@@ -12,6 +12,8 @@ import com.boxoffice.companyservice.product.dto.request.ProductStockRestoreReque
 import com.boxoffice.companyservice.product.dto.request.ProductUpdateRequestDto;
 import com.boxoffice.companyservice.product.dto.response.ProductCreateResponseDto;
 import com.boxoffice.companyservice.product.dto.response.HubStockCountResponseDto;
+import com.boxoffice.companyservice.product.dto.response.ProductStockCheckResponseDto;
+import com.boxoffice.companyservice.product.dto.response.ProductStockDeductResponseDto;
 import com.boxoffice.companyservice.product.dto.response.ProductResponseDto;
 import com.boxoffice.companyservice.product.dto.search.ProductSearchCondition;
 import com.boxoffice.companyservice.product.entity.Product;
@@ -106,31 +108,33 @@ public class ProductService {
     }
 
     @Transactional(readOnly = true)
-    public void checkStocks(ProductStockRequestDto request) {
+    public ProductStockCheckResponseDto checkStocks(ProductStockRequestDto request) {
         Map<UUID, Integer> quantityByProductId = toQuantityMap(request.getItems());
         List<UUID> productIds = toSortedProductIds(quantityByProductId);
         // check는 재고 예약이 아니므로 최종 주문 성공 여부는 deduct 결과로 판단해야 한다.
         List<Product> products = productRepository.findAllById(productIds);
 
         validateAllProductsFound(products, quantityByProductId);
-        validateEnoughStock(products, quantityByProductId);
+        return ProductStockCheckResponseDto.from(products, quantityByProductId);
     }
 
     @Transactional
-    public void deductStocks(ProductStockDeductRequestDto request) {
+    public ProductStockDeductResponseDto deductStocks(ProductStockDeductRequestDto request) {
+        Map<UUID, Integer> quantityByProductId = toQuantityMap(request.getItems());
+        List<UUID> productIds = toSortedProductIds(quantityByProductId);
+
         if (isStockOperationDone(request.getOrderId(), ProductStockOperationType.DEDUCT)) {
-            return;
+            return getDeductResponseWithoutStockChange(productIds, quantityByProductId);
         }
         acquireStockOperationLock(request.getOrderId(), ProductStockOperationType.DEDUCT);
 
-        Map<UUID, Integer> quantityByProductId = toQuantityMap(request.getItems());
-        List<UUID> productIds = toSortedProductIds(quantityByProductId);
         List<Product> products = productRepository.findAllByIdInForUpdate(productIds);
 
         validateAllProductsFound(products, quantityByProductId);
         validateEnoughStock(products, quantityByProductId);
         products.forEach(product -> product.deductStock(quantityByProductId.get(product.getId())));
         markStockOperationDoneAfterCommit(request.getOrderId(), ProductStockOperationType.DEDUCT);
+        return ProductStockDeductResponseDto.from(products, quantityByProductId);
     }
 
     @Transactional
@@ -200,6 +204,15 @@ public class ProductService {
 
     private boolean isStockOperationDone(UUID orderId, ProductStockOperationType operationType) {
         return Boolean.TRUE.equals(redisTemplate.hasKey(doneKey(orderId, operationType)));
+    }
+
+    private ProductStockDeductResponseDto getDeductResponseWithoutStockChange(
+            List<UUID> productIds,
+            Map<UUID, Integer> quantityByProductId
+    ) {
+        List<Product> products = productRepository.findAllById(productIds);
+        validateAllProductsFound(products, quantityByProductId);
+        return ProductStockDeductResponseDto.from(products, quantityByProductId);
     }
 
     private void acquireStockOperationLock(UUID orderId, ProductStockOperationType operationType) {

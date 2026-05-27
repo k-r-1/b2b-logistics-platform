@@ -2,6 +2,7 @@ package com.boxoffice.companyservice.company.service;
 
 import com.boxoffice.companyservice.company.dto.request.BulkHubTransferRequestDto;
 import com.boxoffice.companyservice.company.dto.response.HubCompanyStockResponseDto;
+import com.boxoffice.companyservice.company.dto.response.InternalCompanyHubResponseDto;
 import com.boxoffice.companyservice.company.entity.Company;
 import com.boxoffice.companyservice.company.validator.HubValidator;
 import com.boxoffice.companyservice.product.service.ProductService;
@@ -40,5 +41,12 @@ public class CompanyInternalFacade {
         hubValidator.validateHubActive(request.getToHubId());
         // 허브 폐쇄 스냅샷에 포함된 업체만 한 번의 UPDATE IN 쿼리로 이동한다.
         companyService.transferCompaniesHub(request.getCompanyIds(), request.getToHubId());
+    }
+
+    public InternalCompanyHubResponseDto getCompanyHubs(UUID supplierId, UUID receiverId) {
+        Company supplier = companyService.getCompanyEntity(supplierId);
+        Company receiver = companyService.getCompanyEntity(receiverId);
+
+        return new InternalCompanyHubResponseDto(supplier.getHubId(), receiver.getHubId());
     }
 }

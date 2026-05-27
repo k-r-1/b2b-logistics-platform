@@ -340,18 +340,19 @@ class ProductServiceTest {
 
     @Test
     @DisplayName("실패 - 주문 상품 재고가 부족하면 예외를 반환한다")
-    void checkStocksThrowsWhenStockIsInsufficient() {
+    void checkStocksReturnsNotOrderableDetailWhenStockIsInsufficient() {
         UUID productId = UUID.randomUUID();
         Product product = createProduct(productId, createCompany(UUID.randomUUID()));
         ProductStockRequestDto request = createStockRequest(productId, 60);
 
         when(productRepository.findAllById(List.of(productId))).thenReturn(List.of(product));
 
-        Throwable throwable = catchThrowable(() -> productService.checkStocks(request));
+        var response = productService.checkStocks(request);
 
-        assertThat(throwable)
-                .isInstanceOfSatisfying(BaseException.class,
-                        exception -> assertThat(exception.getErrorCode()).isEqualTo(ProductErrorCode.INSUFFICIENT_STOCK));
+        assertThat(response.isAllOrderable()).isFalse();
+        assertThat(response.details()).hasSize(1);
+        assertThat(response.details().get(0).productId()).isEqualTo(productId);
+        assertThat(response.details().get(0).isOrderable()).isFalse();
         verify(productRepository).findAllById(List.of(productId));
     }
 
@@ -451,13 +452,16 @@ class ProductServiceTest {
     void deductStocksSkipsDuplicatedOrderId() {
         UUID orderId = UUID.randomUUID();
         UUID productId = UUID.randomUUID();
+        Product product = createProduct(productId, createCompany(UUID.randomUUID()));
         ProductStockDeductRequestDto request = createDeductRequest(orderId, productId, 10);
 
         when(redisTemplate.hasKey(doneKey(orderId, "deduct"))).thenReturn(true);
+        when(productRepository.findAllById(List.of(productId))).thenReturn(List.of(product));
 
         productService.deductStocks(request);
 
         verify(redisTemplate).hasKey(doneKey(orderId, "deduct"));
+        verify(productRepository).findAllById(List.of(productId));
         verifyNoMoreInteractions(productRepository, redisTemplate, valueOperations);
     }
 

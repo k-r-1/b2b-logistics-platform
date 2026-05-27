@@ -6,6 +6,8 @@ import com.boxoffice.companyservice.product.dto.request.ProductStockDeductReques
 import com.boxoffice.companyservice.product.dto.request.ProductStockRequestDto;
 import com.boxoffice.companyservice.product.dto.request.ProductStockRestoreRequestDto;
 import com.boxoffice.companyservice.product.dto.response.HubStockCountResponseDto;
+import com.boxoffice.companyservice.product.dto.response.ProductStockCheckResponseDto;
+import com.boxoffice.companyservice.product.dto.response.ProductStockDeductResponseDto;
 import com.boxoffice.companyservice.product.service.ProductService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -41,21 +43,21 @@ public class ProductInternalController {
     }
 
     @PostMapping("/stocks/check")
-    public ResponseEntity<ApiResponse<Void>> checkStocks(
+    public ResponseEntity<ApiResponse<ProductStockCheckResponseDto>> checkStocks(
             @Valid @RequestBody ProductStockRequestDto request
     ) {
-        productService.checkStocks(request);
+        ProductStockCheckResponseDto response = productService.checkStocks(request);
 
-        return ResponseEntity.ok(ApiResponse.success());
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @PostMapping("/stocks/deduct")
-    public ResponseEntity<ApiResponse<Void>> deductStocks(
+    public ResponseEntity<ApiResponse<ProductStockDeductResponseDto>> deductStocks(
             @Valid @RequestBody ProductStockDeductRequestDto request
     ) {
-        productService.deductStocks(request);
+        ProductStockDeductResponseDto response = productService.deductStocks(request);
 
-        return ResponseEntity.ok(ApiResponse.success());
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @PostMapping("/stocks/restore")
