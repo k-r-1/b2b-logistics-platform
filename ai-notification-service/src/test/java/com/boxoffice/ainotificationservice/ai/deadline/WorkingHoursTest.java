@@ -28,7 +28,10 @@ class WorkingHoursTest {
         @Test
         @DisplayName("실패 - start >= end")
         void fail_start_not_before_end() {
-            assertThatThrownBy(() -> new WorkingHours(LocalTime.of(18, 0), LocalTime.of(9, 0)))
+            LocalTime start = LocalTime.of(18, 0);
+            LocalTime end = LocalTime.of(9, 0);
+
+            assertThatThrownBy(() -> new WorkingHours(start, end))
                     .isInstanceOf(BaseException.class)
                     .extracting("errorCode")
                     .isEqualTo(AiErrorCode.INVALID_WORKING_HOURS);
@@ -37,7 +40,9 @@ class WorkingHoursTest {
         @Test
         @DisplayName("실패 - null start")
         void fail_null_start() {
-            assertThatThrownBy(() -> new WorkingHours(null, LocalTime.of(18, 0)))
+            LocalTime end = LocalTime.of(18, 0);
+
+            assertThatThrownBy(() -> new WorkingHours(null, end))
                     .isInstanceOf(BaseException.class)
                     .extracting("errorCode")
                     .isEqualTo(AiErrorCode.INVALID_WORKING_HOURS);

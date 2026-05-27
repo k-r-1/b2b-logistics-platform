@@ -116,6 +116,7 @@ class SlackMessageTest {
             Recipient recipient = Recipient.channel("C1");
 
             // when & then
+            //noinspection DataFlowIssue
             assertThatThrownBy(() -> SlackMessage.fromEvent(
                     "idem-x", recipient, TemplateType.ORDER_CANCELED, "본문", null
             ))
