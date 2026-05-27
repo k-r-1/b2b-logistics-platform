@@ -36,6 +36,12 @@ jobs:
       delivery_manager_service: ${{ steps.filter.outputs.delivery_manager_service }}
       eureka-server:            ${{ steps.filter.outputs.eureka-server }}
       user-service:             ${{ steps.filter.outputs.user-service }}
+      hub-service: ${{ steps.filter.outputs.hub-service }}
+      company-service: ${{ steps.filter.outputs.company-service }}
+      order-service: ${{ steps.filter.outputs.order-service }}
+      delivery-service: ${{ steps.filter.outputs.delivery-service }}
+      notification-service: ${{steps.filter.outputs.notification-service }}
+      ai-service: ${{ steps.filter.outputs.ai-service }}
 
     steps:
       - uses: actions/checkout@v4
@@ -58,6 +64,18 @@ jobs:
               - 'eureka-server/**'
             user-service:
               - 'user-service/**'
+            hub-service:
+              - 'hub-service/**'
+            company-service:
+              - 'company-service/**'
+            order-service:
+              - 'order-service/**'
+            delivery-service:
+              - 'delivery-service/**'
+            notification-service:
+              - 'notification-service/**'
+            ai-service:
+              - 'ai-service/**'
 
   # 새 서비스 추가 시 변경 3
   ci-api-gateway:
@@ -107,6 +125,78 @@ jobs:
       service: user-service
       changed: ${{ needs.detect-changes.outputs['user-service'] }}
       common-changed: ${{ needs.detect-changes.outputs.common }}
+      
+  ci-hub-service:
+    needs: detect-changes
+    uses: ./.github/workflows/_service-ci.yml
+    secrets: inherit
+    permissions:
+      pull-requests: write
+      contents: read
+    with:
+      service: hub-service
+      changed: ${{ needs.detect-changes.outputs['hub-service'] }}
+      common-changed: ${{ needs.detect-changes.outputs.common }}
+
+  ci-company-service:
+    needs: detect-changes
+    uses: ./.github/workflows/_service-ci.yml
+    secrets: inherit
+    permissions:
+      pull-requests: write
+      contents: read
+    with:
+      service: company-service
+      changed: ${{ needs.detect-changes.outputs['company-service'] }}
+      common-changed: ${{ needs.detect-changes.outputs.common }}
+
+  ci-order-service:
+    needs: detect-changes
+    uses: ./.github/workflows/_service-ci.yml
+    secrets: inherit
+    permissions:
+      pull-requests: write
+      contents: read
+    with:
+      service: order-service
+      changed: ${{ needs.detect-changes.outputs['order-service'] }}
+      common-changed: ${{ needs.detect-changes.outputs.common }}
+
+  ci-delivery-service:
+    needs: detect-changes
+    uses: ./.github/workflows/_service-ci.yml
+    secrets: inherit
+    permissions:
+      pull-requests: write
+      contents: read
+    with:
+      service: delivery-service
+      changed: ${{ needs.detect-changes.outputs['delivery-service'] }}
+      common-changed: ${{ needs.detect-changes.outputs.common }}
+
+  ci-notification-service:
+    needs: detect-changes
+    uses: ./.github/workflows/_service-ci.yml
+    secrets: inherit
+    permissions:
+      pull-requests: write
+      contents: read
+    with:
+      service: notification-service
+      changed: ${{ needs.detect-changes.outputs['notification-service'] }}
+      common-changed: ${{ needs.detect-changes.outputs.common }}
+
+  ci-ai-service:
+    needs: detect-changes
+    uses: ./.github/workflows/_service-ci.yml
+    secrets: inherit
+    permissions:
+      pull-requests: write
+      contents: read
+    with:
+      service: ai-service
+      changed: ${{ needs.detect-changes.outputs['ai-service'] }}
+      common-changed: ${{ needs.detect-changes.outputs.common }}
 
 
   ci-result:
@@ -119,7 +209,12 @@ jobs:
       - ci-delivery-manager
       - ci-eureka-server
       - ci-user-service
-      # 새 서비스 추가 시 변경 4
+      - ci-hub-service
+      - ci-company-service
+      - ci-order-service
+      - ci-delivery-service
+      - ci-notification-service
+      - ci-ai-service
 
     steps:
       - name: CI 성공/실패 판정 + Discord 알림
@@ -132,6 +227,12 @@ jobs:
           OUT_DM: ${{ needs.detect-changes.outputs.delivery_manager_service }}
           OUT_EU: ${{ needs.detect-changes.outputs['eureka-server'] }}
           OUT_US: ${{ needs.detect-changes.outputs['user-service'] }}
+          OUT_HUB: ${{ needs.detect-changes.outputs['hub-service'] }}
+          OUT_COMP: ${{ needs.detect-changes.outputs['company-service'] }}
+          OUT_ORD: ${{ needs.detect-changes.outputs['order-service'] }}
+          OUT_DEL: ${{ needs.detect-changes.outputs['delivery-service'] }}
+          OUT_NOTI: ${{ needs.detect-changes.outputs['notification-service'] }}
+          OUT_AI: ${{ needs.detect-changes.outputs['ai-service'] }}
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_AUTHOR: ${{ github.event.pull_request.user.login }}
           PR_URL: ${{ github.event.pull_request.html_url }}
@@ -141,6 +242,12 @@ jobs:
           R_DM: ${{ needs.ci-delivery-manager.result }}
           R_EU: ${{ needs.ci-eureka-server.result }}
           R_US: ${{ needs.ci-user-service.result }}
+          R_HUB: ${{ needs.ci-hub-service.result }}
+          R_COMP: ${{ needs.ci-company-service.result }}
+          R_ORD: ${{ needs.ci-order-service.result }}
+          R_DEL: ${{ needs.ci-delivery-service.result }}
+          R_NOTI: ${{ needs.ci-notification-service.result }}
+          R_AI: ${{ needs.ci-ai-service.result }}
         run: |
           # Webhook URL 누락 시 알림 건너뛰기 (CI 실패 방지)
           if [[ -z "$DISCORD_WEBHOOK_URL" ]]; then
@@ -160,7 +267,7 @@ jobs:
           
           # 1. CI 성공/실패 판정 (if문 사용으로 set -e 충돌 방지)
           FAILED=false
-          for result in "$R_DETECT" "$R_GW" "$R_DM" "$R_EU" "$R_US"; do
+          for result in "$R_DETECT" "$R_GW" "$R_DM" "$R_EU" "$R_US" "$R_HUB" "$R_COMP" "$R_ORD" "$R_DEL" "$R_NOTI" "$R_AI"; do
             if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
               FAILED=true
             fi
@@ -191,6 +298,12 @@ jobs:
           append "$OUT_DM"     "delivery_manager_service"
           append "$OUT_EU"     "eureka-server"
           append "$OUT_US"     "user-service"
+          append "$OUT_HUB"  "hub-service"
+          append "$OUT_COMP" "company-service"
+          append "$OUT_ORD"  "order-service"
+          append "$OUT_DEL"  "delivery-service"
+          append "$OUT_NOTI" "notification-service"
+          append "$OUT_AI"   "ai-service"
           
           if [[ -z "$SERVICES" ]]; then
             SERVICE_LIST="변경된 서비스 없음"
@@ -213,7 +326,7 @@ jobs:
                 {"name":"👤 작성자",        "value":"${PR_AUTHOR}",           "inline":true},
                 {"name":"🔀 대상 브랜치",   "value":"dev",                    "inline":true},
                 {"name":"📦 변경된 서비스", "value":"${SERVICE_LIST}",        "inline":false},
-                {"name":"📋 Job 결과",      "value":"$(job_emoji "$R_DETECT") detect-changes\n$(job_emoji "$R_GW") ci-api-gateway\n$(job_emoji "$R_DM") ci-delivery-manager\n$(job_emoji "$R_EU") ci-eureka-server\n$(job_emoji "$R_US") ci-user-service","inline":false}
+                {"name":"📋 Job 결과",      "value":"$(job_emoji "$R_DETECT") detect-changes\n$(job_emoji "$R_GW") ci-api-gateway\n$(job_emoji "$R_DM") ci-delivery-manager\n$(job_emoji "$R_EU") ci-eureka-server\n$(job_emoji "$R_US") ci-user-service\n$(job_emoji "$R_HUB") ci-hub-service\n$(job_emoji "$R_COMP") ci-company-service\n$(job_emoji "$R_ORD") ci-order-service\n$(job_emoji "$R_DEL") ci-delivery-service\n$(job_emoji "$R_NOTI") ci-notification-service\n$(job_emoji "$R_AI") ci-ai-service","inline":false}
               ],
               "footer":{"text":"Run #${{ github.run_number }} • ${{ github.repository }}"},
               "timestamp":"$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -246,7 +359,13 @@ jobs:
             "${{ needs.ci-api-gateway.result }}" \
             "${{ needs.ci-delivery-manager.result }}" \
             "${{ needs.ci-eureka-server.result }}" \
-            "${{ needs.ci-user-service.result }}"; do
+            "${{ needs.ci-user-service.result }}" \
+            "${{ needs.ci-hub-service.result }}" \
+            "${{ needs.ci-company-service.result }}" \
+            "${{ needs.ci-order-service.result }}" \
+            "${{ needs.ci-delivery-service.result }}" \
+            "${{ needs.ci-notification-service.result }}" \
+            "${{ needs.ci-ai-service.result }}"; do
             if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
               FAILED=true
             fi
