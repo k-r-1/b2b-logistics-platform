@@ -36,7 +36,7 @@ spring:
   # 4. Redis
   data:
     redis:
-      host: redis-cache
+      host: localhost
       port: 6379
 
 # 5. Eureka 클라이언트 최적화
