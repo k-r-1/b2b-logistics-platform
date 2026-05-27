@@ -29,7 +29,6 @@ public class OrderQueryService {
     @Transactional(readOnly = true)
     public Page<Order> searchOrders(OrderSearchCondition condition, Pageable pageable) {
         Page<Order> orders = orderRepository.searchOrders(condition, pageable);
-        // @BatchSize(size=100) 적용으로 IN 절 배치 로딩 (N+1 → 2 queries)
         orders.forEach(o -> o.getOrderProducts().size());
         return orders;
     }
