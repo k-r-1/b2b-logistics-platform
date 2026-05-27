@@ -56,12 +56,23 @@ public class JwtAuthenticationFilter extends AbstractGatewayFilterFactory<JwtAut
                                 String userId = jsonNode.path("sub").asText();
                                 String username = jsonNode.path("preferred_username").asText();
 
+                                String role = jsonNode.path("role").asText("");
+                                String hubId = jsonNode.path("hub_id").asText("");
+
                                 log.info("[Gateway] 토큰 해독 성공. 뒷단 마이크로서비스로 헤더 전파. UserId: {}", userId);
 
-                                ServerHttpRequest mutatedRequest = request.mutate()
+                                ServerHttpRequest.Builder requestBuilder = request.mutate()
                                         .header("X-User-Id", userId)
-                                        .header("X-User-Username", username)
-                                        .build();
+                                        .header("X-User-Username", username);
+
+                                if (!role.isEmpty()) {
+                                    requestBuilder.header("X-User-Role", role);
+                                }
+                                if (!hubId.isEmpty()) {
+                                    requestBuilder.header("X-User-Hub-Id", hubId);
+                                }
+
+                                ServerHttpRequest mutatedRequest = requestBuilder.build();
 
                                 return chain.filter(exchange.mutate().request(mutatedRequest).build());
 
