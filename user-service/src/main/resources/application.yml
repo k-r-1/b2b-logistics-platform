@@ -49,3 +49,7 @@ keycloak:
     username: admin
     password: boxoffice123
     client-id: admin-cli
+
+logging:
+  level:
+    org.springframework.security: TRACE

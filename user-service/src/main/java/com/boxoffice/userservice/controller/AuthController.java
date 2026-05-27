@@ -35,7 +35,6 @@ public class AuthController {
 
         userService.signUp(request);
 
-        // 🌟 수정된 부분: ApiResponse 래퍼를 사용하여 반환 (HTTP 상태 코드 201 CREATED 유지)
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(HttpStatus.CREATED, "회원가입 신청이 PENDING 상태로 정상 접수되었습니다."));
     }

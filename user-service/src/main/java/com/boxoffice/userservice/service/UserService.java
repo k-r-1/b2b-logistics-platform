@@ -16,6 +16,7 @@ import com.boxoffice.userservice.exception.UserErrorCode;
 import com.boxoffice.userservice.repository.UserRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import feign.FeignException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -154,13 +155,24 @@ public class UserService {
         formParams.put("username", request.getUsername());
         formParams.put("password", request.getPassword());
 
+//        try {
+//            Map<String, Object> tokenResponse = keycloakClient.getAdminToken(realm, formParams);
+//            String accessToken = (String) tokenResponse.get("access_token");
+//            log.info("[Login] 로그인 성공. 토큰 발급 완료. Username: {}", request.getUsername());
+//            return accessToken;
+//        } catch (Exception e) {
+//            log.warn("[Login] 로그인 실패 (자격증명 오류). Username: {}", request.getUsername());
+//            throw new BaseException(UserErrorCode.INVALID_CREDENTIALS);
+//        }
         try {
             Map<String, Object> tokenResponse = keycloakClient.getAdminToken(realm, formParams);
-            String accessToken = (String) tokenResponse.get("access_token");
-            log.info("[Login] 로그인 성공. 토큰 발급 완료. Username: {}", request.getUsername());
-            return accessToken;
+            return (String) tokenResponse.get("access_token");
+        } catch (FeignException e) {
+            // 🌟 핵심: Keycloak이 뱉은 '진짜' 에러 메시지를 콘솔에 출력합니다!
+            log.error("[Login] Keycloak 진짜 에러 원인: {}", e.contentUTF8());
+            throw new BaseException(UserErrorCode.INVALID_CREDENTIALS);
         } catch (Exception e) {
-            log.warn("[Login] 로그인 실패 (자격증명 오류). Username: {}", request.getUsername());
+            log.warn("[Login] 기타 에러 발생: {}", e.getMessage());
             throw new BaseException(UserErrorCode.INVALID_CREDENTIALS);
         }
     }
