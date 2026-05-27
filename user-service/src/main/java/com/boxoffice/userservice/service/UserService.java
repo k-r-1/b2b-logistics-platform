@@ -2,12 +2,12 @@ package com.boxoffice.userservice.service;
 
 import com.boxoffice.common.exception.BaseException;
 import com.boxoffice.common.exception.CommonErrorCode;
+import com.boxoffice.userservice.client.HubServiceClient;
 import com.boxoffice.userservice.client.KeycloakClient;
-import com.boxoffice.userservice.client.KeycloakUserCreateRequestDto;
-import com.boxoffice.userservice.dto.UserLoginRequestDto;
-import com.boxoffice.userservice.dto.UserResponseDto;
-import com.boxoffice.userservice.dto.UserSignupRequestDto;
-import com.boxoffice.userservice.dto.UserStatusUpdateRequestDto;
+import com.boxoffice.userservice.client.dto.HubManagerRegisterRequestDto;
+import com.boxoffice.userservice.client.dto.KeycloakUserCreateRequestDto;
+import com.boxoffice.userservice.dto.*;
+
 import com.boxoffice.userservice.entity.Email;
 import com.boxoffice.userservice.entity.User;
 import com.boxoffice.userservice.entity.UserRole;
@@ -16,6 +16,7 @@ import com.boxoffice.userservice.exception.UserErrorCode;
 import com.boxoffice.userservice.repository.UserRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import feign.FeignException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -41,6 +42,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final KeycloakClient keycloakClient;
+    private final HubServiceClient hubServiceClient;
 
     @Value("${keycloak.realm:boxoffice-realm}")
     private String realm;
@@ -85,14 +87,25 @@ public class UserService {
         if (response.getStatusCode().is2xxSuccessful()) {
             String keycloakSub = extractKeycloakSub(response);
 
+            UUID hubIdVo = null;
+            if (request.getHubId() != null && !request.getHubId().isBlank()) {
+                try {
+                    hubIdVo = UUID.fromString(request.getHubId());
+                } catch (IllegalArgumentException e) {
+                    log.error("[Signup] 올바르지 않은 UUID 형식의 hubId 요청: {}", request.getHubId());
+                    throw new BaseException(CommonErrorCode.INVALID_INPUT);
+                }
+            }
+
             Email emailVo = new Email(request.getEmail());
+
             User user = User.builder()
                     .keycloakSub(keycloakSub)
                     .email(emailVo)
                     .name(request.getName())
                     .role(request.getRole())
                     .status(UserStatus.PENDING)
-                    .hubId(request.getHubId())
+                    .hubId(hubIdVo)
                     .build();
 
             try {
@@ -135,9 +148,6 @@ public class UserService {
         return path.substring(path.lastIndexOf("/") + 1);
     }
 
-    /**
-     * 🌟 일반 유저 로그인 로직 (토큰 대리 발급)
-     */
     public String login(UserLoginRequestDto request) {
         Map<String, String> formParams = new HashMap<>();
         formParams.put("client_id", userClientId);
@@ -150,15 +160,15 @@ public class UserService {
             String accessToken = (String) tokenResponse.get("access_token");
             log.info("[Login] 로그인 성공. 토큰 발급 완료. Username: {}", request.getUsername());
             return accessToken;
+        }catch (FeignException e) {
+                log.error("[Login] Keycloak 진짜 에러 원인: {}", e.contentUTF8());
+                throw new BaseException(UserErrorCode.INVALID_CREDENTIALS);
         } catch (Exception e) {
             log.warn("[Login] 로그인 실패 (자격증명 오류). Username: {}", request.getUsername());
             throw new BaseException(UserErrorCode.INVALID_CREDENTIALS);
         }
     }
 
-    /**
-     * 🌟 내 정보 조회 (Gateway 헤더 기반)
-     */
     @Transactional(readOnly = true)
     public UserResponseDto getMyInfo(String keycloakSub) {
         User user = userRepository.findByKeycloakSub(keycloakSub)
@@ -170,9 +180,6 @@ public class UserService {
         return UserResponseDto.from(user);
     }
 
-    /**
-     * 🌟 사용자 목록 검색 (권한별 데이터 격리 + 페이징 적용)
-     */
     @Transactional(readOnly = true)
     public Page<UserResponseDto> getUserList(String requesterSub, Pageable pageable) {
 
@@ -197,9 +204,6 @@ public class UserService {
         return userPage.map(UserResponseDto::from);
     }
 
-    /**
-     * 🌟 가입 승인/거절 (상태 변경)
-     */
     @Transactional
     public UserResponseDto updateUserStatus(UUID targetUserId, String requesterSub, UserStatusUpdateRequestDto request) {
 
@@ -225,12 +229,21 @@ public class UserService {
 
         log.info("[UserStatus] 유저 상태 변경 완료. TargetUserId: {}, NewStatus: {}", targetUserId, newStatus);
 
+        if (newStatus == UserStatus.APPROVED && targetUser.getRole() == UserRole.HUB_MANAGER && targetUser.getHubId() != null) {
+            try {
+                HubManagerRegisterRequestDto requestDto = new HubManagerRegisterRequestDto(targetUser.getId());
+                hubServiceClient.registerHubManager(targetUser.getHubId(), requestDto);
+                log.info("[Feign] 허브 매니저 등록 완료 - userId: {}, hubId: {}", targetUser.getId(), targetUser.getHubId());
+            } catch (Exception e) {
+                log.error("[Feign] 허브 매니저 등록 실패 - userId: {}", targetUser.getId(), e);
+                throw new BaseException(CommonErrorCode.INTERNAL_SERVER_ERROR);
+            }
+        }
+
         return UserResponseDto.from(targetUser);
     }
 
-    /**
-     * 🌟 사용자 삭제 (논리적 삭제 - Soft Delete)
-     */
+
     @Transactional
     public void deleteUser(UUID targetUserId, String requesterSub) {
 
@@ -251,9 +264,7 @@ public class UserService {
         log.info("[UserDelete] 유저 논리적 삭제 완료. TargetUserId: {}", targetUserId);
     }
 
-    /**
-     * 🌟 사용자 로그아웃 (Redis 블랙리스트 등록)
-     */
+
     public void logout(String authHeader) {
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             throw new BaseException(CommonErrorCode.INVALID_INPUT);
@@ -279,9 +290,6 @@ public class UserService {
         }
     }
 
-    /**
-     * 🌟 외부 마이크로서비스(주문 등) 통신용 유저 단건 조회 (ID 기반)
-     */
     @Transactional(readOnly = true)
     public UserResponseDto getUserById(UUID userId) {
         User user = userRepository.findById(userId)
@@ -289,10 +297,6 @@ public class UserService {
         return UserResponseDto.from(user);
     }
 
-    /**
-     * 🌟 [Internal] 타 서비스용 유저 단건 조회 (Keycloak Sub 기반)
-     * 다른 서비스가 Gateway에서 전달받은 X-User-Id(sub) 값을 그대로 사용하여 조회할 수 있게 합니다.
-     */
     @Transactional(readOnly = true)
     public UserResponseDto getUserBySub(String keycloakSub) {
         User user = userRepository.findByKeycloakSub(keycloakSub)
@@ -301,5 +305,43 @@ public class UserService {
                     return new BaseException(UserErrorCode.USER_NOT_FOUND);
                 });
         return UserResponseDto.from(user);
+    }
+
+    @Transactional
+    public UserResponseDto updateUserCompany(UUID targetUserId, UserCompanyUpdateRequestDto request) {
+        User targetUser = userRepository.findById(targetUserId)
+                .orElseThrow(() -> new BaseException(UserErrorCode.USER_NOT_FOUND));
+
+        if (targetUser.getRole() != UserRole.SUPPLIER_MANAGER) {
+            log.warn("[UserCompanyUpdate] 매핑 실패: 대상 유저가 SUPPLIER_MANAGER가 아닙니다. UserId: {}, Role: {}", targetUserId, targetUser.getRole());
+            throw new BaseException(CommonErrorCode.INVALID_INPUT);
+        }
+
+        targetUser.updateCompany(request.getCompanyId());
+        log.info("[UserCompanyUpdate] 유저 업체 매핑 완료. UserId: {}, CompanyId: {}", targetUserId, request.getCompanyId());
+
+        return UserResponseDto.from(targetUser);
+    }
+
+    @Transactional
+    public void updateUserHub(UUID userId, UUID newHubId, String role) {
+        if (!"MASTER".equals(role)) {
+            throw new BaseException(UserErrorCode.FORBIDDEN_ACCESS);
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BaseException(UserErrorCode.USER_NOT_FOUND));
+
+        user.updateHub(newHubId);
+        log.info("[UserHubUpdate] 유저 허브 변경 완료. UserId: {}, NewHubId: {}", userId, newHubId);
+    }
+
+    @Transactional
+    public void clearUserHubId(UUID hubId) {
+        log.info("[UserHubClear] 허브 삭제에 따른 유저 hubId 일괄 초기화 시작. TargetHubId: {}", hubId);
+
+        userRepository.clearHubIdByHubId(hubId);
+
+        log.info("[UserHubClear] 유저 hubId 일괄 초기화 완료. TargetHubId: {}", hubId);
     }
 }

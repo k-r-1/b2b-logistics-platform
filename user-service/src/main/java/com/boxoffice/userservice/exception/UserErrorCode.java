@@ -23,8 +23,8 @@ public enum UserErrorCode implements ErrorCode {
     INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "USER_005", "아이디 또는 비밀번호가 일치하지 않습니다."),
 
     // 404 NOT_FOUND 에러
-    USER_NOT_FOUND(HttpStatus.NOT_FOUND, "USER_006", "존재하지 않는 사용자입니다.");
-
+    USER_NOT_FOUND(HttpStatus.NOT_FOUND, "USER_006", "존재하지 않는 사용자입니다."),
+    FORBIDDEN_ACCESS(HttpStatus.NOT_FOUND, "USER_007", "마스터 권한으로 다시 시도해주세요.");
     private final HttpStatus httpStatus;
     private final String code;
     private final String message;

@@ -8,7 +8,9 @@ import java.util.UUID;
 @Entity
 @Table(name = "p_users")
 @Getter
+@Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class User extends BaseEntity {
 
     @Column(name = "keycloak_sub", nullable = false, unique = true)
@@ -26,16 +28,18 @@ public class User extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private UserStatus status;
+    @Builder.Default
+    private UserStatus status = UserStatus.PENDING;
 
     @Column(name = "hub_id", nullable = true)
-    private String hubId;
+    private UUID hubId;
+
 
     @Column(name = "company_id", nullable = true)
     private UUID companyId;
 
     @Builder
-    public User(String keycloakSub, Email email, String name, UserRole role, UserStatus status, String hubId) {
+    public User(String keycloakSub, Email email, String name, UserRole role, UserStatus status, UUID hubId) {
         this.keycloakSub = keycloakSub;
         this.email = email;
         this.name = name;
@@ -50,5 +54,9 @@ public class User extends BaseEntity {
 
     public void updateCompany(UUID companyId) {
         this.companyId = companyId;
+    }
+
+    public void updateHub(UUID newHubId) {
+        this.hubId = newHubId;
     }
 }
