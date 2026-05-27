@@ -16,6 +16,11 @@ on:
         required: false
         type: string
         default: 'false'
+      run-integration-test:
+        description: "통합 테스트 실행 여부"
+        required: false
+        type: boolean
+        default: false
 
 env:
   JAVA_VERSION: '21'
@@ -35,7 +40,18 @@ jobs:
         with:
           fetch-depth: '1'
 
+      - name: 서비스 디렉토리 존재 여부 확인
+        id: check-dir
+        run: |
+          if [ -d "${{ inputs.service }}" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ ${{ inputs.service }} 디렉토리가 없습니다. 이후 step을 건너뜁니다."
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Set up Java ${{ env.JAVA_VERSION }}
+        if: steps.check-dir.outputs.exists == 'true'
         uses: actions/setup-java@v4
         with:
           java-version: ${{ env.JAVA_VERSION }}
@@ -43,6 +59,7 @@ jobs:
           cache: 'gradle'
 
       - name: Run Checkstyle
+        if: steps.check-dir.outputs.exists == 'true'
         continue-on-error: true
         run: |
           ./gradlew :${{ inputs.service }}:checkstyleMain \
@@ -51,7 +68,7 @@ jobs:
             --stacktrace
 
       - name: Upload Checkstyle report
-        if: always()
+        if: always() && steps.check-dir.outputs.exists == 'true'
         uses: actions/upload-artifact@v4
         with:
           if-no-files-found: ignore
@@ -73,7 +90,18 @@ jobs:
         with:
           fetch-depth: '1'
 
+      - name: 서비스 디렉토리 존재 여부 확인
+        id: check-dir
+        run: |
+          if [ -d "${{ inputs.service }}" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ ${{ inputs.service }} 디렉토리가 없습니다. 이후 step을 건너뜁니다."
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Set up Java ${{ env.JAVA_VERSION }}
+        if: steps.check-dir.outputs.exists == 'true'
         uses: actions/setup-java@v4
         with:
           java-version: ${{ env.JAVA_VERSION }}
@@ -81,6 +109,7 @@ jobs:
           cache: 'gradle'
 
       - name: Run unit tests
+        if: steps.check-dir.outputs.exists == 'true'
         run: |
           ./gradlew :${{ inputs.service }}:test \
             --no-daemon \
@@ -88,7 +117,7 @@ jobs:
             -x checkstyleTest
 
       - name: Upload Jacoco coverage report
-        if: always()
+        if: always() && steps.check-dir.outputs.exists == 'true'
         uses: actions/upload-artifact@v4
         with:
           if-no-files-found: ignore
@@ -97,7 +126,7 @@ jobs:
           retention-days: 3
 
       - name: Upload test results
-        if: always()
+        if: always() && steps.check-dir.outputs.exists == 'true'
         uses: actions/upload-artifact@v4
         with:
           if-no-files-found: ignore
@@ -106,6 +135,7 @@ jobs:
           retention-days: 7
 
       - name: Jacoco PR Comment
+        if: steps.check-dir.outputs.exists == 'true'
         uses: Madrapps/jacoco-report@v1.6.1
         with:
           paths: ${{ inputs.service }}/build/reports/jacoco/test/jacocoTestReport.xml
@@ -130,18 +160,31 @@ jobs:
         with:
           fetch-depth: '1'
 
+      - name: 서비스 디렉토리 존재 여부 확인
+        id: check-dir
+        run: |
+          if [ -d "${{ inputs.service }}" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ ${{ inputs.service }} 디렉토리가 없습니다. 이후 step을 건너뜁니다."
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
       - uses: actions/setup-java@v4
+        if: steps.check-dir.outputs.exists == 'true'
         with:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: 'temurin'
           cache: 'gradle'
 
       - name: Start Docker Compose (헬스체크 대기)
+        if: steps.check-dir.outputs.exists == 'true'
         run: |
           docker compose -f docker-compose.test.yml up -d --wait
           echo "모든 컨테이너가 healthy 합니다."
 
       - name: Run integration tests
+        if: steps.check-dir.outputs.exists == 'true'
         run: |
           ./gradlew :${{ inputs.service }}:test \
             --tests "*IntegrationTest" \
@@ -156,7 +199,7 @@ jobs:
           SPRING_DATA_REDIS_PORT: 6379
 
       - name: Upload integration test results
-        if: always()
+        if: always() && steps.check-dir.outputs.exists == 'true'
         uses: actions/upload-artifact@v4
         with:
           if-no-files-found: ignore
@@ -165,5 +208,5 @@ jobs:
           retention-days: 30
 
       - name: Tear down Docker Compose
-        if: always()
+        if: always() && steps.check-dir.outputs.exists == 'true'
         run: docker compose -f docker-compose.test.yml down -v
