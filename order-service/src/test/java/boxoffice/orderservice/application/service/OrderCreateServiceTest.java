@@ -73,6 +73,14 @@ class OrderCreateServiceTest {
     org.mockito.Mockito.lenient().when(mockRequest.products()).thenReturn(List.of(mockProduct));
     org.mockito.Mockito.lenient().when(mockProduct.productId()).thenReturn(UUID.randomUUID());
     org.mockito.Mockito.lenient().when(mockProduct.quantity()).thenReturn(10);
+
+    CreateOrderRequestDto.AddressRequest mockAddress = mock(CreateOrderRequestDto.AddressRequest.class);
+    org.mockito.Mockito.lenient().when(mockAddress.zipCode()).thenReturn("12345");
+    org.mockito.Mockito.lenient().when(mockAddress.address()).thenReturn("서울시 강남구 테헤란로 1");
+    org.mockito.Mockito.lenient().when(mockAddress.detailAddress()).thenReturn("101호");
+    org.mockito.Mockito.lenient().when(mockRequest.deliveryAddress()).thenReturn(mockAddress);
+    org.mockito.Mockito.lenient().when(mockRequest.recipientName()).thenReturn("홍길동");
+    org.mockito.Mockito.lenient().when(mockRequest.recipientSlackId()).thenReturn("U12345678");
   }
 
   @Nested
@@ -94,6 +102,8 @@ class OrderCreateServiceTest {
       given(mockOrder.getId()).willReturn(UUID.randomUUID());
       given(mockOrder.getSupplierId()).willReturn(supplierId);
       given(mockOrder.getReceiverId()).willReturn(receiverId);
+      given(mockOrder.getSourceHubId()).willReturn(UUID.randomUUID());
+      given(mockOrder.getDestinationHubId()).willReturn(UUID.randomUUID());
       given(mockOrder.getRequest()).willReturn(requestMsg);
       given(mockOrder.getStatus()).willReturn(OrderStatus.PENDING);
 
@@ -135,6 +145,8 @@ class OrderCreateServiceTest {
       given(mockOrder.getId()).willReturn(UUID.randomUUID());
       given(mockOrder.getSupplierId()).willReturn(supplierId);
       given(mockOrder.getReceiverId()).willReturn(receiverId);
+      given(mockOrder.getSourceHubId()).willReturn(UUID.randomUUID());
+      given(mockOrder.getDestinationHubId()).willReturn(UUID.randomUUID());
       given(mockOrder.getRequest()).willReturn(requestMsg);
       given(mockOrder.getStatus()).willReturn(OrderStatus.PENDING);
 

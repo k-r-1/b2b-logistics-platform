@@ -4,6 +4,7 @@ import boxoffice.orderservice.application.client.CompanyProductFeignClient;
 import boxoffice.orderservice.application.client.DeliveryFeignClient;
 import boxoffice.orderservice.application.client.dto.request.DeliveryCreateRequest;
 import boxoffice.orderservice.application.client.dto.request.StockRestoreRequest;
+import boxoffice.orderservice.application.client.dto.response.DeliveryResponseDto;
 import boxoffice.orderservice.domain.entity.Order;
 import boxoffice.orderservice.domain.repository.OrderRepository;
 import boxoffice.orderservice.infra.exception.OrderErrorCode;
@@ -27,20 +28,31 @@ public class OrderEventListener {
   @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   public void orderCreateEvent(OrderCreatedEvent event) {
+    DeliveryResponseDto deliveryResponse;
     try {
-      deliveryFeignClient.requestDelivery(
+      OrderCreatedEvent.DeliveryAddress addr = event.deliveryAddress();
+      deliveryResponse = deliveryFeignClient.requestDelivery(
           new DeliveryCreateRequest(
               event.orderId(),
-              event.supplierId(),
-              event.receiverId(),
-              event.request()
+              event.sourceHubId(),
+              event.destinationHubId(),
+              new DeliveryCreateRequest.AddressRequest(
+                  addr.zipCode(), addr.address(), addr.detailAddress()
+              ),
+              event.recipientName(),
+              event.recipientSlackId()
           )
       );
     } catch (Exception e) {
-      log.error("[EVENT FAILED] 배송 요청이 실패했습니다. orderId = {}", event.orderId());
+      log.error("[EVENT FAILED] 배송 요청이 실패했습니다. orderId = {}", event.orderId(), e);
       cancelOrderAndRestoreStock(event);
       throw new BaseException(OrderErrorCode.DELIVERY_REQUEST_FAILED);
     }
+
+    Order order = orderRepository.findById(event.orderId())
+        .orElseThrow(() -> new BaseException(OrderErrorCode.ORDER_NOT_FOUND));
+    order.linkDelivery(deliveryResponse.id());
+    orderRepository.save(order);
   }
 
   private void cancelOrderAndRestoreStock(OrderCreatedEvent event) {

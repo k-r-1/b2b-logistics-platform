@@ -97,6 +97,10 @@ public class Order extends BaseEntity {
     return order;
   }
 
+  public void linkDelivery(UUID deliveryId) {
+    this.deliveryId = deliveryId;
+  }
+
   public void updateOrderRequest(String request) {
     this.request = request;
   }

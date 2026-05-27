@@ -82,15 +82,19 @@ public class OrderCreateService {
   }
 
   private OrderCreatedEvent buildEvent(Order order, CreateOrderRequestDto request) {
+    CreateOrderRequestDto.AddressRequest addr = request.deliveryAddress();
     return new OrderCreatedEvent(
         order.getId(),
         order.getSupplierId(),
         order.getReceiverId(),
+        order.getSourceHubId(),
+        order.getDestinationHubId(),
         order.getRequest(),
+        new OrderCreatedEvent.DeliveryAddress(addr.zipCode(), addr.address(), addr.detailAddress()),
+        request.recipientName(),
+        request.recipientSlackId(),
         request.products().stream()
-            .map(p -> new OrderCreatedEvent.ProductItem(
-                p.productId(), p.quantity()
-            ))
+            .map(p -> new OrderCreatedEvent.ProductItem(p.productId(), p.quantity()))
             .toList(),
         LocalDateTime.now()
     );
