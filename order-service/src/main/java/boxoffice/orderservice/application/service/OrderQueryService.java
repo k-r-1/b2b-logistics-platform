@@ -29,7 +29,7 @@ public class OrderQueryService {
     @Transactional(readOnly = true)
     public Page<Order> searchOrders(OrderSearchCondition condition, Pageable pageable) {
         Page<Order> orders = orderRepository.searchOrders(condition, pageable);
-        // @ElementCollection 지연 로딩 강제 초기화 (N+1 발생 - docs 참조)
+        // @BatchSize(size=100) 적용으로 IN 절 배치 로딩 (N+1 → 2 queries)
         orders.forEach(o -> o.getOrderProducts().size());
         return orders;
     }

@@ -6,6 +6,7 @@ import boxoffice.orderservice.domain.vo.OrderSearchCondition;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -28,11 +29,12 @@ public class OrderRepositoryImpl implements OrderRepositoryCustom {
             .orderBy(QOrder.order.createdAt.desc())
             .fetch();
 
-        long total = queryFactory
+        long total = Optional.ofNullable(queryFactory
             .select(QOrder.order.count())
             .from(QOrder.order)
             .where(predicate)
-            .fetchOne();
+            .fetchOne()
+        ).orElse(0L);
 
         return new PageImpl<>(content, pageable, total);
     }

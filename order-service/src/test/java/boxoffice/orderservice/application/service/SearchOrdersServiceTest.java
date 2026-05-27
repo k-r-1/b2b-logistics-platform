@@ -222,5 +222,39 @@ class SearchOrdersServiceTest {
 
             verify(orderQueryService, never()).searchOrders(any(), any());
         }
+
+        @Test
+        @DisplayName("[예외] SUPPLIER_MANAGER인데 companyId가 null이면 UNAUTHORIZED_ORDER 예외를 발생시킨다.")
+        void searchOrders_실패_SUPPLIER_MANAGER_companyId_null() {
+            // given
+            UserDetailInfo user = mock(UserDetailInfo.class);
+            given(user.role()).willReturn("SUPPLIER_MANAGER");
+            given(user.companyId()).willReturn(null);
+            given(userFeignClient.getUserById(keycloakId)).willReturn(user);
+
+            // when & then
+            assertThatThrownBy(() -> searchOrdersService.searchOrders(keycloakId, 0, 10))
+                .isInstanceOf(BaseException.class)
+                .hasFieldOrPropertyWithValue("errorCode", OrderErrorCode.UNAUTHORIZED_ORDER);
+
+            verify(orderQueryService, never()).searchOrders(any(), any());
+        }
+
+        @Test
+        @DisplayName("[예외] HUB_MANAGER인데 hubId가 null이면 UNAUTHORIZED_ORDER 예외를 발생시킨다.")
+        void searchOrders_실패_HUB_MANAGER_hubId_null() {
+            // given
+            UserDetailInfo user = mock(UserDetailInfo.class);
+            given(user.role()).willReturn("HUB_MANAGER");
+            given(user.hubId()).willReturn(null);
+            given(userFeignClient.getUserById(keycloakId)).willReturn(user);
+
+            // when & then
+            assertThatThrownBy(() -> searchOrdersService.searchOrders(keycloakId, 0, 10))
+                .isInstanceOf(BaseException.class)
+                .hasFieldOrPropertyWithValue("errorCode", OrderErrorCode.UNAUTHORIZED_ORDER);
+
+            verify(orderQueryService, never()).searchOrders(any(), any());
+        }
     }
 }

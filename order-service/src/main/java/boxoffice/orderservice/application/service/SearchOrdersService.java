@@ -30,8 +30,14 @@ public class SearchOrdersService {
 
     private OrderSearchCondition buildCondition(UserDetailInfo user) {
         return switch (user.role()) {
-            case "SUPPLIER_MANAGER" -> OrderSearchCondition.forCompany(user.companyId());
-            case "HUB_MANAGER", "DELIVERY_MANAGER" -> OrderSearchCondition.forHub(user.hubId());
+            case "SUPPLIER_MANAGER" -> {
+                if (user.companyId() == null) throw new BaseException(OrderErrorCode.UNAUTHORIZED_ORDER);
+                yield OrderSearchCondition.forCompany(user.companyId());
+            }
+            case "HUB_MANAGER", "DELIVERY_MANAGER" -> {
+                if (user.hubId() == null) throw new BaseException(OrderErrorCode.UNAUTHORIZED_ORDER);
+                yield OrderSearchCondition.forHub(user.hubId());
+            }
             case "MASTER" -> OrderSearchCondition.forMaster();
             default -> throw new BaseException(OrderErrorCode.UNAUTHORIZED_ORDER);
         };

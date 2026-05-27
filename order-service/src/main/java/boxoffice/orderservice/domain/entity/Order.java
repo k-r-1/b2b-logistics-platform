@@ -23,6 +23,7 @@ import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.SQLRestriction;
 
 @Getter
@@ -33,7 +34,9 @@ import org.hibernate.annotations.SQLRestriction;
     name = "p_orders",
     indexes = {
         @Index(name = "idx_order_supplier", columnList = "supplier_id"),
-        @Index(name = "idx_order_receiver", columnList = "receiver_id")
+        @Index(name = "idx_order_receiver", columnList = "receiver_id"),
+        @Index(name = "idx_order_source_hub", columnList = "source_hub_id"),
+        @Index(name = "idx_order_destination_hub", columnList = "destination_hub_id")
     }
 )
 @SQLRestriction("deleted_at IS NULL")
@@ -69,6 +72,7 @@ public class Order extends BaseEntity {
       name = "p_order_products",
       joinColumns = @JoinColumn(name = "order_id")
   )
+  @BatchSize(size = 100)
   private List<OrderProduct> orderProducts = new ArrayList<>();
 
   public static Order create(
