@@ -1,13 +1,12 @@
 package com.boxoffice.ainotificationservice.ai.cache;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.boxoffice.ainotificationservice.ai.deadline.DispatchDeadlinePrediction;
+import java.time.LocalDateTime;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-
-import java.time.LocalDateTime;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("FakeDispatchDeadlineCache")
 class FakeDispatchDeadlineCacheTest {

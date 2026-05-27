@@ -1,22 +1,21 @@
 package com.boxoffice.ainotificationservice.ai.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.boxoffice.ainotificationservice.ai.deadline.DeliveryRoute;
 import com.boxoffice.ainotificationservice.ai.deadline.DispatchDeadlineContext;
 import com.boxoffice.ainotificationservice.ai.deadline.DispatchDeadlinePrediction;
 import com.boxoffice.ainotificationservice.ai.deadline.OrderLine;
 import com.boxoffice.ainotificationservice.ai.deadline.WorkingHours;
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-
-import java.time.Duration;
-import java.time.LocalDateTime;
-import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 // 실제 Gemini 호출 E2E. GEMINI_API_KEY 환경변수 + postgres 필요. e2e 태그라 기본 test에서 제외.
 @Tag("e2e")

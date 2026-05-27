@@ -1,6 +1,12 @@
 package com.boxoffice.ainotificationservice.ai.cache;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
+
 import com.boxoffice.ainotificationservice.ai.deadline.DispatchDeadlinePrediction;
+import java.time.Duration;
+import java.time.LocalDateTime;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -10,13 +16,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
-
-import java.time.Duration;
-import java.time.LocalDateTime;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.verify;
 
 @DisplayName("RedisDispatchDeadlineCache")
 @ExtendWith(MockitoExtension.class)

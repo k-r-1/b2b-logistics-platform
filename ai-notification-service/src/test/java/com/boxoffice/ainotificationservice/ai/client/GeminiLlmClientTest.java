@@ -1,5 +1,10 @@
 package com.boxoffice.ainotificationservice.ai.client;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.BDDMockito.given;
+
 import com.boxoffice.ainotificationservice.ai.deadline.DeliveryRoute;
 import com.boxoffice.ainotificationservice.ai.deadline.DispatchDeadlineContext;
 import com.boxoffice.ainotificationservice.ai.deadline.DispatchDeadlinePrediction;
@@ -7,6 +12,9 @@ import com.boxoffice.ainotificationservice.ai.deadline.OrderLine;
 import com.boxoffice.ainotificationservice.ai.deadline.WorkingHours;
 import com.boxoffice.ainotificationservice.ai.exception.AiErrorCode;
 import com.boxoffice.common.exception.BaseException;
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -15,15 +23,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.ai.chat.client.ChatClient;
-
-import java.time.Duration;
-import java.time.LocalDateTime;
-import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.BDDMockito.given;
 
 @DisplayName("GeminiLlmClient")
 @ExtendWith(MockitoExtension.class)

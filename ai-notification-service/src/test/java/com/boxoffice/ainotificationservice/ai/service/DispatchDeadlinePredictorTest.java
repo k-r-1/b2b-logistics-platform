@@ -1,5 +1,10 @@
 package com.boxoffice.ainotificationservice.ai.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+
 import com.boxoffice.ainotificationservice.ai.cache.FakeDispatchDeadlineCache;
 import com.boxoffice.ainotificationservice.ai.client.FakeLlmClient;
 import com.boxoffice.ainotificationservice.ai.deadline.DeliveryRoute;
@@ -7,23 +12,16 @@ import com.boxoffice.ainotificationservice.ai.deadline.DispatchDeadlineContext;
 import com.boxoffice.ainotificationservice.ai.deadline.DispatchDeadlinePrediction;
 import com.boxoffice.ainotificationservice.ai.deadline.OrderLine;
 import com.boxoffice.ainotificationservice.ai.deadline.WorkingHours;
-import com.boxoffice.ainotificationservice.ai.entity.prediction.PredictionLog;
 import com.boxoffice.ainotificationservice.ai.repository.PredictionLogRepository;
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.time.Duration;
-import java.time.LocalDateTime;
-import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 
 @DisplayName("DispatchDeadlinePredictor")
 @ExtendWith(MockitoExtension.class)

@@ -1,10 +1,10 @@
 package com.boxoffice.ainotificationservice.notification.template;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.boxoffice.ainotificationservice.notification.entity.message.TemplateType;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("InMemoryTemplateRepository")
 class InMemoryTemplateRepositoryTest {
