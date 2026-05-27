@@ -2,12 +2,15 @@ plugins {
 	id 'org.springframework.boot' version '3.5.14' apply false
 	id 'io.spring.dependency-management' version '1.1.7' apply false
 	id 'java'
+	id 'jacoco'
 }
 
 subprojects {
 	apply plugin: 'java'
 	apply plugin: 'org.springframework.boot'
 	apply plugin: 'io.spring.dependency-management'
+	apply plugin: 'checkstyle'
+	apply plugin: 'jacoco'
 
 	group = 'com.boxoffice'
 	version = '0.0.1-SNAPSHOT'
@@ -33,7 +36,22 @@ subprojects {
 		set('springCloudVersion', "2025.0.2")
 	}
 
+	checkstyle {
+		toolVersion = '13.4.2'
+
+		configFile = rootProject.file('config/checkstyle/checkstyle.xml')
+
+		ignoreFailures = false
+
+		maxWarnings = 0
+	}
+
+	jacoco {
+		toolVersion = "0.8.12"
+	}
+
 	dependencies {
+
 		testImplementation 'org.springframework.boot:spring-boot-starter-test'
 		testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 	}
@@ -46,5 +64,18 @@ subprojects {
 
 	tasks.named('test') {
 		useJUnitPlatform()
+		finalizedBy jacocoTestReport
+	}
+
+	tasks.named('checkstyleTest').configure {
+		enabled = false
+	}
+
+	jacocoTestReport {
+		dependsOn test
+		reports {
+			html.required = true
+			xml.required = true
+		}
 	}
 }
