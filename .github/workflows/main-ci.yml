@@ -330,7 +330,7 @@ jobs:
                 {"name":"👤 작성자",        "value":"${PR_AUTHOR}",           "inline":true},
                 {"name":"🔀 대상 브랜치",   "value":"main",                    "inline":true},
                 {"name":"📦 변경된 서비스", "value":"${SERVICE_LIST}",        "inline":false},
-                {"name":"📋 Job 결과",      "value":"$(job_emoji "$R_DETECT") detect-changes\n$(job_emoji "$R_GW") ci-api-gateway\n$(job_emoji "$R_DM") ci-delivery-manager\n$(job_emoji "$R_EU") ci-eureka-server\n$(job_emoji "$R_US") ci-user-service","inline":false}
+                {"name":"📋 Job 결과",      "value":"$(job_emoji "$R_DETECT") detect-changes\n$(job_emoji "$R_GW") ci-api-gateway\n$(job_emoji "$R_DM") ci-delivery-manager\n$(job_emoji "$R_EU") ci-eureka-server\n$(job_emoji "$R_US") ci-user-service\n$(job_emoji "$R_HUB") ci-hub-service\n$(job_emoji "$R_COMP") ci-company-service\n$(job_emoji "$R_ORD") ci-order-service\n$(job_emoji "$R_DEL") ci-delivery-service\n$(job_emoji "$R_NOTI") ci-notification-service\n$(job_emoji "$R_AI") ci-ai-service","inline":false}
               ],
               "footer":{"text":"Run #${{ github.run_number }} • ${{ github.repository }}"},
               "timestamp":"$(date -u +%Y-%m-%dT%H:%M:%SZ)"
