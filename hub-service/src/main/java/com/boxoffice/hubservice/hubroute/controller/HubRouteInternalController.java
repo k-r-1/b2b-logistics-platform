@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/internal/hub-routes")
+@RequestMapping("/internal/v1/hub-routes")
 @RequiredArgsConstructor
 public class HubRouteInternalController {
 

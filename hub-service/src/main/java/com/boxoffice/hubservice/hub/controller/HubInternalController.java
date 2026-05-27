@@ -4,7 +4,6 @@ import com.boxoffice.common.response.ApiResponse;
 import com.boxoffice.hubservice.hub.dto.request.HubAssignManagerRequestDto;
 import com.boxoffice.hubservice.hub.dto.response.HubActiveResponseDto;
 import com.boxoffice.hubservice.hub.dto.response.HubGetResponseDto;
-import com.boxoffice.hubservice.hub.entity.Hub;
 import com.boxoffice.hubservice.hub.service.HubService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -14,7 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/internal/hubs")
+@RequestMapping("/internal/v1/hubs")
 @RequiredArgsConstructor
 public class HubInternalController {
 
