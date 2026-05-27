@@ -64,7 +64,7 @@ services:
 
   # 6. 배송 담당자 서비스
   delivery-manager-service:
-    build: ./deliver-ymanager-service
+    build: ./delivery-manager-service
     container_name: boxoffice-delivery-manager
     ports:
       - "8086:8086"
