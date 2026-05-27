@@ -13,7 +13,6 @@ public record OrderCreatedEvent(
     String request,
     DeliveryAddress deliveryAddress,
     String recipientName,
-    String recipientSlackId,
     List<ProductItem> products,
     LocalDateTime publishedAt
 ) {

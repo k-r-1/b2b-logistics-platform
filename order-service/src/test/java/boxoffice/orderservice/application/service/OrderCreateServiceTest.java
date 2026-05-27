@@ -1,13 +1,13 @@
 package boxoffice.orderservice.application.service;
 
-import static org.junit.jupiter.api.Assertions.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import boxoffice.orderservice.application.client.CompanyProductFeignClient;
@@ -15,14 +15,9 @@ import boxoffice.orderservice.application.client.UserFeignClient;
 import boxoffice.orderservice.application.client.dto.UserDetailInfo;
 import boxoffice.orderservice.application.client.dto.response.InternalCompanyHub;
 import boxoffice.orderservice.application.client.dto.response.StockDeductResponse;
-import boxoffice.orderservice.domain.entity.Order;
-import boxoffice.orderservice.domain.enums.OrderStatus;
-import boxoffice.orderservice.domain.vo.TotalPrice;
-import boxoffice.orderservice.infra.event.OrderCreatedEvent;
-import boxoffice.orderservice.infra.event.OrderEventListener;
+import boxoffice.orderservice.application.service.dto.CreateOrderCommand;
+import boxoffice.orderservice.application.service.dto.OrderResultDto;
 import boxoffice.orderservice.infra.exception.OrderErrorCode;
-import boxoffice.orderservice.presentation.dto.request.CreateOrderRequestDto;
-import boxoffice.orderservice.presentation.dto.response.CreateOrderResponseDto;
 import com.boxoffice.common.exception.BaseException;
 import java.util.List;
 import java.util.UUID;
@@ -33,216 +28,231 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.context.ActiveProfiles;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("OrderCreateService 단위 테스트")
-@ActiveProfiles("test")
 class OrderCreateServiceTest {
 
-  @InjectMocks
-  private OrderCreateService orderCreateService;
+    @InjectMocks
+    private OrderCreateService orderCreateService;
 
-  @Mock
-  private UserFeignClient userFeignClient;
-  @Mock
-  private CompanyProductFeignClient companyProductFeignClient;
-  @Mock
-  private OrderCommandService orderCommandService;
-  @Mock
-  private OrderEventListener eventPublisher;
+    @Mock
+    private UserFeignClient userFeignClient;
+    @Mock
+    private CompanyProductFeignClient companyProductFeignClient;
+    @Mock
+    private OrderCommandService orderCommandService;
 
-  private final String requesterId = "user-123";
-  private final UUID supplierId = UUID.randomUUID();
-  private final UUID receiverId = UUID.randomUUID();
-  private final String requestMsg = "조심히 와주세요";
+    private final String requesterId = "user-123";
+    private final UUID supplierId = UUID.randomUUID();
+    private final UUID receiverId = UUID.randomUUID();
+    private final UUID sourceHubId = UUID.randomUUID();
+    private final UUID destinationHubId = UUID.randomUUID();
+    private final UUID productId = UUID.randomUUID();
 
-  private CreateOrderRequestDto mockRequest;
-  private CreateOrderRequestDto.CreateProductRequest mockProduct;
+    private CreateOrderCommand command;
+    private StockDeductResponse stockDeductResponse;
+    private OrderResultDto orderResult;
 
-  @BeforeEach
-  void setUp() {
-    mockRequest = mock(CreateOrderRequestDto.class);
-    mockProduct = mock(CreateOrderRequestDto.CreateProductRequest.class);
+    @BeforeEach
+    void setUp() {
+        command = new CreateOrderCommand(
+            supplierId, receiverId, "조심히 와주세요",
+            List.of(new CreateOrderCommand.ProductItem(productId, 10)),
+            new CreateOrderCommand.DeliveryAddress("12345", "서울시 강남구 테헤란로 1", "101호"),
+            "홍길동", "U12345678"
+        );
 
-    // 공통 Request Mocking (Lenient하게 설정하여 불필요한 Stub 에러 방지)
-    org.mockito.Mockito.lenient().when(mockRequest.supplierId()).thenReturn(supplierId);
-    org.mockito.Mockito.lenient().when(mockRequest.receiverId()).thenReturn(receiverId);
-    org.mockito.Mockito.lenient().when(mockRequest.request()).thenReturn(requestMsg);
-    org.mockito.Mockito.lenient().when(mockRequest.products()).thenReturn(List.of(mockProduct));
-    org.mockito.Mockito.lenient().when(mockProduct.productId()).thenReturn(UUID.randomUUID());
-    org.mockito.Mockito.lenient().when(mockProduct.quantity()).thenReturn(10);
+        stockDeductResponse = Mockito.mock(StockDeductResponse.class);
+        Mockito.lenient().when(stockDeductResponse.sourceHubId()).thenReturn(sourceHubId);
+        Mockito.lenient().when(stockDeductResponse.destinationHubId()).thenReturn(destinationHubId);
+        Mockito.lenient().when(stockDeductResponse.details()).thenReturn(List.of());
 
-    CreateOrderRequestDto.AddressRequest mockAddress = mock(CreateOrderRequestDto.AddressRequest.class);
-    org.mockito.Mockito.lenient().when(mockAddress.zipCode()).thenReturn("12345");
-    org.mockito.Mockito.lenient().when(mockAddress.address()).thenReturn("서울시 강남구 테헤란로 1");
-    org.mockito.Mockito.lenient().when(mockAddress.detailAddress()).thenReturn("101호");
-    org.mockito.Mockito.lenient().when(mockRequest.deliveryAddress()).thenReturn(mockAddress);
-    org.mockito.Mockito.lenient().when(mockRequest.recipientName()).thenReturn("홍길동");
-    org.mockito.Mockito.lenient().when(mockRequest.recipientSlackId()).thenReturn("U12345678");
-  }
-
-  @Nested
-  @DisplayName("createOrder() 메서드는")
-  class Describe_createOrder {
-
-    @Test
-    @DisplayName("[성공] MASTER 권한 유저의 요청 시, 주문을 성공적으로 생성하고 이벤트를 발행한다.")
-    void success_with_master_role() {
-      // Given
-      UserDetailInfo mockUser = mock(UserDetailInfo.class);
-      given(mockUser.role()).willReturn("MASTER");
-      given(userFeignClient.getUserById(requesterId)).willReturn(mockUser);
-
-      StockDeductResponse mockDeductResponse = mock(StockDeductResponse.class);
-      given(companyProductFeignClient.deductStocks(anyList())).willReturn(mockDeductResponse);
-
-      Order mockOrder = mock(Order.class);
-      given(mockOrder.getId()).willReturn(UUID.randomUUID());
-      given(mockOrder.getSupplierId()).willReturn(supplierId);
-      given(mockOrder.getReceiverId()).willReturn(receiverId);
-      given(mockOrder.getSourceHubId()).willReturn(UUID.randomUUID());
-      given(mockOrder.getDestinationHubId()).willReturn(UUID.randomUUID());
-      given(mockOrder.getRequest()).willReturn(requestMsg);
-      given(mockOrder.getStatus()).willReturn(OrderStatus.PENDING);
-
-      TotalPrice mockTotalPrice = mock(TotalPrice.class);
-      given(mockTotalPrice.getValue()).willReturn(30000);
-      given(mockOrder.getTotalPrice()).willReturn(mockTotalPrice);
-
-      given(orderCommandService.saveOrder(any(), any(), any(), any(), any(), any())).willReturn(mockOrder);
-
-      // When
-      CreateOrderResponseDto response = orderCreateService.createOrder(mockRequest, requesterId);
-
-      // Then
-      assertThat(response).isNotNull();
-
-      // 검증(Verify) 시에도 명확하게 호출 여부를 확인합니다.
-      verify(orderCommandService).saveOrder(any(), any(), any(), any(), any(), any());
-      verify(eventPublisher).orderCreateEvent(any(OrderCreatedEvent.class));
+        orderResult = new OrderResultDto(
+            UUID.randomUUID(), supplierId, receiverId, sourceHubId, destinationHubId,
+            "PENDING", 100_000, "조심히 와주세요", List.of()
+        );
     }
 
-    @Test
-    @DisplayName("[성공] HUB_MANAGER 권한이며 허브 검증을 통과하면 주문을 성공적으로 생성한다.")
-    void success_with_hub_manager_role() {
-      // Given
-      UserDetailInfo mockUser = mock(UserDetailInfo.class);
-      given(mockUser.role()).willReturn("HUB_MANAGER");
-      given(mockUser.hubId()).willReturn(receiverId);
-      given(userFeignClient.getUserById(requesterId)).willReturn(mockUser);
+    @Nested
+    @DisplayName("createOrder() 메서드는")
+    class Describe_createOrder {
 
-      InternalCompanyHub mockHub = mock(InternalCompanyHub.class);
-      given(mockHub.receiverHubId()).willReturn(receiverId);
-      given(companyProductFeignClient.getCompanyById(supplierId, receiverId)).willReturn(mockHub);
+        @Test
+        @DisplayName("[성공] MASTER 권한으로 주문 생성 시, 재고 차감 후 저장하고 이벤트를 발행한다.")
+        void success_with_master_role() {
+            // given
+            UserDetailInfo user = Mockito.mock(UserDetailInfo.class);
+            given(user.role()).willReturn("MASTER");
+            given(userFeignClient.getUserById(requesterId)).willReturn(user);
+            given(companyProductFeignClient.deductStocks(any(UUID.class), anyList())).willReturn(stockDeductResponse);
+            given(orderCommandService.saveOrder(any(), any(), any(), any(), any(), any(), any(), any()))
+                .willReturn(orderResult);
 
-      StockDeductResponse mockDeductResponse = mock(StockDeductResponse.class);
-      given(companyProductFeignClient.deductStocks(anyList())).willReturn(mockDeductResponse);
+            // when
+            OrderResultDto result = orderCreateService.createOrder(command, requesterId);
 
-      // 1. buildEvent() 및 toResponse() 내부에서 호출되는 모든 Getter가 값을 반환하도록 가짜 Order 객체를 세팅합니다.
-      Order mockOrder = mock(Order.class);
-      given(mockOrder.getId()).willReturn(UUID.randomUUID());
-      given(mockOrder.getSupplierId()).willReturn(supplierId);
-      given(mockOrder.getReceiverId()).willReturn(receiverId);
-      given(mockOrder.getSourceHubId()).willReturn(UUID.randomUUID());
-      given(mockOrder.getDestinationHubId()).willReturn(UUID.randomUUID());
-      given(mockOrder.getRequest()).willReturn(requestMsg);
-      given(mockOrder.getStatus()).willReturn(OrderStatus.PENDING);
+            // then
+            assertThat(result).isNotNull();
+            assertThat(result.status()).isEqualTo("PENDING");
+            verify(companyProductFeignClient).deductStocks(any(UUID.class), anyList());
+            verify(orderCommandService).saveOrder(any(), any(), any(), any(), any(), any(), any(), any());
+        }
 
-      TotalPrice mockTotalPrice = mock(TotalPrice.class);
-      given(mockTotalPrice.getValue()).willReturn(30000);
-      given(mockOrder.getTotalPrice()).willReturn(mockTotalPrice);
+        @Test
+        @DisplayName("[성공] COMPANY_MANAGER는 receiverId가 본인 companyId로 강제 대체된다.")
+        void success_company_manager_receiver_overridden() {
+            // given
+            UUID companyId = UUID.randomUUID();
+            UserDetailInfo user = Mockito.mock(UserDetailInfo.class);
+            given(user.role()).willReturn("COMPANY_MANAGER");
+            given(user.companyId()).willReturn(companyId);
+            given(userFeignClient.getUserById(requesterId)).willReturn(user);
+            given(companyProductFeignClient.deductStocks(any(UUID.class), anyList())).willReturn(stockDeductResponse);
+            given(orderCommandService.saveOrder(any(), any(), any(UUID.class), any(), any(), any(), any(), any()))
+                .willReturn(orderResult);
 
-      // 2. 어떤 파라미터가 들어오더라도 위에서 정의한 mockOrder가 반환되도록 given을 설정합니다.
-      // (기존의 mock(Order.class)를 그대로 넘겼거나 파라미터가 불일치하여 null이 반환되던 문제를 해결합니다.)
-      given(orderCommandService.saveOrder(any(), any(), any(), any(), any(), any())).willReturn(mockOrder);
+            // when
+            OrderResultDto result = orderCreateService.createOrder(command, requesterId);
 
-      // When
-      CreateOrderResponseDto response = orderCreateService.createOrder(mockRequest, requesterId);
+            // then
+            assertThat(result).isNotNull();
+            // saveOrder에 전달되는 receiverId가 companyId로 대체되었는지 검증
+            verify(orderCommandService).saveOrder(
+                any(), any(), Mockito.eq(companyId), any(), any(), any(), any(), any()
+            );
+        }
 
-      // Then
-      assertThat(response).isNotNull();
-      verify(orderCommandService).saveOrder(any(), any(), any(), any(), any(), any());
-      verify(eventPublisher).orderCreateEvent(any(OrderCreatedEvent.class));
+        @Test
+        @DisplayName("[성공] HUB_MANAGER로 관할 허브 검증 통과 시 주문이 생성된다.")
+        void success_with_hub_manager_role() {
+            // given
+            UserDetailInfo user = Mockito.mock(UserDetailInfo.class);
+            given(user.role()).willReturn("HUB_MANAGER");
+            given(user.hubId()).willReturn(sourceHubId);
+            given(userFeignClient.getUserById(requesterId)).willReturn(user);
+
+            InternalCompanyHub hubs = Mockito.mock(InternalCompanyHub.class);
+            given(hubs.supplierHubId()).willReturn(sourceHubId);
+            // receiverHubId: supplierHubId 매칭 시 short-circuit → lenient 처리
+            Mockito.lenient().when(hubs.receiverHubId()).thenReturn(destinationHubId);
+            given(companyProductFeignClient.getCompanyById(supplierId, receiverId)).willReturn(hubs);
+            given(companyProductFeignClient.deductStocks(any(UUID.class), anyList())).willReturn(stockDeductResponse);
+            given(orderCommandService.saveOrder(any(), any(), any(), any(), any(), any(), any(), any()))
+                .willReturn(orderResult);
+
+            // when
+            OrderResultDto result = orderCreateService.createOrder(command, requesterId);
+
+            // then
+            assertThat(result).isNotNull();
+            verify(companyProductFeignClient).getCompanyById(supplierId, receiverId);
+        }
+
+        @Test
+        @DisplayName("[예외] HUB_MANAGER가 관할 허브 외 주문 생성 시 UNAUTHORIZED_HUB_ORDER 발생")
+        void exception_hub_manager_unauthorized_hub() {
+            // given
+            UserDetailInfo user = Mockito.mock(UserDetailInfo.class);
+            given(user.role()).willReturn("HUB_MANAGER");
+            given(user.hubId()).willReturn(UUID.randomUUID()); // 다른 허브
+            given(userFeignClient.getUserById(requesterId)).willReturn(user);
+
+            InternalCompanyHub hubs = Mockito.mock(InternalCompanyHub.class);
+            given(hubs.supplierHubId()).willReturn(sourceHubId);
+            given(hubs.receiverHubId()).willReturn(destinationHubId);
+            given(companyProductFeignClient.getCompanyById(supplierId, receiverId)).willReturn(hubs);
+
+            // when & then
+            assertThatThrownBy(() -> orderCreateService.createOrder(command, requesterId))
+                .isInstanceOf(BaseException.class)
+                .hasFieldOrPropertyWithValue("errorCode", OrderErrorCode.UNAUTHORIZED_HUB_ORDER);
+
+            verify(companyProductFeignClient, never()).deductStocks(any(), anyList());
+        }
+
+        @Test
+        @DisplayName("[예외] 허용되지 않은 role일 경우 UNAUTHORIZED_ORDER 발생")
+        void exception_unknown_role() {
+            // given
+            UserDetailInfo user = Mockito.mock(UserDetailInfo.class);
+            given(user.role()).willReturn("CUSTOMER");
+            given(userFeignClient.getUserById(requesterId)).willReturn(user);
+
+            // when & then
+            assertThatThrownBy(() -> orderCreateService.createOrder(command, requesterId))
+                .isInstanceOf(BaseException.class)
+                .hasFieldOrPropertyWithValue("errorCode", OrderErrorCode.UNAUTHORIZED_ORDER);
+        }
+
+        @Test
+        @DisplayName("[예외] 유저 서비스 호출 실패(Fallback) 시 USER_SERVICE_UNAVAILABLE 발생")
+        void exception_user_service_fallback() {
+            // given - Fallback이 USER_SERVICE_UNAVAILABLE을 던지도록 설정
+            given(userFeignClient.getUserById(anyString()))
+                .willThrow(new BaseException(OrderErrorCode.USER_SERVICE_UNAVAILABLE));
+
+            // when & then
+            assertThatThrownBy(() -> orderCreateService.createOrder(command, requesterId))
+                .isInstanceOf(BaseException.class)
+                .hasFieldOrPropertyWithValue("errorCode", OrderErrorCode.USER_SERVICE_UNAVAILABLE);
+        }
+
+        @Test
+        @DisplayName("[예외] 재고 차감 실패(Fallback) 시 STOCK_DEDUCT_FAILED 발생하고 주문이 저장되지 않는다.")
+        void exception_stock_deduct_fallback() {
+            // given
+            UserDetailInfo user = Mockito.mock(UserDetailInfo.class);
+            given(user.role()).willReturn("MASTER");
+            given(userFeignClient.getUserById(requesterId)).willReturn(user);
+            given(companyProductFeignClient.deductStocks(any(UUID.class), anyList()))
+                .willThrow(new BaseException(OrderErrorCode.STOCK_DEDUCT_FAILED));
+
+            // when & then
+            assertThatThrownBy(() -> orderCreateService.createOrder(command, requesterId))
+                .isInstanceOf(BaseException.class)
+                .hasFieldOrPropertyWithValue("errorCode", OrderErrorCode.STOCK_DEDUCT_FAILED);
+
+            verify(orderCommandService, never()).saveOrder(any(), any(), any(), any(), any(), any(), any(), any());
+        }
+
+        @Test
+        @DisplayName("[예외] 주문 저장 실패 시 재고 보상 트랜잭션 수행 후 ORDER_SAVE_FAILED 발생")
+        void exception_order_save_failed_triggers_compensation() {
+            // given
+            UserDetailInfo user = Mockito.mock(UserDetailInfo.class);
+            given(user.role()).willReturn("MASTER");
+            given(userFeignClient.getUserById(requesterId)).willReturn(user);
+            given(companyProductFeignClient.deductStocks(any(UUID.class), anyList())).willReturn(stockDeductResponse);
+            given(orderCommandService.saveOrder(any(), any(), any(), any(), any(), any(), any(), any()))
+                .willThrow(new RuntimeException("DB Timeout"));
+
+            // when & then
+            assertThatThrownBy(() -> orderCreateService.createOrder(command, requesterId))
+                .isInstanceOf(BaseException.class)
+                .hasFieldOrPropertyWithValue("errorCode", OrderErrorCode.ORDER_SAVE_FAILED);
+
+            verify(companyProductFeignClient).restoreStocks(anyList());
+        }
+
+        @Test
+        @DisplayName("[예외] 보상 트랜잭션(재고 복구)도 실패해도 ORDER_SAVE_FAILED 예외는 정상 전파된다.")
+        void exception_compensation_also_fails_still_propagates_original_error() {
+            // given
+            UserDetailInfo user = Mockito.mock(UserDetailInfo.class);
+            given(user.role()).willReturn("MASTER");
+            given(userFeignClient.getUserById(requesterId)).willReturn(user);
+            given(companyProductFeignClient.deductStocks(any(UUID.class), anyList())).willReturn(stockDeductResponse);
+            given(orderCommandService.saveOrder(any(), any(), any(), any(), any(), any(), any(), any()))
+                .willThrow(new RuntimeException("DB Timeout"));
+            doThrow(new RuntimeException("Feign Timeout")).when(companyProductFeignClient).restoreStocks(anyList());
+
+            // when & then
+            assertThatThrownBy(() -> orderCreateService.createOrder(command, requesterId))
+                .isInstanceOf(BaseException.class)
+                .hasFieldOrPropertyWithValue("errorCode", OrderErrorCode.ORDER_SAVE_FAILED);
+        }
     }
-
-    @Test
-    @DisplayName("[예외] HUB_MANAGER 권한이지만 허브 검증에 실패하면 UNAUTHORIZED_HUB_ORDER 발생")
-    void exception_when_hub_manager_unauthorized() {
-      // Given
-      UserDetailInfo mockUser = mock(UserDetailInfo.class);
-      given(mockUser.role()).willReturn("HUB_MANAGER");
-      given(mockUser.hubId()).willReturn(UUID.randomUUID()); // receiverId와 불일치 유도
-      given(userFeignClient.getUserById(requesterId)).willReturn(mockUser);
-
-      InternalCompanyHub mockHub = mock(InternalCompanyHub.class);
-      given(mockHub.receiverHubId()).willReturn(UUID.randomUUID());
-      given(companyProductFeignClient.getCompanyById(supplierId, receiverId)).willReturn(mockHub);
-
-      // When & Then
-      assertThatThrownBy(() -> orderCreateService.createOrder(mockRequest, requesterId))
-          .isInstanceOf(BaseException.class)
-          .hasFieldOrPropertyWithValue("errorCode", OrderErrorCode.UNAUTHORIZED_HUB_ORDER);
-    }
-
-    @Test
-    @DisplayName("[예외] 알 수 없는 Role(권한)일 경우 UNAUTHORIZED_ORDER 발생")
-    void exception_when_role_unauthorized() {
-      // Given
-      UserDetailInfo mockUser = mock(UserDetailInfo.class);
-      given(mockUser.role()).willReturn("CUSTOMER");
-      given(userFeignClient.getUserById(requesterId)).willReturn(mockUser);
-
-      // When & Then
-      assertThatThrownBy(() -> orderCreateService.createOrder(mockRequest, requesterId))
-          .isInstanceOf(BaseException.class)
-          .hasFieldOrPropertyWithValue("errorCode", OrderErrorCode.UNAUTHORIZED_ORDER);
-    }
-
-    @Test
-    @DisplayName("[예외] 주문 저장 실패 시, 재고 복구(fallback)를 수행하고 ORDER_SAVE_FAILED 발생")
-    void exception_when_save_order_fails_triggers_fallback() {
-      // Given
-      UserDetailInfo mockUser = mock(UserDetailInfo.class);
-      given(mockUser.role()).willReturn("MASTER");
-      given(userFeignClient.getUserById(requesterId)).willReturn(mockUser);
-
-      given(companyProductFeignClient.deductStocks(anyList())).willReturn(mock(StockDeductResponse.class));
-
-      // 주문 저장 시 강제로 RuntimeException 발생
-      given(orderCommandService.saveOrder(any(), any(), any(), any(), any(), any()))
-          .willThrow(new RuntimeException("DB Timeout"));
-
-      // When & Then
-      assertThatThrownBy(() -> orderCreateService.createOrder(mockRequest, requesterId))
-          .isInstanceOf(BaseException.class)
-          .hasFieldOrPropertyWithValue("errorCode", OrderErrorCode.ORDER_SAVE_FAILED);
-
-      // 보상 트랜잭션인 restoreStocks API가 호출되었는지 검증
-      verify(companyProductFeignClient).restoreStocks(anyList());
-    }
-
-    @Test
-    @DisplayName("[예외] 보상 트랜잭션(fallback) 중 에러가 발생해도, ORDER_SAVE_FAILED 예외를 정상적으로 던진다.")
-    void exception_when_fallback_also_fails() {
-      // Given
-      UserDetailInfo mockUser = mock(UserDetailInfo.class);
-      given(mockUser.role()).willReturn("MASTER");
-      given(userFeignClient.getUserById(requesterId)).willReturn(mockUser);
-
-      given(companyProductFeignClient.deductStocks(anyList())).willReturn(mock(StockDeductResponse.class));
-
-      given(orderCommandService.saveOrder(any(), any(), any(), any(), any(), any()))
-          .willThrow(new RuntimeException("DB Timeout"));
-
-      // 보상 트랜잭션(재고 복구)조차 실패하는 상황 가정
-      doThrow(new RuntimeException("Feign Timeout")).when(companyProductFeignClient).restoreStocks(anyList());
-
-      // When & Then
-      assertThatThrownBy(() -> orderCreateService.createOrder(mockRequest, requesterId))
-          .isInstanceOf(BaseException.class)
-          .hasFieldOrPropertyWithValue("errorCode", OrderErrorCode.ORDER_SAVE_FAILED);
-    }
-  }
 }

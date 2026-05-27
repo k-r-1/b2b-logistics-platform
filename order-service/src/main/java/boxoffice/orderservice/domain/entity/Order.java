@@ -73,6 +73,7 @@ public class Order extends BaseEntity {
   private List<OrderProduct> orderProducts = new ArrayList<>();
 
   public static Order create(
+      UUID orderId,
       UUID supplierId,
       UUID receiverId,
       UUID sourceHubId,
@@ -86,6 +87,7 @@ public class Order extends BaseEntity {
     validateOrderProducts(orderProducts);
 
     Order order = new Order();
+    order.assignId(orderId);
     order.supplierId = supplierId;
     order.receiverId = receiverId;
     order.sourceHubId = sourceHubId;

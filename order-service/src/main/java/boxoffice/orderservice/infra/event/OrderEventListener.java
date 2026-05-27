@@ -25,7 +25,7 @@ public class OrderEventListener {
   private final CompanyProductFeignClient companyProductFeignClient;
   private final OrderRepository orderRepository;
 
-  @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+  @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   public void orderCreateEvent(OrderCreatedEvent event) {
     DeliveryResponseDto deliveryResponse;

@@ -6,6 +6,9 @@ spring:
   cloud:
     compatibility-verifier:
       enabled: false
+    openfeign:
+      circuitbreaker:
+        enabled: true
 
 
 server:
