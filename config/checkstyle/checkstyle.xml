@@ -1,0 +1,78 @@
+<?xml version="1.0"?>
+<!DOCTYPE module PUBLIC
+  "-//Checkstyle//DTD Checkstyle Configuration 1.3//EN"
+  "https://checkstyle.org/dtds/configuration_1_3.dtd">
+
+<module name="Checker">
+
+  <!-- 파일 인코딩 -->
+  <property name="charset" value="UTF-8"/>
+  <property name="severity" value="warning"/>
+  <!-- 검사 대상 파일 확장자 -->
+  <property name="fileExtensions" value="java"/>
+
+  <!-- 파일 마지막에 개행 문자 필수 -->
+  <module name="NewlineAtEndOfFile"/>
+
+  <module name="RegexpSingleline">
+    <property name="format" value="[ \t]+$"/>
+    <property name="message" value="Trailing whitespace is not allowed."/>
+  </module>
+
+  <module name="LineLength">
+    <property name="max" value="120"/>
+    <!-- 패키지/임포트 선언은 예외 -->
+    <property name="ignorePattern" value="^(import|package).*"/>
+  </module>
+
+  <module name="TreeWalker">
+
+    <!-- 사용하지 않는 import 금지 -->
+    <module name="UnusedImports"/>
+    <!-- 와일드카드 import 금지 (예: import java.util.*) -->
+    <module name="AvoidStarImport"/>
+    <!-- 중복 import 금지 -->
+    <module name="RedundantImport"/>
+
+    <!-- 클래스명: UpperCamelCase -->
+    <module name="TypeName"/>
+    <!-- 메서드명: lowerCamelCase -->
+    <module name="MethodName"/>
+    <!-- 변수명: lowerCamelCase -->
+    <module name="LocalVariableName"/>
+    <!-- 상수명: UPPER_SNAKE_CASE -->
+    <module name="ConstantName"/>
+    <!-- 패키지명: 소문자만 허용 -->
+    <module name="PackageName">
+      <property name="format" value="^[a-z]+(\.[a-z][a-z0-9]*)*$"/>
+    </module>
+
+    <!-- 중괄호 스타일: K&R 스타일 강제 -->
+    <module name="NeedBraces"/>
+    <!-- 좌측 중괄호 위치: 같은 줄 -->
+    <module name="LeftCurly"/>
+    <!-- 우측 중괄호 위치: 단독 줄 -->
+    <module name="RightCurly"/>
+
+    <!-- 공백 규칙 -->
+    <module name="WhitespaceAround"/>
+
+    <!-- 메서드 최대 줄 수: 90줄 -->
+    <module name="MethodLength">
+      <property name="max" value="90"/>
+    </module>
+
+    <!-- 빈 블록 금지 (catch, finally 등 빈 블록 금지) -->
+    <module name="EmptyBlock"/>
+
+    <!-- 불필요한 괄호 금지 -->
+    <module name="UnnecessaryParentheses"/>
+
+    <!-- TODO 주석 경고 -->
+    <module name="TodoComment">
+      <property name="format" value="(TODO|FIXME|HACK)"/>
+      <property name="severity" value="warning"/>
+    </module>
+
+  </module>
+</module>
