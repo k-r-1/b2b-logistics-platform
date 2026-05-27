@@ -18,7 +18,7 @@ import java.util.Map;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/v1/auth") // 🌟 auth 경로는 여기로 통일!
+@RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
 @Tag(name = "인증 API (Auth)", description = "로그인, 회원가입, 로그아웃 등 '인증(Auth)'과 관련된 API")
 public class AuthController {
