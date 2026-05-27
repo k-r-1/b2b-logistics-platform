@@ -7,10 +7,10 @@ name: CI - Dev
 on:
   push:
     branches:
-      - dev
+      - test-ci
   pull_request_target:
     branches:
-      - dev
+      - test-ci
     types:
       - opened
       - synchronize
