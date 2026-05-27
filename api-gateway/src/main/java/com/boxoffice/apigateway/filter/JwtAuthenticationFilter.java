@@ -8,7 +8,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
 import org.springframework.stereotype.Component;
-import reactor.core.publisher.Mono;
+
+import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Component
@@ -44,19 +46,26 @@ public class JwtAuthenticationFilter extends AbstractGatewayFilterFactory<JwtAut
 
                             return jwtDecoder.decode(token)
                                     .flatMap(jwt -> {
-                                        // 서명 검증이 완료된 안전한 토큰에서 정보 추출
-                                        String userId = jwt.getSubject(); // "sub"
+                                        String userId = jwt.getSubject();
                                         String username = jwt.getClaimAsString("preferred_username");
-                                        String role = jwt.getClaimAsString("role");
-                                        String hubId = jwt.getClaimAsString("hub_id");
+                                        String hubId = jwt.getClaimAsString("hub_id"); // 커스텀 클레임
 
-                                        log.info("[Gateway] 토큰 서명 검증 성공. UserId: {}", userId);
+                                        String role = "";
+                                        Map<String, Object> realmAccess = jwt.getClaimAsMap("realm_access");
+                                        if (realmAccess != null && realmAccess.containsKey("roles")) {
+                                            List<String> roles = (List<String>) realmAccess.get("roles");
+                                            if (roles != null && !roles.isEmpty()) {
+                                                role = roles.get(0);
+                                            }
+                                        }
+
+                                        log.info("[Gateway] 토큰 서명 검증 성공. UserId: {}, Role: {}", userId, role);
 
                                         ServerHttpRequest.Builder requestBuilder = request.mutate()
                                                 .header("X-User-Id", userId)
                                                 .header("X-User-Username", username);
 
-                                        if (role != null && !role.isEmpty()) {
+                                        if (!role.isEmpty()) {
                                             requestBuilder.header("X-User-Role", role);
                                         }
                                         if (hubId != null && !hubId.isEmpty()) {
