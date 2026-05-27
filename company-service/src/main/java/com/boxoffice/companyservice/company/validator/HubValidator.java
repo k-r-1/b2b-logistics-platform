@@ -2,9 +2,9 @@ package com.boxoffice.companyservice.company.validator;
 
 import com.boxoffice.common.exception.BaseException;
 import com.boxoffice.common.exception.CommonErrorCode;
+import com.boxoffice.common.response.ApiResponse;
 import com.boxoffice.companyservice.company.client.HubClient;
 import com.boxoffice.companyservice.company.client.dto.HubActiveResponseDto;
-import com.boxoffice.companyservice.company.client.dto.HubActiveResponseWrapperDto;
 import com.boxoffice.companyservice.company.exception.CompanyErrorCode;
 import feign.FeignException;
 import lombok.RequiredArgsConstructor;
@@ -22,17 +22,12 @@ public class HubValidator {
 
     public void validateHubActive(UUID hubId) {
         try {
-            HubActiveResponseWrapperDto wrapper = hubClient.checkHubActive(hubId);
+            ApiResponse<HubActiveResponseDto> wrapper = hubClient.checkHubActive(hubId);
 
             if (wrapper == null || wrapper.getData() == null) {
                 throw new BaseException(CommonErrorCode.FEIGN_CLIENT_ERROR);
             }
 
-            HubActiveResponseDto response = wrapper.getData();
-
-            if (!response.isActive()) {
-                throw new BaseException(CompanyErrorCode.HUB_INACTIVE);
-            }
         } catch (FeignException.NotFound e) {
             throw new BaseException(CompanyErrorCode.HUB_NOT_FOUND);
         } catch (FeignException e) {

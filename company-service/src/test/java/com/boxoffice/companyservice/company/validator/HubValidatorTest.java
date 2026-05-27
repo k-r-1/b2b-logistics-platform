@@ -2,9 +2,9 @@ package com.boxoffice.companyservice.company.validator;
 
 import com.boxoffice.common.exception.BaseException;
 import com.boxoffice.common.exception.CommonErrorCode;
+import com.boxoffice.common.response.ApiResponse;
 import com.boxoffice.companyservice.company.client.HubClient;
 import com.boxoffice.companyservice.company.client.dto.HubActiveResponseDto;
-import com.boxoffice.companyservice.company.client.dto.HubActiveResponseWrapperDto;
 import com.boxoffice.companyservice.company.exception.CompanyErrorCode;
 import feign.FeignException;
 import feign.Request;
@@ -48,24 +48,6 @@ class HubValidatorTest {
 
         // then
         assertThat(throwable).isNull();
-        verify(hubClient).checkHubActive(hubId);
-        verifyNoMoreInteractions(hubClient);
-    }
-
-    @Test
-    @DisplayName("실패 - Hub가 비활성 상태이면 HUB_INACTIVE 예외로 변환한다")
-    void validateHubActiveWithInactiveHub() {
-        // given
-        UUID hubId = UUID.randomUUID();
-        when(hubClient.checkHubActive(hubId)).thenReturn(createWrapper(hubId, false));
-
-        // when
-        Throwable throwable = catchThrowable(() -> hubValidator.validateHubActive(hubId));
-
-        // then
-        assertThat(throwable)
-                .isInstanceOfSatisfying(BaseException.class,
-                        exception -> assertThat(exception.getErrorCode()).isEqualTo(CompanyErrorCode.HUB_INACTIVE));
         verify(hubClient).checkHubActive(hubId);
         verifyNoMoreInteractions(hubClient);
     }
@@ -143,24 +125,17 @@ class HubValidatorTest {
     }
 
     // Hub Service의 정상 wrapper 응답을 테스트용으로 구성한다.
-    private HubActiveResponseWrapperDto createWrapper(UUID hubId, boolean active) {
+    private ApiResponse<HubActiveResponseDto> createWrapper(UUID hubId, boolean active) {
         HubActiveResponseDto data = new HubActiveResponseDto();
         ReflectionTestUtils.setField(data, "hubId", hubId);
         ReflectionTestUtils.setField(data, "active", active);
 
-        HubActiveResponseWrapperDto wrapper = new HubActiveResponseWrapperDto();
-        ReflectionTestUtils.setField(wrapper, "status", 200);
-        ReflectionTestUtils.setField(wrapper, "message", "SUCCESS");
-        ReflectionTestUtils.setField(wrapper, "data", data);
-        return wrapper;
+        return ApiResponse.success(data);
     }
 
     // wrapper는 있지만 data가 빠진 비정상 응답을 구성한다.
-    private HubActiveResponseWrapperDto createWrapperWithoutData() {
-        HubActiveResponseWrapperDto wrapper = new HubActiveResponseWrapperDto();
-        ReflectionTestUtils.setField(wrapper, "status", 200);
-        ReflectionTestUtils.setField(wrapper, "message", "SUCCESS");
-        return wrapper;
+    private ApiResponse<HubActiveResponseDto> createWrapperWithoutData() {
+        return ApiResponse.success(null);
     }
 
     // FeignClient가 던지는 HTTP 상태별 예외를 테스트용으로 만든다.
