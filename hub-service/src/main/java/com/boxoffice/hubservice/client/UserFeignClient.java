@@ -9,6 +9,6 @@ import java.util.UUID;
 @FeignClient(name = "user-service")
 public interface UserFeignClient {
 
-    @PatchMapping("/internal/v1/users/clear-hub/{hubId}")
+    @PatchMapping("/internal/users/clear-hub/{hubId}")
     void clearHub(@PathVariable UUID hubId);
 }

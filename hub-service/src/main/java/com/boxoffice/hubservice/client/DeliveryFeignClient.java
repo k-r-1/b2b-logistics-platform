@@ -9,6 +9,6 @@ import java.util.UUID;
 @FeignClient(name = "delivery-service")
 public interface DeliveryFeignClient {
 
-    @GetMapping("/internal/v1/deliveries/active-count")
+    @GetMapping("/internal/deliveries/active-count")
     int countActiveDeliveries(@RequestParam UUID hubId);
 }

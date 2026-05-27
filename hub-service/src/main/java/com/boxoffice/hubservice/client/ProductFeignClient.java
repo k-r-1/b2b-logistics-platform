@@ -10,13 +10,13 @@ import java.util.UUID;
 @FeignClient(name = "product-service")
 public interface ProductFeignClient {
 
-    @GetMapping("/internal/v1/companies")
+    @GetMapping("/internal/companies")
     ApiResponse<List<CompanyDetailResponseDto>> getCompaniesByHubId(@RequestParam("hubId") UUID hubId);
 
-    @PatchMapping("/internal/v1/companies/bulk-hub-transfer")
+    @PatchMapping("/internal/companies/bulk-hub-transfer")
     ApiResponse<Void> bulkHubTransfer(@RequestBody BulkHubTransferRequestDto request);
 
-    @PostMapping("/internal/v1/products/hubs/stock-counts")
+    @PostMapping("/internal/products/hubs/stock-counts")
     ApiResponse<List<BulkStockCountResponseDto>> getBulkStockCount(@RequestBody BulkStockCountRequestDto request);
 }
 

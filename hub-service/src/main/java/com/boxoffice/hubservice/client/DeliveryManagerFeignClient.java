@@ -9,6 +9,6 @@ import java.util.UUID;
 @FeignClient(name = "delivery-manager-service")
 public interface DeliveryManagerFeignClient {
 
-    @PatchMapping("/internal/v1/delivery-managers/clear-hub/{hubId}")
+    @PatchMapping("/internal/delivery-managers/clear-hub/{hubId}")
     void clearHub(@PathVariable UUID hubId);
 }
