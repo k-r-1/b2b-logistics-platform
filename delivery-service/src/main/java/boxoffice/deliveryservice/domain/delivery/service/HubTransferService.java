@@ -2,16 +2,16 @@ package boxoffice.deliveryservice.domain.delivery.service;
 
 import boxoffice.deliveryservice.client.DeliveryManagerClient;
 import boxoffice.deliveryservice.client.dto.request.DeliveryManagerAssignRequestDto;
-import boxoffice.deliveryservice.client.dto.response.DeliveryManagerAssignResponseDto;
+import boxoffice.deliveryservice.client.dto.request.DeliveryManagerAssignRequestDto.DeliveryType;
 import boxoffice.deliveryservice.kafka.event.HubTransferDispatchedEvent;
 import boxoffice.deliveryservice.kafka.event.TransferAssignFailedEvent;
 import boxoffice.deliveryservice.kafka.event.TransferAssignSuccessEvent;
 import boxoffice.deliveryservice.kafka.producer.HubTransferResultProducer;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
 
 import java.util.UUID;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
 
 @Slf4j
 @Service
@@ -24,8 +24,8 @@ public class HubTransferService {
     public void handleHubTransferDispatched(HubTransferDispatchedEvent event) {
         UUID transferId = event.transferId();
         try {
-            DeliveryManagerAssignResponseDto response = deliveryManagerClient
-                    .assignDeliveryManager(new DeliveryManagerAssignRequestDto(event.fromHubId()))
+            var response = deliveryManagerClient
+                    .assignDeliveryManager(new DeliveryManagerAssignRequestDto(event.fromHubId(), DeliveryType.HUB_TO_HUB))
                     .getData();
 
             producer.publishSuccess(new TransferAssignSuccessEvent(transferId, response.deliveryManagerId()));
