@@ -1,17 +1,21 @@
 package boxoffice.orderservice.presentation.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
+import boxoffice.orderservice.application.service.GetOrderService;
 import boxoffice.orderservice.application.service.OrderCreateService;
 import boxoffice.orderservice.application.service.dto.CreateOrderCommand;
 import boxoffice.orderservice.application.service.dto.OrderResultDto;
 import boxoffice.orderservice.infra.exception.OrderErrorCode;
 import boxoffice.orderservice.presentation.dto.request.CreateOrderRequestDto;
 import boxoffice.orderservice.presentation.dto.response.CreateOrderResponseDto;
+import boxoffice.orderservice.presentation.dto.response.GetOrderResponseDto;
 import com.boxoffice.common.exception.BaseException;
 import com.boxoffice.common.response.ApiResponse;
 import java.util.List;
@@ -36,6 +40,9 @@ class OrderControllerTest {
 
     @Mock
     private OrderCreateService orderCreateService;
+
+    @Mock
+    private GetOrderService getOrderService;
 
     private final String keycloakId = "user-keycloak-123";
     private final UUID supplierId = UUID.randomUUID();
@@ -145,11 +152,71 @@ class OrderControllerTest {
                 .willThrow(new BaseException(OrderErrorCode.DELIVERY_REQUEST_FAILED));
 
             // when & then
-            org.assertj.core.api.Assertions.assertThatThrownBy(
-                () -> orderController.createOrder(keycloakId, requestDto)
-            )
+            assertThatThrownBy(() -> orderController.createOrder(keycloakId, requestDto))
                 .isInstanceOf(BaseException.class)
                 .hasFieldOrPropertyWithValue("errorCode", OrderErrorCode.DELIVERY_REQUEST_FAILED);
+        }
+    }
+
+    @Nested
+    @DisplayName("getOrder() 엔드포인트는")
+    class Describe_getOrder {
+
+        private final UUID orderId = UUID.randomUUID();
+
+        @Test
+        @DisplayName("[성공] 유효한 요청 시 200 OK와 주문 응답을 반환한다.")
+        void success_returns_200_ok() {
+            // given
+            given(getOrderService.getOrder(eq(orderId), anyString())).willReturn(orderResult);
+
+            // when
+            ResponseEntity<ApiResponse<GetOrderResponseDto>> response = orderController.getOrder(keycloakId, orderId);
+
+            // then
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(response.getBody()).isNotNull();
+            assertThat(response.getBody().getData().orderId()).isEqualTo(orderResult.orderId());
+            assertThat(response.getBody().getData().status()).isEqualTo("PENDING");
+        }
+
+        @Test
+        @DisplayName("[성공] getOrder() 호출 시 GetOrderService가 올바른 인자로 호출된다.")
+        void success_delegates_to_get_order_service() {
+            // given
+            given(getOrderService.getOrder(eq(orderId), eq(keycloakId))).willReturn(orderResult);
+
+            // when
+            orderController.getOrder(keycloakId, orderId);
+
+            // then
+            verify(getOrderService).getOrder(orderId, keycloakId);
+        }
+
+        @Test
+        @DisplayName("[실패] 권한 없는 주문 조회 시 ORDER_NOT_FOUND 예외가 전파된다.")
+        void failure_unauthorized_access_propagates_not_found() {
+            // given
+            given(getOrderService.getOrder(eq(orderId), anyString()))
+                .willThrow(new BaseException(OrderErrorCode.ORDER_NOT_FOUND));
+
+            // when & then
+            assertThatThrownBy(() -> orderController.getOrder(keycloakId, orderId))
+                .isInstanceOf(BaseException.class)
+                .hasFieldOrPropertyWithValue("errorCode", OrderErrorCode.ORDER_NOT_FOUND);
+        }
+
+        @Test
+        @DisplayName("[예외] 유저 서비스 장애(Fallback) 시 USER_SERVICE_UNAVAILABLE 예외가 전파된다.")
+        void exception_user_service_fallback_propagates() {
+            // given
+            given(getOrderService.getOrder(eq(orderId), anyString()))
+                .willThrow(new BaseException(OrderErrorCode.USER_SERVICE_UNAVAILABLE));
+
+            // when & then
+            assertThatThrownBy(() -> orderController.getOrder(keycloakId, orderId))
+                .isInstanceOf(BaseException.class)
+                .hasFieldOrPropertyWithValue("errorCode", OrderErrorCode.USER_SERVICE_UNAVAILABLE);
         }
     }
 }

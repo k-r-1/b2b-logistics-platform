@@ -55,12 +55,6 @@ public class Order extends BaseEntity {
   @Column(name = "delivery_id")
   private UUID deliveryId;
 
-  @Column(name = "source_hub_id")
-  private UUID sourceHubId;
-
-  @Column(name = "destination_hub_id")
-  private UUID destinationHubId;
-
   @Embedded
   private TotalPrice totalPrice;
 

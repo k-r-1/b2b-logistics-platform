@@ -1,5 +1,6 @@
 package boxoffice.orderservice.application.service;
 
+import boxoffice.orderservice.application.service.dto.OrderResultDto;
 import boxoffice.orderservice.domain.entity.Order;
 import boxoffice.orderservice.domain.repository.OrderRepository;
 import boxoffice.orderservice.infra.exception.OrderErrorCode;
@@ -21,5 +22,12 @@ public class OrderQueryService {
             .orElseThrow(() -> new BaseException(OrderErrorCode.ORDER_NOT_FOUND));
         order.getOrderProducts().size();
         return order;
+    }
+
+    @Transactional(readOnly = true)
+    public OrderResultDto findByIdAsDto(UUID orderId) {
+        Order order = orderRepository.findById(orderId)
+            .orElseThrow(() -> new BaseException(OrderErrorCode.ORDER_NOT_FOUND));
+        return OrderResultDto.from(order);
     }
 }
