@@ -19,16 +19,16 @@ import org.springframework.web.bind.annotation.RequestParam;
 @FeignClient(name = "company-product-service", contextId = "companyProductFeignClient", fallbackFactory = CompanyProductFeignClientFallbackFactory.class)
 public interface CompanyProductFeignClient {
 
-  @GetMapping("/internal/companies/hubs/{supplierId}/{receiverId}")
+  @GetMapping("/internal/v1/companies/hubs/{supplierId}/{receiverId}")
   InternalCompanyHub getCompanyById(@PathVariable UUID supplierId, @PathVariable UUID receiverId);
 
-  @PostMapping("/internal/products/stocks/check")
+  @PostMapping("/internal/v1/products/stocks/check")
   StockCheckResponse checkStocks(@RequestBody List<StockCheckRequest> requests);
 
   // orderId를 선제적으로 전달하여 재고 차감 이력 추적 가능
-  @PostMapping("/internal/products/stocks/deduct")
+  @PostMapping("/internal/v1/products/stocks/deduct")
   StockDeductResponse deductStocks(@RequestParam UUID orderId, @RequestBody StockDeductRequest requests);
 
-  @PostMapping("/internal/products/stocks/restore")
-  void restoreStocks(@RequestBody List<StockRestoreRequest> requests);
+  @PostMapping("/internal/v1/products/stocks/restore")
+  void restoreStocks(@RequestParam UUID orderId, @RequestBody List<StockRestoreRequest> requests);
 }
