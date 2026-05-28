@@ -145,6 +145,42 @@ class CompanyControllerTest {
         verifyNoInteractions(companyFacade);
     }
 
+    @Test
+    @DisplayName("성공 - managerUserId가 없어도 업체 생성 요청은 Facade로 전달한다")
+    void createCompanyWithoutManagerUserIdPassesRequestToFacade() throws Exception {
+        // given
+        UUID companyId = UUID.randomUUID();
+        UUID hubId = UUID.randomUUID();
+        CompanyCreateResponseDto response = createResponse(companyId, hubId);
+
+        when(companyFacade.createCompany(any(), eq("MASTER"), isNull())).thenReturn(response);
+
+        String requestBody = """
+                {
+                  "name": "테스트 업체",
+                  "type": "SUPPLIER",
+                  "hubId": "%s",
+                  "address": {
+                    "zipCode": "12345",
+                    "address": "경기도 고양시 덕양구 권율대로 570",
+                    "detailAddress": "101호"
+                  }
+                }
+                """.formatted(hubId);
+
+        // when & then
+        mockMvc.perform(post("/api/v1/companies")
+                        .header("X-User-Role", "MASTER")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status", is(201)))
+                .andExpect(jsonPath("$.data.companyId", is(companyId.toString())));
+
+        verify(companyFacade).createCompany(any(), eq("MASTER"), isNull());
+        verifyNoMoreInteractions(companyFacade);
+    }
+
     private CompanyCreateResponseDto createResponse(UUID companyId, UUID hubId) {
         Company company = Company.create(
                 "테스트 업체",
