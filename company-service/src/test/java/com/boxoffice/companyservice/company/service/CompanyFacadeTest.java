@@ -58,7 +58,6 @@ class CompanyFacadeTest {
     void createCompanyWithoutRequestHubId() {
         // given
         CompanyCreateRequestDto request = new CompanyCreateRequestDto();
-
         // when
         Throwable throwable = catchThrowable(() -> companyFacade.createCompany(request, "MASTER", null));
 
@@ -68,7 +67,7 @@ class CompanyFacadeTest {
     }
 
     @Test
-    @DisplayName("성공 - MASTER는 담당 허브 헤더 없이 업체를 생성한다")
+    @DisplayName("성공 - MASTER는 해당 허브 헤더 없이 업체를 생성한다")
     void createCompanyWithMasterRole() {
         // given
         CompanyCreateRequestDto request = createRequest(UUID.randomUUID());
@@ -83,7 +82,7 @@ class CompanyFacadeTest {
         verifyCreateOrder(request);
     }
 
-    @DisplayName("성공 - HUB_MANAGER는 담당 허브가 일치하면 업체를 생성한다")
+    @DisplayName("성공 - HUB_MANAGER는 해당 허브가 일치하면 업체를 생성한다")
     @ParameterizedTest(name = "role={0}")
     @ValueSource(strings = {"HUB_MANAGER", " hub_manager "})
     void createCompanyWithHubManagerRoleAndSameHub(String userRole) {
@@ -103,7 +102,7 @@ class CompanyFacadeTest {
     }
 
     @Test
-    @DisplayName("실패 - HUB_MANAGER의 담당 허브 헤더가 없으면 업체를 생성할 수 없다")
+    @DisplayName("실패 - HUB_MANAGER는 해당 허브 헤더가 없으면 업체를 생성할 수 없다")
     void createCompanyWithHubManagerRoleAndMissingUserHubId() {
         // given
         CompanyCreateRequestDto request = createRequest(UUID.randomUUID());
@@ -117,7 +116,7 @@ class CompanyFacadeTest {
     }
 
     @Test
-    @DisplayName("실패 - HUB_MANAGER의 담당 허브와 요청 허브가 다르면 업체를 생성할 수 없다")
+    @DisplayName("실패 - HUB_MANAGER는 해당 허브와 요청 허브가 다르면 업체를 생성할 수 없다")
     void createCompanyWithHubManagerRoleAndDifferentHub() {
         // given
         CompanyCreateRequestDto request = createRequest(UUID.randomUUID());
@@ -221,8 +220,8 @@ class CompanyFacadeTest {
 
     private CompanyCreateRequestDto createRequest(UUID hubId) {
         CompanyCreateRequestDto request = new CompanyCreateRequestDto();
-        // Request DTO는 setter가 없으므로 Facade 단위 테스트에 필요한 hubId만 주입한다.
         ReflectionTestUtils.setField(request, "hubId", hubId);
+        ReflectionTestUtils.setField(request, "managerUserId", UUID.randomUUID());
         return request;
     }
 }

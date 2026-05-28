@@ -1,5 +1,7 @@
 package com.boxoffice.companyservice.company.service;
 
+import com.boxoffice.companyservice.company.client.UserClient;
+import com.boxoffice.companyservice.company.client.dto.UserCompanyUpdateRequestDto;
 import com.boxoffice.companyservice.company.dto.request.CompanyCreateRequestDto;
 import com.boxoffice.companyservice.company.dto.response.CompanyCreateResponseDto;
 import com.boxoffice.companyservice.company.entity.Company;
@@ -15,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class CompanyService {
 
     private final CompanyRepository companyRepository;
+    private final UserClient userClient;
 
     @Transactional
     public CompanyCreateResponseDto createCompany(CompanyCreateRequestDto request) {
@@ -26,6 +29,15 @@ public class CompanyService {
         );
 
         Company savedCompany = companyRepository.save(company);
+
+        if (request.getManagerUserId() != null) {
+            // 담당자 역할 검증은 user-service가 수행하고, 실패 시 업체 생성 트랜잭션도 롤백한다.
+            userClient.updateUserCompany(
+                    request.getManagerUserId(),
+                    new UserCompanyUpdateRequestDto(savedCompany.getId())
+            );
+        }
+
         log.info("Company created. companyId={}, type={}, hubId={}",
                 savedCompany.getId(), savedCompany.getType(), savedCompany.getHubId());
 
