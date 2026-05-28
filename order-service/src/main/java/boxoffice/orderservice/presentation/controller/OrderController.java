@@ -5,6 +5,7 @@ import boxoffice.orderservice.application.service.dto.CreateOrderCommand;
 import boxoffice.orderservice.application.service.dto.OrderResultDto;
 import boxoffice.orderservice.presentation.dto.request.CreateOrderRequestDto;
 import boxoffice.orderservice.presentation.dto.response.CreateOrderResponseDto;
+import com.boxoffice.common.response.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -23,13 +24,14 @@ public class OrderController {
     private final OrderCreateService orderCreateService;
 
     @PostMapping
-    public ResponseEntity<CreateOrderResponseDto> createOrder(
+    public ResponseEntity<ApiResponse<CreateOrderResponseDto>> createOrder(
         @RequestHeader("X-User-Id") String keycloakId,
         @Valid @RequestBody CreateOrderRequestDto requestDto
     ) {
         CreateOrderCommand command = toCommand(requestDto);
         OrderResultDto result = orderCreateService.createOrder(command, keycloakId);
-        return ResponseEntity.status(HttpStatus.CREATED).body(CreateOrderResponseDto.from(result));
+        return ResponseEntity.status(HttpStatus.CREATED).body(
+            ApiResponse.success(HttpStatus.CREATED, CreateOrderResponseDto.from(result)));
     }
 
     private CreateOrderCommand toCommand(CreateOrderRequestDto dto) {

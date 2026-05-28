@@ -13,6 +13,7 @@ import boxoffice.orderservice.infra.exception.OrderErrorCode;
 import boxoffice.orderservice.presentation.dto.request.CreateOrderRequestDto;
 import boxoffice.orderservice.presentation.dto.response.CreateOrderResponseDto;
 import com.boxoffice.common.exception.BaseException;
+import com.boxoffice.common.response.ApiResponse;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -72,13 +73,14 @@ class OrderControllerTest {
                 .willReturn(orderResult);
 
             // when
-            ResponseEntity<CreateOrderResponseDto> response = orderController.createOrder(keycloakId, requestDto);
+            ResponseEntity<ApiResponse<CreateOrderResponseDto>> response = orderController.createOrder(keycloakId, requestDto);
 
             // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
             assertThat(response.getBody()).isNotNull();
-            assertThat(response.getBody().orderId()).isEqualTo(orderResult.orderId());
-            assertThat(response.getBody().status()).isEqualTo("PENDING");
+            assertThat(response.getBody().getData().orderId()).isEqualTo(orderResult.orderId());
+            assertThat(response.getBody().getData().status()).isEqualTo("PENDING");
+            assertThat(response.getBody().getMessage()).isEqualTo("SUCCESS");
         }
 
         @Test
