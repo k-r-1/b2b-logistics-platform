@@ -1,4 +1,5 @@
 CREATE SCHEMA IF NOT EXISTS user_schema;
 CREATE SCHEMA IF NOT EXISTS delivery_manager_schema;
+CREATE SCHEMA IF NOT EXISTS company_schema;
 CREATE SCHEMA IF NOT EXISTS ai_schema;
 CREATE SCHEMA IF NOT EXISTS notification_schema;
