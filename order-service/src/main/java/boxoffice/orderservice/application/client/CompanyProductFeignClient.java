@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 
-@FeignClient(name = "company-service", contextId = "companyProductFeignClient", fallbackFactory = CompanyProductFeignClientFallbackFactory.class)
+@FeignClient(name = "company-service", contextId = "companyProductFeignClient", fallbackFactory = CompanyProductFeignClientFallbackFactory.class, primary = false)
 public interface CompanyProductFeignClient {
 
   @GetMapping("/internal/v1/companies/hubs/{supplierId}/{receiverId}")

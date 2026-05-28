@@ -5,11 +5,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
-import boxoffice.orderservice.application.client.UserFeignClient;
+import boxoffice.orderservice.application.client.UserInfoCacheService;
 import boxoffice.orderservice.application.client.dto.UserDetailInfo;
 import boxoffice.orderservice.application.service.dto.OrderResultDto;
 import boxoffice.orderservice.infra.exception.OrderErrorCode;
 import com.boxoffice.common.exception.BaseException;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
@@ -29,10 +32,13 @@ class GetOrderServiceTest {
     private GetOrderService getOrderService;
 
     @Mock
-    private UserFeignClient userFeignClient;
+    private UserInfoCacheService userInfoCacheService;
 
     @Mock
     private OrderQueryService orderQueryService;
+
+    @Spy
+    private MeterRegistry meterRegistry = new SimpleMeterRegistry();
 
     private final String keycloakId = "user-keycloak-123";
     private final UUID orderId = UUID.randomUUID();
@@ -63,7 +69,7 @@ class GetOrderServiceTest {
             // given
             UserDetailInfo user = mock(UserDetailInfo.class);
             given(user.role()).willReturn("MASTER");
-            given(userFeignClient.getUserById(keycloakId)).willReturn(user);
+            given(userInfoCacheService.getUserById(keycloakId)).willReturn(user);
             given(orderQueryService.findByIdAsDto(orderId)).willReturn(orderResult);
 
             // when
@@ -91,7 +97,7 @@ class GetOrderServiceTest {
             UserDetailInfo user = mock(UserDetailInfo.class);
             given(user.role()).willReturn("COMPANY_MANAGER");
             given(user.companyId()).willReturn(companyId);
-            given(userFeignClient.getUserById(keycloakId)).willReturn(user);
+            given(userInfoCacheService.getUserById(keycloakId)).willReturn(user);
             given(orderQueryService.findByIdAsDto(orderId)).willReturn(myOrder);
 
             // when
@@ -112,7 +118,7 @@ class GetOrderServiceTest {
             UserDetailInfo user = mock(UserDetailInfo.class);
             given(user.role()).willReturn("COMPANY_MANAGER");
             given(user.companyId()).willReturn(companyId);
-            given(userFeignClient.getUserById(keycloakId)).willReturn(user);
+            given(userInfoCacheService.getUserById(keycloakId)).willReturn(user);
             given(orderQueryService.findByIdAsDto(orderId)).willReturn(myOrder);
 
             // when
@@ -130,7 +136,7 @@ class GetOrderServiceTest {
             UserDetailInfo user = mock(UserDetailInfo.class);
             given(user.role()).willReturn("COMPANY_MANAGER");
             given(user.companyId()).willReturn(otherId);
-            given(userFeignClient.getUserById(keycloakId)).willReturn(user);
+            given(userInfoCacheService.getUserById(keycloakId)).willReturn(user);
             given(orderQueryService.findByIdAsDto(orderId)).willReturn(orderResult);
 
             // when & then
@@ -155,7 +161,7 @@ class GetOrderServiceTest {
             UserDetailInfo user = mock(UserDetailInfo.class);
             given(user.role()).willReturn("HUB_MANAGER");
             given(user.hubId()).willReturn(hubId);
-            given(userFeignClient.getUserById(keycloakId)).willReturn(user);
+            given(userInfoCacheService.getUserById(keycloakId)).willReturn(user);
             given(orderQueryService.findByIdAsDto(orderId)).willReturn(hubOrder);
 
             // when
@@ -176,7 +182,7 @@ class GetOrderServiceTest {
             UserDetailInfo user = mock(UserDetailInfo.class);
             given(user.role()).willReturn("DELIVERY_MANAGER");
             given(user.hubId()).willReturn(hubId);
-            given(userFeignClient.getUserById(keycloakId)).willReturn(user);
+            given(userInfoCacheService.getUserById(keycloakId)).willReturn(user);
             given(orderQueryService.findByIdAsDto(orderId)).willReturn(hubOrder);
 
             // when
@@ -194,7 +200,7 @@ class GetOrderServiceTest {
             UserDetailInfo user = mock(UserDetailInfo.class);
             given(user.role()).willReturn("HUB_MANAGER");
             given(user.hubId()).willReturn(otherHubId);
-            given(userFeignClient.getUserById(keycloakId)).willReturn(user);
+            given(userInfoCacheService.getUserById(keycloakId)).willReturn(user);
             given(orderQueryService.findByIdAsDto(orderId)).willReturn(orderResult);
 
             // when & then
@@ -214,7 +220,7 @@ class GetOrderServiceTest {
             // given
             UserDetailInfo user = mock(UserDetailInfo.class);
             given(user.role()).willReturn("UNKNOWN_ROLE");
-            given(userFeignClient.getUserById(keycloakId)).willReturn(user);
+            given(userInfoCacheService.getUserById(keycloakId)).willReturn(user);
             given(orderQueryService.findByIdAsDto(orderId)).willReturn(orderResult);
 
             // when & then
@@ -229,7 +235,7 @@ class GetOrderServiceTest {
             // given
             UserDetailInfo user = mock(UserDetailInfo.class);
             given(user.role()).willReturn("MASTER");
-            given(userFeignClient.getUserById(keycloakId)).willReturn(user);
+            given(userInfoCacheService.getUserById(keycloakId)).willReturn(user);
             given(orderQueryService.findByIdAsDto(orderId))
                 .willThrow(new BaseException(OrderErrorCode.ORDER_NOT_FOUND));
 
@@ -240,10 +246,10 @@ class GetOrderServiceTest {
         }
 
         @Test
-        @DisplayName("[예외] UserFeignClient Fallback 동작 시 USER_SERVICE_UNAVAILABLE 발생.")
+        @DisplayName("[예외] UserInfoCacheService Fallback 동작 시 USER_SERVICE_UNAVAILABLE 발생.")
         void exception_user_service_fallback() {
             // given
-            given(userFeignClient.getUserById(keycloakId))
+            given(userInfoCacheService.getUserById(keycloakId))
                 .willThrow(new BaseException(OrderErrorCode.USER_SERVICE_UNAVAILABLE));
 
             // when & then
@@ -258,7 +264,7 @@ class GetOrderServiceTest {
             // given
             UserDetailInfo user = mock(UserDetailInfo.class);
             given(user.role()).willReturn("MASTER");
-            given(userFeignClient.getUserById(keycloakId)).willReturn(user);
+            given(userInfoCacheService.getUserById(keycloakId)).willReturn(user);
             given(orderQueryService.findByIdAsDto(orderId))
                 .willThrow(new RuntimeException("DB Timeout"));
 

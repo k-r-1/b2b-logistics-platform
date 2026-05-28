@@ -6,7 +6,7 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
-@FeignClient(name = "user-service", contextId = "userFeignClient", fallbackFactory = UserFeignClientFallbackFactory.class)
+@FeignClient(name = "user-service", contextId = "userFeignClient", fallbackFactory = UserFeignClientFallbackFactory.class, primary = false)
 public interface UserFeignClient {
   @GetMapping("/internal/{id}")
   UserDetailInfo getUserById(@PathVariable String id);

@@ -1,3 +1,9 @@
+eureka:
+  client:
+    register-with-eureka: false
+    fetch-registry: false
+    enabled: false
+
 spring:
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:5432/${DB_NAME:sparta-logistics}?currentSchema=order_schema
@@ -22,3 +28,14 @@ spring:
 app:
   cache:
     user-company-ttl: 3600
+    order-ttl: 60
+    user-info-ttl: 10
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus,metrics,info
+  metrics:
+    tags:
+      application: order-service

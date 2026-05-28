@@ -1,9 +1,12 @@
 package boxoffice.orderservice.presentation.dto.response;
 
 import boxoffice.orderservice.application.service.dto.OrderResultDto;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
 import java.util.List;
 import java.util.UUID;
 
+@JsonTypeInfo(use = Id.CLASS, property = "@class")
 public record GetOrderResponseDto(
     UUID orderId,
     UUID supplierId,

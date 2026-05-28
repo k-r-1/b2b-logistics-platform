@@ -1,10 +1,12 @@
 package boxoffice.orderservice.application.service;
 
-import boxoffice.orderservice.application.client.UserFeignClient;
+import boxoffice.orderservice.application.client.UserInfoCacheService;
 import boxoffice.orderservice.application.client.dto.UserDetailInfo;
 import boxoffice.orderservice.application.service.dto.OrderResultDto;
 import boxoffice.orderservice.infra.exception.OrderErrorCode;
 import com.boxoffice.common.exception.BaseException;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,14 +18,18 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class GetOrderService {
 
-    private final UserFeignClient userFeignClient;
+    private final UserInfoCacheService userInfoCacheService;
     private final OrderQueryService orderQueryService;
+    private final MeterRegistry meterRegistry;
 
     public OrderResultDto getOrder(UUID orderId, String keycloakId) {
         MDC.put("orderId", orderId.toString());
         MDC.put("requesterId", keycloakId);
         try {
-            return doGetOrder(orderId, keycloakId);
+            return Timer.builder("order.getOrder.total")
+                .description("GetOrderService.getOrder 전체 응답 시간")
+                .register(meterRegistry)
+                .record(() -> doGetOrder(orderId, keycloakId));
         } finally {
             MDC.remove("orderId");
             MDC.remove("requesterId");
@@ -31,7 +37,11 @@ public class GetOrderService {
     }
 
     private OrderResultDto doGetOrder(UUID orderId, String keycloakId) {
-        UserDetailInfo user = userFeignClient.getUserById(keycloakId);
+        UserDetailInfo user = Timer.builder("order.userFeign.getUserById")
+            .description("UserFeignClient.getUserById 레이턴시")
+            .register(meterRegistry)
+            .record(() -> userInfoCacheService.getUserById(keycloakId));
+
         log.info("[GetOrder] 유저 정보 조회 성공. role={}", user.role());
 
         OrderResultDto order = orderQueryService.findByIdAsDto(orderId);
