@@ -8,7 +8,6 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 
 public record HubCreateRequestDto(
-
         @NotBlank(message = "허브 이름은 필수입니다.")
         String name,
 
