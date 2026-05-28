@@ -65,6 +65,7 @@ public class HubController {
         return ResponseEntity.ok(ApiResponse.success(hubService.getHubs(name, hubType, page, size)));
     }
 
+    @Operation(summary = "허브 수정", description = "허브 정보를 수정합니다. MASTER 권한 필요.")
     @PatchMapping("/{hubId}")
     public ResponseEntity<ApiResponse<HubGetResponseDto>> updateHub(
             @RequestHeader("X-User-Role") String role,
@@ -78,6 +79,7 @@ public class HubController {
         return ResponseEntity.ok(ApiResponse.success(hubService.updateHub(hubId, request)));
     }
 
+    @Operation(summary = "허브 폐쇄 시작", description = "허브를 CLOSING 상태로 변경합니다. MASTER 권한 필요. CENTRAL 허브는 폐쇄 불가.")
     @PatchMapping("/{hubId}/close")
     public ResponseEntity<ApiResponse<HubGetResponseDto>> closeHub(
             @RequestHeader("X-User-Role") String role,
@@ -90,6 +92,7 @@ public class HubController {
         return ResponseEntity.ok(ApiResponse.success(hubService.startClosingHub(hubId, request)));
     }
 
+    @Operation(summary = "허브 비활성화", description = "CLOSING 상태의 허브를 INACTIVE로 변경합니다. MASTER 권한 필요. CENTRAL 허브는 비활성화 불가.")
     @PatchMapping("/{hubId}/deactivate")
     public ResponseEntity<ApiResponse<HubDeactivateResponseDto>> deactivateHub(
             @RequestHeader("X-User-Role") String role,

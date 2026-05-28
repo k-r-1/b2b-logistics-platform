@@ -49,10 +49,11 @@ public class Hub extends BaseEntity {
         this.capacity = capacity;
     }
 
-    public void update(String name, AddressVO address, CoordinateVO coordinate) {
+    public void update(String name, AddressVO address, CoordinateVO coordinate, Integer capacity) {
         if (name != null) this.name = name;
         if (address != null) this.address = address;
         if (coordinate != null) this.coordinate = coordinate;
+        if (capacity != null) this.capacity = capacity;
     }
 
     public void assignManager(UUID managerId) {
