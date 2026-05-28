@@ -1,4 +1,4 @@
-﻿HELP.md
+HELP.md
 .gradle
 build/
 !gradle/wrapper/gradle-wrapper.jar
@@ -36,7 +36,7 @@ out/
 ### VS Code ###
 .vscode/
 
-# ?섍꼍蹂???뚯씪
+# 환경변수 파일
 .env
 setup-env.ps1
 
@@ -44,7 +44,7 @@ setup-env.ps1
 docker_data/
 .secrets
 
-# test 愿???뚯씪
+# test 관련 파일
 /.github/test/*
 /.github/_service-ci-local-test.yml
 
