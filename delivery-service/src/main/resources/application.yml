@@ -31,3 +31,10 @@ eureka:
 feign:
   circuitbreaker:
     enabled: true
+
+kafka:
+  topic:
+    hub-transfer-dispatched: hub-transfer-dispatched
+    transfer-assign-success: transfer-assign-success
+    transfer-assign-failed: transfer-assign-failed
+    order-cancelled: order-cancelled

@@ -18,6 +18,9 @@ public class KafkaConfig {
     @Value("${kafka.topic.transfer-assign-failed}")
     private String transferAssignFailed;
 
+    @Value("${kafka.topic.order-cancelled}")
+    private String orderCancelled;
+
     @Bean
     public NewTopic hubTransferDispatchedTopic() {
         return TopicBuilder.name(hubTransferDispatched).partitions(3).replicas(1).build();
@@ -31,5 +34,10 @@ public class KafkaConfig {
     @Bean
     public NewTopic transferAssignFailedTopic() {
         return TopicBuilder.name(transferAssignFailed).partitions(3).replicas(1).build();
+    }
+
+    @Bean
+    public NewTopic orderCancelledTopic() {
+        return TopicBuilder.name(orderCancelled).partitions(3).replicas(1).build();
     }
 }
