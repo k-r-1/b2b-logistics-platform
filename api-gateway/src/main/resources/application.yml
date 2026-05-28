@@ -1,0 +1,65 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: http://localhost:8089/realms/boxoffice-realm/protocol/openid-connect/certs
+
+  cloud:
+    compatibility-verifier:
+      enabled: false
+
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+      routes:
+        - id: block-internal-api
+          uri: no://op
+          predicates:
+            - Path=/internal/**, /api/internal/**
+          filters:
+            - SetStatus=403
+
+        - id: user-service
+          uri: lb://user-service
+          predicates:
+            - Path=/api/v1/users/**, /api/v1/auth/**
+          filters:
+            - JwtAuthenticationFilter
+
+        - id: delivery-manager-service
+          uri: lb://delivery-manager-service
+          predicates:
+            - Path=/api/v1/delivery-managers/**
+          filters:
+            - JwtAuthenticationFilter
+
+        - id: hub-service
+          uri: lb://hub-service
+          predicates:
+            - Path=/api/v1/hubs/**
+          filters:
+            - JwtAuthenticationFilter
+
+eureka:
+  instance:
+    prefer-ip-address: true
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+
+logging:
+  level:
+    org.springframework.security: TRACE

@@ -13,6 +13,9 @@ dependencies {
     // 4. 유효성 검증
     api 'org.springframework.boot:spring-boot-starter-validation'
 
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+
     // 5. MSA 인프라 및 서비스 간 통신 관련
     api 'org.springframework.cloud:spring-cloud-starter-openfeign'
 

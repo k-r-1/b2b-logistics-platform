@@ -1,12 +1,17 @@
 package com.boxoffice.hubservice.hub.service;
 
+import com.boxoffice.common.entity.AddressVO;
 import com.boxoffice.common.exception.BaseException;
+import com.boxoffice.common.response.PageResponse;
 import com.boxoffice.hubservice.exception.HubErrorCode;
 import com.boxoffice.hubservice.hub.dto.request.HubCreateRequestDto;
 import com.boxoffice.hubservice.hub.dto.response.HubCreateResponseDto;
+import com.boxoffice.hubservice.hub.dto.response.HubGetResponseDto;
+import com.boxoffice.hubservice.hub.entity.CoordinateVO;
 import com.boxoffice.hubservice.hub.entity.Hub;
 import com.boxoffice.hubservice.hub.entity.HubType;
 import com.boxoffice.hubservice.hub.repository.HubRepository;
+import com.querydsl.core.types.Predicate;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -15,6 +20,15 @@ import org.mockito.Mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.test.util.ReflectionTestUtils;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -30,6 +44,19 @@ class HubServiceTest {
     @Mock
     private HubRepository hubRepository;
 
+    private Hub buildHub(String name, HubType hubType) {
+        Hub hub = Hub.builder()
+                .name(name)
+                .address(new AddressVO("12345", "서울시 강남구", "101호"))
+                .coordinate(new CoordinateVO(37.5, 127.0))
+                .hubType(hubType)
+                .build();
+        ReflectionTestUtils.setField(hub, "id", UUID.randomUUID());
+        ReflectionTestUtils.setField(hub, "createdAt", LocalDateTime.now());
+        ReflectionTestUtils.setField(hub, "updatedAt", LocalDateTime.now());
+        return hub;
+    }
+
     @Test
     @DisplayName("허브 생성 성공")
     void createHub_success() {
@@ -41,7 +68,8 @@ class HubServiceTest {
                 null,
                 37.4956,
                 127.1236,
-                HubType.REGIONAL
+                HubType.REGIONAL,
+                null
         );
 
         given(hubRepository.existsByName(request.name())).willReturn(false);
@@ -69,7 +97,8 @@ class HubServiceTest {
                 null,
                 37.2749,
                 127.4431,
-                HubType.CENTRAL
+                HubType.CENTRAL,
+                null
         );
         given(hubRepository.existsByName(request.name())).willReturn(false);
         given(hubRepository.save(any(Hub.class))).willAnswer(i -> i.getArgument(0));
@@ -92,7 +121,32 @@ class HubServiceTest {
                 null,
                 37.4956,
                 127.1236,
-                HubType.INACTIVE
+                HubType.INACTIVE,
+                null
+        );
+
+        // when & then
+        assertThatThrownBy(() -> hubService.createHub(request))
+                .isInstanceOf(BaseException.class)
+                .satisfies(e -> assertThat(((BaseException) e).getErrorCode())
+                        .isEqualTo(HubErrorCode.INVALID_HUB_TYPE));
+        verify(hubRepository, never()).existsByName(any());
+        verify(hubRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CLOSING 타입으로 허브 생성 시 예외 발생")
+    void createHub_closingType_throwsException() {
+        // given
+        HubCreateRequestDto request = new HubCreateRequestDto(
+                "테스트 센터",
+                null,
+                "서울특별시 송파구 송파대로 55",
+                null,
+                37.4956,
+                127.1236,
+                HubType.CLOSING,
+                null
         );
 
         // when & then
@@ -115,7 +169,8 @@ class HubServiceTest {
                 null,
                 37.4956,
                 127.1236,
-                HubType.REGIONAL
+                HubType.REGIONAL,
+                null
         );
 
         given(hubRepository.existsByName(request.name())).willReturn(true);
@@ -126,5 +181,98 @@ class HubServiceTest {
                 .satisfies(e -> assertThat(((BaseException) e).getErrorCode())
                         .isEqualTo(HubErrorCode.DUPLICATE_HUB_NAME));
         verify(hubRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("허브 단건 조회 성공")
+    void getHub_success() {
+        // given
+        Hub hub = buildHub("서울 센터", HubType.REGIONAL);
+        UUID hubId = (UUID) ReflectionTestUtils.getField(hub, "id");
+        given(hubRepository.findById(hubId)).willReturn(Optional.of(hub));
+
+        // when
+        HubGetResponseDto response = hubService.getHub(hubId);
+
+        // then
+        assertThat(response.name()).isEqualTo("서울 센터");
+        assertThat(response.hubType()).isEqualTo(HubType.REGIONAL);
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 허브 조회 시 예외 발생")
+    void getHub_notFound_throwsException() {
+        // given
+        UUID hubId = UUID.randomUUID();
+        given(hubRepository.findById(hubId)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> hubService.getHub(hubId))
+                .isInstanceOf(BaseException.class)
+                .satisfies(e -> assertThat(((BaseException) e).getErrorCode())
+                        .isEqualTo(HubErrorCode.HUB_NOT_FOUND));
+    }
+
+    @Test
+    @DisplayName("허브 목록 조회 - 필터 없음")
+    void getHubs_noFilter_returnsAll() {
+        // given
+        Hub hub = buildHub("서울 센터", HubType.REGIONAL);
+        Page<Hub> page = new PageImpl<>(List.of(hub));
+        given(hubRepository.findAll(any(Predicate.class), any(Pageable.class))).willReturn(page);
+
+        // when
+        PageResponse<HubGetResponseDto> response = hubService.getHubs(null, null, 0, 10);
+
+        // then
+        assertThat(response.getContent()).hasSize(1);
+        assertThat(response.getContent().get(0).name()).isEqualTo("서울 센터");
+    }
+
+    @Test
+    @DisplayName("허브 목록 조회 - 이름 필터 적용")
+    void getHubs_withNameFilter_returnsFiltered() {
+        // given
+        Hub hub = buildHub("서울 센터", HubType.REGIONAL);
+        Page<Hub> page = new PageImpl<>(List.of(hub));
+        given(hubRepository.findAll(any(Predicate.class), any(Pageable.class))).willReturn(page);
+
+        // when
+        PageResponse<HubGetResponseDto> response = hubService.getHubs("서울", null, 0, 10);
+
+        // then
+        assertThat(response.getContent()).hasSize(1);
+        assertThat(response.getContent().get(0).name()).contains("서울");
+    }
+
+    @Test
+    @DisplayName("허브 목록 조회 - 허브 타입 필터 적용")
+    void getHubs_withHubTypeFilter_returnsFiltered() {
+        // given
+        Hub hub = buildHub("경기 센터", HubType.CENTRAL);
+        Page<Hub> page = new PageImpl<>(List.of(hub));
+        given(hubRepository.findAll(any(Predicate.class), any(Pageable.class))).willReturn(page);
+
+        // when
+        PageResponse<HubGetResponseDto> response = hubService.getHubs(null, HubType.CENTRAL, 0, 10);
+
+        // then
+        assertThat(response.getContent()).hasSize(1);
+        assertThat(response.getContent().get(0).hubType()).isEqualTo(HubType.CENTRAL);
+    }
+
+    @Test
+    @DisplayName("허브 목록 조회 - 결과 없음")
+    void getHubs_emptyResult_returnsEmptyPage() {
+        // given
+        Page<Hub> emptyPage = new PageImpl<>(List.of());
+        given(hubRepository.findAll(any(Predicate.class), any(Pageable.class))).willReturn(emptyPage);
+
+        // when
+        PageResponse<HubGetResponseDto> response = hubService.getHubs("없는허브", HubType.CENTRAL, 0, 10);
+
+        // then
+        assertThat(response.getContent()).isEmpty();
+        assertThat(response.getTotalElements()).isZero();
     }
 }
