@@ -32,11 +32,13 @@ public class CompanyService {
         log.info("Company created. companyId={}, type={}, hubId={}",
                 savedCompany.getId(), savedCompany.getType(), savedCompany.getHubId());
 
-        // 담당자 역할 검증은 user-service가 수행하고, 실패 시 업체 생성 트랜잭션도 롤백한다.
-        userClient.updateUserCompany(
-                request.getManagerUserId(),
-                new UserCompanyUpdateRequestDto(savedCompany.getId())
-        );
+        if (request.getManagerUserId() != null) {
+            // 담당자 역할 검증은 user-service가 수행하고, 실패 시 업체 생성 트랜잭션도 롤백한다.
+            userClient.updateUserCompany(
+                    request.getManagerUserId(),
+                    new UserCompanyUpdateRequestDto(savedCompany.getId())
+            );
+        }
 
         return CompanyCreateResponseDto.from(savedCompany);
     }

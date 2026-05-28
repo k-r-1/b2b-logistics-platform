@@ -27,6 +27,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
@@ -136,6 +137,38 @@ class CompanyServiceTest {
         assertThat(throwable).isSameAs(mappingException);
         verify(companyRepository).save(any(Company.class));
         verify(userClient).updateUserCompany(eq(managerUserId), any(UserCompanyUpdateRequestDto.class));
+        verifyNoMoreInteractions(companyRepository, userClient);
+    }
+
+    @Test
+    @DisplayName("성공 - 담당자 ID가 없으면 업체만 생성하고 user-service 매핑을 호출하지 않는다")
+    void createCompanyWithoutManagerUserIdDoesNotCallUserService() {
+        // given
+        UUID companyId = UUID.randomUUID();
+        UUID hubId = UUID.randomUUID();
+        CompanyCreateRequestDto request = createRequest(
+                "테스트 업체",
+                CompanyType.SUPPLIER,
+                hubId,
+                null,
+                "12345",
+                "경기도 고양시 덕양구 권율대로 570",
+                "101호"
+        );
+
+        when(companyRepository.save(any(Company.class))).thenAnswer(invocation -> {
+            Company company = invocation.getArgument(0);
+            ReflectionTestUtils.setField(company, "id", companyId);
+            return company;
+        });
+
+        // when
+        CompanyCreateResponseDto response = companyService.createCompany(request);
+
+        // then
+        assertThat(response.getCompanyId()).isEqualTo(companyId);
+        verify(companyRepository).save(any(Company.class));
+        verify(userClient, never()).updateUserCompany(any(), any(UserCompanyUpdateRequestDto.class));
         verifyNoMoreInteractions(companyRepository, userClient);
     }
 

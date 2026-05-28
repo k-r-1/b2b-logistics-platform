@@ -22,7 +22,6 @@ public class CompanyCreateRequestDto {
     @NotNull(message = "허브 ID는 필수입니다.")
     private UUID hubId;
 
-    @NotNull(message = "업체 담당자 ID는 필수입니다.")
     private UUID managerUserId;
 
     @Valid

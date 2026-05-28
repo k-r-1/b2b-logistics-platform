@@ -28,7 +28,7 @@ public class CompanyFacade {
     }
 
     private void validateCreateRequest(CompanyCreateRequestDto request) {
-        if (request == null || request.getHubId() == null || request.getManagerUserId() == null) {
+        if (request == null || request.getHubId() == null) {
             throw new BaseException(CommonErrorCode.INVALID_INPUT);
         }
     }

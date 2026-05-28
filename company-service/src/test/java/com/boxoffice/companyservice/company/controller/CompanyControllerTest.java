@@ -145,37 +145,6 @@ class CompanyControllerTest {
         verifyNoInteractions(companyFacade);
     }
 
-    @Test
-    @DisplayName("실패 - managerUserId가 누락되면 400 검증 실패를 반환한다")
-    void createCompanyWithoutManagerUserIdReturnsValidationError() throws Exception {
-        // given
-        UUID hubId = UUID.randomUUID();
-        String requestBody = """
-                {
-                  "name": "테스트 업체",
-                  "type": "SUPPLIER",
-                  "hubId": "%s",
-                  "address": {
-                    "zipCode": "12345",
-                    "address": "경기도 고양시 덕양구 권율대로 570",
-                    "detailAddress": "101호"
-                  }
-                }
-                """.formatted(hubId);
-
-        // when & then
-        mockMvc.perform(post("/api/v1/companies")
-                        .header("X-User-Role", "MASTER")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(requestBody))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.status", is(400)))
-                .andExpect(jsonPath("$.message", is("VALIDATION_ERROR")))
-                .andExpect(jsonPath("$.errors", hasItem("managerUserId: 업체 담당자 ID는 필수입니다.")));
-
-        verifyNoInteractions(companyFacade);
-    }
-
     private CompanyCreateResponseDto createResponse(UUID companyId, UUID hubId) {
         Company company = Company.create(
                 "테스트 업체",
