@@ -1,4 +1,8 @@
 rootProject.name = 'boxoffice'
 
+<<<<<<< feat/#54-getOrder
 include 'eureka-server', 'api-gateway', 'user-service', 'delivery-manager-service', 'common', 'company-service', 'ai-notification-service', 'hub-service', 'order-service'
 
+=======
+include 'eureka-server', 'api-gateway', 'user-service', 'delivery-manager-service', 'common', 'company-service', 'ai-notification-service', 'hub-service', 'delivery-service'
+>>>>>>> dev

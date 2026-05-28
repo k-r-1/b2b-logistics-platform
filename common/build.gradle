@@ -20,9 +20,15 @@ dependencies {
     api 'org.springframework.cloud:spring-cloud-starter-openfeign'
 
     // 6. UUID v7
+<<<<<<< feat/#54-getOrder
     api 'com.fasterxml.uuid:java-uuid-generator:5.1.0'
 
     // QueryDSL Q클래스 생성 (BaseEntity 상속 엔티티용)
+=======
+    implementation 'com.fasterxml.uuid:java-uuid-generator:5.1.0'
+
+    // 7. QueryDSL
+>>>>>>> dev
     implementation 'com.querydsl:querydsl-jpa:5.1.0:jakarta'
     annotationProcessor 'com.querydsl:querydsl-apt:5.1.0:jakarta'
     annotationProcessor 'jakarta.annotation:jakarta.annotation-api'
