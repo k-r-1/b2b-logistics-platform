@@ -130,6 +130,9 @@ public class ProductService {
             return getDeductResponseWithoutStockChange(productIds, quantityByProductId, supplier, receiver);
         }
         acquireStockOperationLock(orderId, ProductStockOperationType.DEDUCT);
+        if (isStockOperationDone(orderId, ProductStockOperationType.DEDUCT)) {
+            return getDeductResponseWithoutStockChange(productIds, quantityByProductId, supplier, receiver);
+        }
 
         List<Product> products = productRepository.findAllByIdInForUpdate(productIds);
 
@@ -151,6 +154,9 @@ public class ProductService {
             return;
         }
         acquireStockOperationLock(orderId, ProductStockOperationType.RESTORE);
+        if (isStockOperationDone(orderId, ProductStockOperationType.RESTORE)) {
+            return;
+        }
 
         Map<UUID, Integer> quantityByProductId = toQuantityMap(request);
         List<UUID> productIds = toSortedProductIds(quantityByProductId);
@@ -208,7 +214,8 @@ public class ProductService {
     }
 
     private boolean isStockOperationDone(UUID orderId, ProductStockOperationType operationType) {
-        return Boolean.TRUE.equals(redisTemplate.hasKey(doneKey(orderId, operationType)));
+        String key = doneKey(orderId, operationType);
+        return Boolean.TRUE.equals(redisTemplate.hasKey(key));
     }
 
     private ProductStockDeductResponseDto getDeductResponseWithoutStockChange(
@@ -224,9 +231,10 @@ public class ProductService {
     }
 
     private void acquireStockOperationLock(UUID orderId, ProductStockOperationType operationType) {
+        String key = lockKey(orderId, operationType);
         // Redis SET NX + TTL로 같은 orderId의 중복 재고 작업만 짧게 막는다.
         Boolean locked = redisTemplate.opsForValue()
-                .setIfAbsent(lockKey(orderId, operationType), "1", STOCK_OPERATION_LOCK_TTL);
+                .setIfAbsent(key, "1", STOCK_OPERATION_LOCK_TTL);
 
         if (!Boolean.TRUE.equals(locked)) {
             throw new BaseException(ProductErrorCode.STOCK_OPERATION_IN_PROGRESS);
@@ -236,23 +244,25 @@ public class ProductService {
     }
 
     private void markStockOperationDoneAfterCommit(UUID orderId, ProductStockOperationType operationType) {
+        String key = doneKey(orderId, operationType);
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            redisTemplate.opsForValue().set(doneKey(orderId, operationType), "1", STOCK_OPERATION_DONE_TTL);
+            redisTemplate.opsForValue().set(key, "1", STOCK_OPERATION_DONE_TTL);
             return;
         }
 
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
-                redisTemplate.opsForValue().set(doneKey(orderId, operationType), "1", STOCK_OPERATION_DONE_TTL);
+                redisTemplate.opsForValue().set(key, "1", STOCK_OPERATION_DONE_TTL);
             }
         });
     }
 
     private void deleteLockAfterCompletion(UUID orderId, ProductStockOperationType operationType) {
+        String key = lockKey(orderId, operationType);
         // 트랜잭션 외부에서 호출된 경우 즉시 락 해제 (방어 코드)
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            redisTemplate.delete(lockKey(orderId, operationType));
+            redisTemplate.delete(key);
             return;
         }
 
@@ -260,7 +270,7 @@ public class ProductService {
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCompletion(int status) {
-                redisTemplate.delete(lockKey(orderId, operationType));
+                redisTemplate.delete(key);
             }
         });
     }
