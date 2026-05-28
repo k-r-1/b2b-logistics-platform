@@ -71,7 +71,8 @@ class HubServiceTest {
                 null,
                 37.4956,
                 127.1236,
-                HubType.REGIONAL
+                HubType.REGIONAL,
+                null
         );
 
         given(hubRepository.existsByName(request.name())).willReturn(false);
@@ -84,6 +85,7 @@ class HubServiceTest {
         assertThat(response.name()).isEqualTo("서울특별시 센터");
         assertThat(response.hubType()).isEqualTo(HubType.REGIONAL);
         assertThat(response.latitude()).isEqualTo(37.4956);
+        assertThat(response.createdBy()).isNull();
         verify(hubRepository).save(any(Hub.class));
     }
 
@@ -98,7 +100,8 @@ class HubServiceTest {
                 null,
                 37.2749,
                 127.4431,
-                HubType.CENTRAL
+                HubType.CENTRAL,
+                null
         );
         given(hubRepository.existsByName(request.name())).willReturn(false);
         given(hubRepository.save(any(Hub.class))).willAnswer(i -> i.getArgument(0));
@@ -139,7 +142,32 @@ class HubServiceTest {
                 null,
                 37.4956,
                 127.1236,
-                HubType.INACTIVE
+                HubType.INACTIVE,
+                null
+        );
+
+        // when & then
+        assertThatThrownBy(() -> hubService.createHub(request))
+                .isInstanceOf(BaseException.class)
+                .satisfies(e -> assertThat(((BaseException) e).getErrorCode())
+                        .isEqualTo(HubErrorCode.INVALID_HUB_TYPE));
+        verify(hubRepository, never()).existsByName(any());
+        verify(hubRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CLOSING 타입으로 허브 생성 시 예외 발생")
+    void createHub_closingType_throwsException() {
+        // given
+        HubCreateRequestDto request = new HubCreateRequestDto(
+                "테스트 센터",
+                null,
+                "서울특별시 송파구 송파대로 55",
+                null,
+                37.4956,
+                127.1236,
+                HubType.CLOSING,
+                null
         );
 
         // when & then
@@ -162,7 +190,8 @@ class HubServiceTest {
                 null,
                 37.4956,
                 127.1236,
-                HubType.REGIONAL
+                HubType.REGIONAL,
+                null
         );
 
         given(hubRepository.existsByName(request.name())).willReturn(true);

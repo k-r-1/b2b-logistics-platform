@@ -49,6 +49,7 @@ public class HubService {
                 .address(new AddressVO(request.zipCode(), request.address(), request.detailAddress()))
                 .coordinate(new CoordinateVO(request.latitude(), request.longitude()))
                 .hubType(request.hubType())
+                .capacity(request.capacity())
                 .build();
 
         return HubCreateResponseDto.from(hubRepository.save(hub));

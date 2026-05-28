@@ -1,0 +1,40 @@
+server:
+  port: 8085
+
+spring:
+  application:
+    name: delivery-service
+
+  cloud:
+    compatibility-verifier:
+      enabled: false
+
+  datasource:
+    url: jdbc:postgresql://localhost:54321/${DB_NAME:sparta_logistics}?currentSchema=delivery_schema
+    username: ${DB_USERNAME:sparta_admin}
+    password: ${DB_PASSWORD:password123}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+
+feign:
+  circuitbreaker:
+    enabled: true
+
+kafka:
+  topic:
+    hub-transfer-dispatched: hub-transfer-dispatched
+    transfer-assign-success: transfer-assign-success
+    transfer-assign-failed: transfer-assign-failed
+    order-cancelled: order-cancelled
