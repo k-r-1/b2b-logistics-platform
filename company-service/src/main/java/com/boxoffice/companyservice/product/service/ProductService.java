@@ -127,10 +127,12 @@ public class ProductService {
         Company receiver = companyService.getCompanyEntity(request.getReceiverId());
 
         if (isStockOperationDone(orderId, ProductStockOperationType.DEDUCT)) {
+            log.info("Stock operation already done before lock. orderId={}, operationType={}", orderId, ProductStockOperationType.DEDUCT);
             return getDeductResponseWithoutStockChange(productIds, quantityByProductId, supplier, receiver);
         }
         acquireStockOperationLock(orderId, ProductStockOperationType.DEDUCT);
         if (isStockOperationDone(orderId, ProductStockOperationType.DEDUCT)) {
+            log.info("Stock operation already done after lock. orderId={}, operationType={}", orderId, ProductStockOperationType.DEDUCT);
             return getDeductResponseWithoutStockChange(productIds, quantityByProductId, supplier, receiver);
         }
 
@@ -151,10 +153,12 @@ public class ProductService {
         }
 
         if (isStockOperationDone(orderId, ProductStockOperationType.RESTORE)) {
+            log.info("Stock operation already done. orderId={}, operationType={}", orderId, ProductStockOperationType.RESTORE);
             return;
         }
         acquireStockOperationLock(orderId, ProductStockOperationType.RESTORE);
         if (isStockOperationDone(orderId, ProductStockOperationType.RESTORE)) {
+            log.info("Stock operation already done. orderId={}, operationType={}", orderId, ProductStockOperationType.RESTORE);
             return;
         }
 
@@ -237,6 +241,7 @@ public class ProductService {
                 .setIfAbsent(key, "1", STOCK_OPERATION_LOCK_TTL);
 
         if (!Boolean.TRUE.equals(locked)) {
+            log.warn("Stock operation already in progress. orderId={}, operationType={}", orderId, operationType);
             throw new BaseException(ProductErrorCode.STOCK_OPERATION_IN_PROGRESS);
         }
 
