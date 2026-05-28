@@ -47,3 +47,5 @@ docker_data/
 # test 관련 파일
 /.github/test/*
 /.github/_service-ci-local-test.yml
+
+*.md
