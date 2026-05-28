@@ -6,6 +6,7 @@ import boxoffice.orderservice.application.client.dto.request.DeliveryCreateReque
 import boxoffice.orderservice.application.client.dto.response.DeliveryResponseDto;
 import boxoffice.orderservice.infra.exception.OrderErrorCode;
 import com.boxoffice.common.exception.BaseException;
+import com.boxoffice.common.response.ApiResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.openfeign.FallbackFactory;
 import org.springframework.stereotype.Component;
@@ -18,7 +19,7 @@ public class DeliveryFeignClientFallbackFactory implements FallbackFactory<Deliv
     public DeliveryFeignClient create(Throwable cause) {
         return new DeliveryFeignClient() {
             @Override
-            public DeliveryResponseDto requestDelivery(DeliveryCreateRequest request) {
+            public ApiResponse<DeliveryResponseDto> requestDelivery(DeliveryCreateRequest request) {
                 log.error("[DeliveryFeignClient] 배송 요청 실패. orderId={}", request.orderId(), cause);
                 throw new BaseException(OrderErrorCode.DELIVERY_REQUEST_FAILED);
             }

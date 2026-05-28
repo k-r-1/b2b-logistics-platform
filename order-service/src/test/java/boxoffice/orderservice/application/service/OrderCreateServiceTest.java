@@ -20,6 +20,7 @@ import boxoffice.orderservice.application.service.dto.CreateOrderCommand;
 import boxoffice.orderservice.application.service.dto.OrderResultDto;
 import boxoffice.orderservice.infra.exception.OrderErrorCode;
 import com.boxoffice.common.exception.BaseException;
+import com.boxoffice.common.response.ApiResponse;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -87,9 +88,9 @@ class OrderCreateServiceTest {
             // given
             UserDetailInfo user = Mockito.mock(UserDetailInfo.class);
             given(user.role()).willReturn("MASTER");
-            given(userFeignClient.getUserById(requesterId)).willReturn(user);
+            given(userFeignClient.getUserById(requesterId)).willReturn(ApiResponse.success(user));
             given(companyProductFeignClient.deductStocks(any(UUID.class), any(StockDeductRequest.class)))
-                .willReturn(stockDeductResponse);
+                .willReturn(ApiResponse.success(stockDeductResponse));
             given(orderCommandService.saveOrder(any(), any(), any(), any(), any(), any(), any(), any()))
                 .willReturn(orderResult);
 
@@ -111,9 +112,9 @@ class OrderCreateServiceTest {
             UserDetailInfo user = Mockito.mock(UserDetailInfo.class);
             given(user.role()).willReturn("COMPANY_MANAGER");
             given(user.companyId()).willReturn(companyId);
-            given(userFeignClient.getUserById(requesterId)).willReturn(user);
+            given(userFeignClient.getUserById(requesterId)).willReturn(ApiResponse.success(user));
             given(companyProductFeignClient.deductStocks(any(UUID.class), any(StockDeductRequest.class)))
-                .willReturn(stockDeductResponse);
+                .willReturn(ApiResponse.success(stockDeductResponse));
             given(orderCommandService.saveOrder(any(), any(), any(UUID.class), any(), any(), any(), any(), any()))
                 .willReturn(orderResult);
 
@@ -135,15 +136,15 @@ class OrderCreateServiceTest {
             UserDetailInfo user = Mockito.mock(UserDetailInfo.class);
             given(user.role()).willReturn("HUB_MANAGER");
             given(user.hubId()).willReturn(sourceHubId);
-            given(userFeignClient.getUserById(requesterId)).willReturn(user);
+            given(userFeignClient.getUserById(requesterId)).willReturn(ApiResponse.success(user));
 
             InternalCompanyHub hubs = Mockito.mock(InternalCompanyHub.class);
             given(hubs.supplierHubId()).willReturn(sourceHubId);
             // supplierHubId 매칭 시 short-circuit → receiverHubId는 미호출
             Mockito.lenient().when(hubs.receiverHubId()).thenReturn(destinationHubId);
-            given(companyProductFeignClient.getCompanyById(supplierId, receiverId)).willReturn(hubs);
+            given(companyProductFeignClient.getCompanyById(supplierId, receiverId)).willReturn(ApiResponse.success(hubs));
             given(companyProductFeignClient.deductStocks(any(UUID.class), any(StockDeductRequest.class)))
-                .willReturn(stockDeductResponse);
+                .willReturn(ApiResponse.success(stockDeductResponse));
             given(orderCommandService.saveOrder(any(), any(), any(), any(), any(), any(), any(), any()))
                 .willReturn(orderResult);
 
@@ -162,12 +163,12 @@ class OrderCreateServiceTest {
             UserDetailInfo user = Mockito.mock(UserDetailInfo.class);
             given(user.role()).willReturn("HUB_MANAGER");
             given(user.hubId()).willReturn(UUID.randomUUID()); // 다른 허브
-            given(userFeignClient.getUserById(requesterId)).willReturn(user);
+            given(userFeignClient.getUserById(requesterId)).willReturn(ApiResponse.success(user));
 
             InternalCompanyHub hubs = Mockito.mock(InternalCompanyHub.class);
             given(hubs.supplierHubId()).willReturn(sourceHubId);
             given(hubs.receiverHubId()).willReturn(destinationHubId);
-            given(companyProductFeignClient.getCompanyById(supplierId, receiverId)).willReturn(hubs);
+            given(companyProductFeignClient.getCompanyById(supplierId, receiverId)).willReturn(ApiResponse.success(hubs));
 
             // when & then
             assertThatThrownBy(() -> orderCreateService.createOrder(command, requesterId))
@@ -183,7 +184,7 @@ class OrderCreateServiceTest {
             // given
             UserDetailInfo user = Mockito.mock(UserDetailInfo.class);
             given(user.role()).willReturn("CUSTOMER");
-            given(userFeignClient.getUserById(requesterId)).willReturn(user);
+            given(userFeignClient.getUserById(requesterId)).willReturn(ApiResponse.success(user));
 
             // when & then
             assertThatThrownBy(() -> orderCreateService.createOrder(command, requesterId))
@@ -210,7 +211,7 @@ class OrderCreateServiceTest {
             // given
             UserDetailInfo user = Mockito.mock(UserDetailInfo.class);
             given(user.role()).willReturn("MASTER");
-            given(userFeignClient.getUserById(requesterId)).willReturn(user);
+            given(userFeignClient.getUserById(requesterId)).willReturn(ApiResponse.success(user));
             given(companyProductFeignClient.deductStocks(any(UUID.class), any(StockDeductRequest.class)))
                 .willThrow(new BaseException(OrderErrorCode.STOCK_DEDUCT_FAILED));
 
@@ -229,9 +230,9 @@ class OrderCreateServiceTest {
             UUID orderId = UUID.randomUUID();
             UserDetailInfo user = Mockito.mock(UserDetailInfo.class);
             given(user.role()).willReturn("MASTER");
-            given(userFeignClient.getUserById(requesterId)).willReturn(user);
+            given(userFeignClient.getUserById(requesterId)).willReturn(ApiResponse.success(user));
             given(companyProductFeignClient.deductStocks(any(UUID.class), any(StockDeductRequest.class)))
-                .willReturn(stockDeductResponse);
+                .willReturn(ApiResponse.success(stockDeductResponse));
             given(orderCommandService.saveOrder(orderId, any(), any(), any(), any(), any(), any(), any()))
                 .willThrow(new RuntimeException("DB Timeout"));
 
@@ -250,9 +251,9 @@ class OrderCreateServiceTest {
             // given
             UserDetailInfo user = Mockito.mock(UserDetailInfo.class);
             given(user.role()).willReturn("MASTER");
-            given(userFeignClient.getUserById(requesterId)).willReturn(user);
+            given(userFeignClient.getUserById(requesterId)).willReturn(ApiResponse.success(user));
             given(companyProductFeignClient.deductStocks(any(UUID.class), any(StockDeductRequest.class)))
-                .willReturn(stockDeductResponse);
+                .willReturn(ApiResponse.success(stockDeductResponse));
             given(orderCommandService.saveOrder(orderId, any(), any(), any(), any(), any(), any(), any()))
                 .willThrow(new RuntimeException("DB Timeout"));
             doThrow(new RuntimeException("Feign Timeout")).when(companyProductFeignClient).restoreStocks(orderId, anyList());

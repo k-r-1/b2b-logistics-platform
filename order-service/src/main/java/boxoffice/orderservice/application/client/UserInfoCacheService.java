@@ -14,6 +14,6 @@ public class UserInfoCacheService {
 
     @Cacheable(value = CacheConfig.USER_INFO_CACHE, key = "#keycloakId", cacheManager = "caffeineCacheManager")
     public UserDetailInfo getUserById(String keycloakId) {
-        return userFeignClient.getUserById(keycloakId);
+        return userFeignClient.getUserById(keycloakId).getData();
     }
 }

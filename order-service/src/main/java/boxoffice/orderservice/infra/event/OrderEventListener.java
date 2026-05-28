@@ -39,7 +39,7 @@ public class OrderEventListener {
               event.recipientName(),
               null
           )
-      );
+      ).getData();
     } catch (Exception e) {
       log.error("[EVENT FAILED] 배송 요청이 실패했습니다. orderId = {}", event.orderId(), e);
       cancelOrderAndRestoreStock(event);

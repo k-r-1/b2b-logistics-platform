@@ -7,6 +7,7 @@ import boxoffice.orderservice.application.client.dto.response.InternalCompanyHub
 import boxoffice.orderservice.application.client.dto.response.StockCheckResponse;
 import boxoffice.orderservice.application.client.dto.response.StockDeductResponse;
 import boxoffice.orderservice.application.client.fallback.CompanyProductFeignClientFallbackFactory;
+import com.boxoffice.common.response.ApiResponse;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.cloud.openfeign.FeignClient;
@@ -20,14 +21,14 @@ import org.springframework.web.bind.annotation.RequestParam;
 public interface CompanyProductFeignClient {
 
   @GetMapping("/internal/v1/companies/hubs/{supplierId}/{receiverId}")
-  InternalCompanyHub getCompanyById(@PathVariable UUID supplierId, @PathVariable UUID receiverId);
+  ApiResponse<InternalCompanyHub> getCompanyById(@PathVariable UUID supplierId, @PathVariable UUID receiverId);
 
   @PostMapping("/internal/v1/products/stocks/check")
-  StockCheckResponse checkStocks(@RequestBody List<StockCheckRequest> requests);
+  ApiResponse<StockCheckResponse> checkStocks(@RequestBody List<StockCheckRequest> requests);
 
   // orderId를 선제적으로 전달하여 재고 차감 이력 추적 가능
   @PostMapping("/internal/v1/products/stocks/deduct")
-  StockDeductResponse deductStocks(@RequestParam UUID orderId, @RequestBody StockDeductRequest requests);
+  ApiResponse<StockDeductResponse> deductStocks(@RequestParam UUID orderId, @RequestBody StockDeductRequest requests);
 
   @PostMapping("/internal/v1/products/stocks/restore")
   void restoreStocks(@RequestParam UUID orderId, @RequestBody List<StockRestoreRequest> requests);

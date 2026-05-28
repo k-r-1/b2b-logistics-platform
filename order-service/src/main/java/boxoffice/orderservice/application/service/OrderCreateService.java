@@ -42,7 +42,7 @@ public class OrderCreateService {
 
     private OrderResultDto doCreateOrder(UUID orderId, CreateOrderCommand command, String requesterId) {
         // 1. 유저 정보 조회
-        UserDetailInfo user = userFeignClient.getUserById(requesterId);
+        UserDetailInfo user = userFeignClient.getUserById(requesterId).getData();
         log.info("[CreateOrder] 유저 정보 조회 성공. role={}", user.role());
 
         // 2. 권한 검증 및 receiverId 보정
@@ -50,7 +50,7 @@ public class OrderCreateService {
 
         // 3. 재고 차감 - 사전 생성된 orderId 전달 (이력 추적 및 멱등성 보장)
         StockDeductRequest stockRequests = buildStockDeductRequests(effectiveReceiverId, command);
-        StockDeductResponse stockResponse = companyProductFeignClient.deductStocks(orderId, stockRequests);
+        StockDeductResponse stockResponse = companyProductFeignClient.deductStocks(orderId, stockRequests).getData();
         log.info("[CreateOrder] 재고 차감 성공");
 
         // 4. 주문 저장 (트랜잭션 내 이벤트 발행 포함)
@@ -84,7 +84,7 @@ public class OrderCreateService {
                 yield user.companyId();
             }
             case "HUB_MANAGER", "DELIVERY_MANAGER" -> {
-                InternalCompanyHub hubs = companyProductFeignClient.getCompanyById(supplierId, receiverId);
+                InternalCompanyHub hubs = companyProductFeignClient.getCompanyById(supplierId, receiverId).getData();
                 boolean isRelatedHub = user.hubId().equals(hubs.supplierHubId())
                     || user.hubId().equals(hubs.receiverHubId());
                 if (!isRelatedHub) {
