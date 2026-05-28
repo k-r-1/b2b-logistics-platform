@@ -93,5 +93,6 @@ services:
       - "8089:8080"
     volumes:
       - ./docker_data/keycloak:/opt/keycloak/data
+      - ./keycloak/import:/opt/keycloak/data/import
     depends_on:
       - postgres-db
