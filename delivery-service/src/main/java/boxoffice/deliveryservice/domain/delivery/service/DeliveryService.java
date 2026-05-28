@@ -2,7 +2,6 @@ package boxoffice.deliveryservice.domain.delivery.service;
 
 import boxoffice.deliveryservice.client.HubClient;
 import boxoffice.deliveryservice.client.dto.response.HubRouteResponseDto;
-import boxoffice.deliveryservice.domain.delivery.dto.request.DeliveryCancelRequestDto;
 import boxoffice.deliveryservice.domain.delivery.dto.request.DeliveryCreateRequestDto;
 import boxoffice.deliveryservice.domain.delivery.dto.response.DeliveryResponseDto;
 import boxoffice.deliveryservice.domain.delivery.entity.Delivery;
