@@ -20,13 +20,18 @@ public enum HubErrorCode implements ErrorCode {
     DUPLICATE_HUB_ROUTE(HttpStatus.CONFLICT, "HUB-009", "이미 존재하는 경로입니다."),
     SAME_HUB_ROUTE(HttpStatus.BAD_REQUEST, "HUB-010", "출발 허브와 도착 허브가 동일한 경로는 생성할 수 없습니다."),
     SAME_HUB_PATH(HttpStatus.BAD_REQUEST,  "HUB-011", "출발 허브와 도착 허브가 동일하면 경로를 계산할 수 없습니다."),
-    HUB_INACTIVE_IN_PATH(HttpStatus.BAD_REQUEST, "HUB-012", "경로에 INACTIVE 허브가 포함되어 있습니다."),
+    HUB_INACTIVE_IN_PATH(HttpStatus.BAD_REQUEST, "HUB-012", "경로에 사용 불가 허브가 포함되어 있습니다."),
     INVALID_RATIO_SUM(HttpStatus.BAD_REQUEST, "HUB-013", "이전 비율의 합계가 1.0이 아닙니다."),
     INVALID_TARGET_HUB(HttpStatus.BAD_REQUEST, "HUB-014", "이전 대상 허브가 INACTIVE 또는 삭제 상태입니다."),
     TRANSFER_INVALID_STATUS(HttpStatus.BAD_REQUEST, "HUB-015", "현재 상태에서 허용되지 않는 작업입니다."),
     TRANSFER_ALREADY_COMPLETED(HttpStatus.BAD_REQUEST, "HUB-016", "이미 완료된 재고 이전입니다."),
     HUB_HAS_ACTIVE_DELIVERY(HttpStatus.CONFLICT, "HUB-017", "진행 중인 배송이 있어 삭제할 수 없습니다."),
-    HUB_HAS_STOCK(HttpStatus.CONFLICT, "HUB-018", "재고가 남아 있어 삭제할 수 없습니다.");
+    HUB_HAS_STOCK(HttpStatus.CONFLICT, "HUB-018", "재고가 남아 있어 삭제할 수 없습니다."),
+    CENTRAL_HUB_CANNOT_DEACTIVATE(HttpStatus.BAD_REQUEST, "HUB-019", "CENTRAL 허브는 운영중단할 수 없습니다."),
+    HUB_ALREADY_CLOSING(HttpStatus.BAD_REQUEST, "HUB-020", "이미 CLOSING 상태인 허브입니다."),
+    HUB_NOT_CLOSING(HttpStatus.BAD_REQUEST, "HUB-021", "CLOSING 상태의 허브만 운영중단할 수 있습니다."),
+    CENTRAL_HUB_CANNOT_CLOSE(HttpStatus.BAD_REQUEST, "HUB-022", "CENTRAL 허브는 마감 예정 상태로 전환할 수 없습니다."),
+    HUB_CLOSING(HttpStatus.BAD_REQUEST, "HUB-023", "CLOSING 상태의 허브에서는 허용되지 않는 작업입니다.");
 
     private final HttpStatus httpStatus;
     private final String code;

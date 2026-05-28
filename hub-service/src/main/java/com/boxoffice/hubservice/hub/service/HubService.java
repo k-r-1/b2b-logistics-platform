@@ -6,7 +6,10 @@ import com.boxoffice.common.response.PageResponse;
 import com.boxoffice.common.util.PageableUtils;
 import com.boxoffice.hubservice.exception.HubErrorCode;
 import com.boxoffice.hubservice.hub.dto.request.HubCreateRequestDto;
+import com.boxoffice.hubservice.hub.dto.request.HubClosingRequestDto;
+import com.boxoffice.hubservice.hub.dto.request.HubUpdateRequestDto;
 import com.boxoffice.hubservice.hub.dto.response.HubCreateResponseDto;
+import com.boxoffice.hubservice.hub.dto.response.HubDeactivateResponseDto;
 import com.boxoffice.hubservice.hub.dto.response.HubGetResponseDto;
 import com.boxoffice.hubservice.hub.entity.CoordinateVO;
 import com.boxoffice.hubservice.hub.entity.Hub;
@@ -15,6 +18,7 @@ import com.boxoffice.hubservice.hub.entity.QHub;
 import com.boxoffice.hubservice.hub.repository.HubRepository;
 import com.querydsl.core.BooleanBuilder;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -72,5 +76,88 @@ public class HubService {
 
         Page<HubGetResponseDto> result = hubRepository.findAll(builder, pageable).map(HubGetResponseDto::from);
         return PageResponse.of(result);
+    }
+
+    @Transactional
+    @CacheEvict(cacheNames = "hub", key = "#hubId")
+    public HubGetResponseDto updateHub(UUID hubId, HubUpdateRequestDto request) {
+        Hub hub = hubRepository.findById(hubId)
+                .orElseThrow(() -> new BaseException(HubErrorCode.HUB_NOT_FOUND));
+
+        if (hub.isInactive()) {
+            throw new BaseException(HubErrorCode.HUB_INACTIVE);
+        }
+        if (hub.isClosing()) {
+            throw new BaseException(HubErrorCode.HUB_CLOSING);
+        }
+
+        if (request.name() != null && hubRepository.existsByNameAndIdNot(request.name(), hubId)) {
+            throw new BaseException(HubErrorCode.DUPLICATE_HUB_NAME);
+        }
+
+        boolean hasAddressChange = request.zipCode() != null
+                || request.address() != null
+                || request.detailAddress() != null;
+
+        AddressVO address = null;
+        if (hasAddressChange) {
+            address = new AddressVO(
+                    request.zipCode() != null ? request.zipCode() : hub.getAddress().getZipCode(),
+                    request.address() != null ? request.address() : hub.getAddress().getAddress(),
+                    request.detailAddress() != null ? request.detailAddress() : hub.getAddress().getDetailAddress()
+            );
+        }
+
+        CoordinateVO coordinate = null;
+        if (request.latitude() != null && request.longitude() != null) {
+            coordinate = new CoordinateVO(request.latitude(), request.longitude());
+        }
+
+        hub.update(request.name(), address, coordinate, request.capacity());
+        return HubGetResponseDto.from(hub);
+    }
+
+    @Transactional
+    @CacheEvict(cacheNames = "hub", key = "#hubId")
+    public HubGetResponseDto startClosingHub(UUID hubId, HubClosingRequestDto request) {
+        Hub hub = hubRepository.findById(hubId)
+                .orElseThrow(() -> new BaseException(HubErrorCode.HUB_NOT_FOUND));
+
+        if (hub.getHubType() == HubType.CENTRAL) {
+            throw new BaseException(HubErrorCode.CENTRAL_HUB_CANNOT_CLOSE);
+        }
+
+        if (hub.isClosing()) {
+            throw new BaseException(HubErrorCode.HUB_ALREADY_CLOSING);
+        }
+
+        if (hub.isInactive()) {
+            throw new BaseException(HubErrorCode.HUB_ALREADY_INACTIVE);
+        }
+
+        hub.startClosing(request.reason());
+        return HubGetResponseDto.from(hub);
+    }
+
+    @Transactional
+    @CacheEvict(cacheNames = "hub", key = "#hubId")
+    public HubDeactivateResponseDto deactivateHub(UUID hubId) {
+        Hub hub = hubRepository.findById(hubId)
+                .orElseThrow(() -> new BaseException(HubErrorCode.HUB_NOT_FOUND));
+
+        if (hub.getHubType() == HubType.CENTRAL) {
+            throw new BaseException(HubErrorCode.CENTRAL_HUB_CANNOT_DEACTIVATE);
+        }
+
+        if (hub.isInactive()) {
+            throw new BaseException(HubErrorCode.HUB_ALREADY_INACTIVE);
+        }
+
+        if (!hub.isClosing()) {
+            throw new BaseException(HubErrorCode.HUB_NOT_CLOSING);
+        }
+
+        hub.deactivate();
+        return HubDeactivateResponseDto.from(hub);
     }
 }

@@ -5,7 +5,10 @@ import com.boxoffice.common.exception.CommonErrorCode;
 import com.boxoffice.common.response.ApiResponse;
 import com.boxoffice.common.response.PageResponse;
 import com.boxoffice.hubservice.hub.dto.request.HubCreateRequestDto;
+import com.boxoffice.hubservice.hub.dto.request.HubClosingRequestDto;
+import com.boxoffice.hubservice.hub.dto.request.HubUpdateRequestDto;
 import com.boxoffice.hubservice.hub.dto.response.HubCreateResponseDto;
+import com.boxoffice.hubservice.hub.dto.response.HubDeactivateResponseDto;
 import com.boxoffice.hubservice.hub.dto.response.HubGetResponseDto;
 import com.boxoffice.hubservice.hub.entity.HubType;
 import com.boxoffice.hubservice.hub.service.HubService;
@@ -35,9 +38,7 @@ public class HubController {
             @Valid
             @RequestBody HubCreateRequestDto request
     ) {
-        if (!"MASTER".equals(role)) {
-            throw new BaseException(CommonErrorCode.FORBIDDEN);
-        }
+        validateMasterRole(role);
         HubCreateResponseDto response = hubService.createHub(request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(HttpStatus.CREATED, response));
@@ -60,5 +61,44 @@ public class HubController {
             @Parameter(description = "페이지 크기") @RequestParam(defaultValue = "10") int size
     ) {
         return ResponseEntity.ok(ApiResponse.success(hubService.getHubs(name, hubType, page, size)));
+    }
+
+    @Operation(summary = "허브 수정", description = "허브 정보를 수정합니다. MASTER 권한 필요.")
+    @PatchMapping("/{hubId}")
+    public ResponseEntity<ApiResponse<HubGetResponseDto>> updateHub(
+            @RequestHeader("X-User-Role") String role,
+            @PathVariable UUID hubId,
+            @Valid
+            @RequestBody HubUpdateRequestDto request
+    ) {
+        validateMasterRole(role);
+        return ResponseEntity.ok(ApiResponse.success(hubService.updateHub(hubId, request)));
+    }
+
+    @Operation(summary = "허브 폐쇄 시작", description = "허브를 CLOSING 상태로 변경합니다. MASTER 권한 필요. CENTRAL 허브는 폐쇄 불가.")
+    @PatchMapping("/{hubId}/close")
+    public ResponseEntity<ApiResponse<HubGetResponseDto>> closeHub(
+            @RequestHeader("X-User-Role") String role,
+            @PathVariable UUID hubId,
+            @Valid @RequestBody HubClosingRequestDto request
+    ) {
+        validateMasterRole(role);
+        return ResponseEntity.ok(ApiResponse.success(hubService.startClosingHub(hubId, request)));
+    }
+
+    @Operation(summary = "허브 비활성화", description = "CLOSING 상태의 허브를 INACTIVE로 변경합니다. MASTER 권한 필요. CENTRAL 허브는 비활성화 불가.")
+    @PatchMapping("/{hubId}/deactivate")
+    public ResponseEntity<ApiResponse<HubDeactivateResponseDto>> deactivateHub(
+            @RequestHeader("X-User-Role") String role,
+            @PathVariable UUID hubId
+    ) {
+        validateMasterRole(role);
+        return ResponseEntity.ok(ApiResponse.success(hubService.deactivateHub(hubId)));
+    }
+
+    private void validateMasterRole(String role) {
+        if (!"MASTER".equals(role)) {
+            throw new BaseException(CommonErrorCode.FORBIDDEN);
+        }
     }
 }

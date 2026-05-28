@@ -17,6 +17,7 @@ public record HubGetResponseDto(
         HubType hubType,
         UUID managerId,
         Integer capacity,
+        String closingReason,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {
@@ -32,6 +33,7 @@ public record HubGetResponseDto(
                 hub.getHubType(),
                 hub.getManagerId(),
                 hub.getCapacity(),
+                hub.getClosingReason(),
                 hub.getCreatedAt(),
                 hub.getUpdatedAt()
         );

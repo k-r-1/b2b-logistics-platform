@@ -4,8 +4,11 @@ import com.boxoffice.common.entity.AddressVO;
 import com.boxoffice.common.exception.BaseException;
 import com.boxoffice.common.response.PageResponse;
 import com.boxoffice.hubservice.exception.HubErrorCode;
+import com.boxoffice.hubservice.hub.dto.request.HubClosingRequestDto;
 import com.boxoffice.hubservice.hub.dto.request.HubCreateRequestDto;
+import com.boxoffice.hubservice.hub.dto.request.HubUpdateRequestDto;
 import com.boxoffice.hubservice.hub.dto.response.HubCreateResponseDto;
+import com.boxoffice.hubservice.hub.dto.response.HubDeactivateResponseDto;
 import com.boxoffice.hubservice.hub.dto.response.HubGetResponseDto;
 import com.boxoffice.hubservice.hub.entity.CoordinateVO;
 import com.boxoffice.hubservice.hub.entity.Hub;
@@ -111,18 +114,12 @@ class HubServiceTest {
     }
 
     @Test
-    @DisplayName("INACTIVE 타입으로 허브 생성 시 예외 발생")
-    void createHub_inactiveType_throwsException() {
+    @DisplayName("CLOSING 타입으로 허브 생성 시 예외 발생")
+    void createHub_closingType_throwsException() {
         // given
         HubCreateRequestDto request = new HubCreateRequestDto(
-                "테스트 센터",
-                null,
-                "서울특별시 송파구 송파대로 55",
-                null,
-                37.4956,
-                127.1236,
-                HubType.INACTIVE,
-                null
+                "테스트 센터", null, "서울특별시 송파구 송파대로 55", null,
+                37.4956, 127.1236, HubType.CLOSING, null
         );
 
         // when & then
@@ -135,8 +132,8 @@ class HubServiceTest {
     }
 
     @Test
-    @DisplayName("CLOSING 타입으로 허브 생성 시 예외 발생")
-    void createHub_closingType_throwsException() {
+    @DisplayName("INACTIVE 타입으로 허브 생성 시 예외 발생")
+    void createHub_inactiveType_throwsException() {
         // given
         HubCreateRequestDto request = new HubCreateRequestDto(
                 "테스트 센터",
@@ -145,7 +142,7 @@ class HubServiceTest {
                 null,
                 37.4956,
                 127.1236,
-                HubType.CLOSING,
+                HubType.INACTIVE,
                 null
         );
 
@@ -275,4 +272,248 @@ class HubServiceTest {
         assertThat(response.getContent()).isEmpty();
         assertThat(response.getTotalElements()).isZero();
     }
+
+    @Test
+    @DisplayName("허브 수정 성공")
+    void updateHub_success() {
+        // given
+        Hub hub = buildHub("서울 센터", HubType.REGIONAL);
+        UUID hubId = (UUID) ReflectionTestUtils.getField(hub, "id");
+        HubUpdateRequestDto request = new HubUpdateRequestDto("서울특별시 센터", null, null, null, null, null, null);
+
+        given(hubRepository.findById(hubId)).willReturn(Optional.of(hub));
+        given(hubRepository.existsByNameAndIdNot(request.name(), hubId)).willReturn(false);
+
+        // when
+        HubGetResponseDto response = hubService.updateHub(hubId, request);
+
+        // then
+        assertThat(response.name()).isEqualTo("서울특별시 센터");
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 허브 수정 시 예외 발생")
+    void updateHub_notFound_throwsException() {
+        // given
+        UUID hubId = UUID.randomUUID();
+        HubUpdateRequestDto request = new HubUpdateRequestDto("새 이름", null, null, null, null, null, null);
+
+        given(hubRepository.findById(hubId)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> hubService.updateHub(hubId, request))
+                .isInstanceOf(BaseException.class)
+                .satisfies(e -> assertThat(((BaseException) e).getErrorCode())
+                        .isEqualTo(HubErrorCode.HUB_NOT_FOUND));
+    }
+
+    @Test
+    @DisplayName("INACTIVE 허브 수정 시 예외 발생")
+    void updateHub_inactiveHub_throwsException() {
+        // given
+        Hub hub = buildHub("서울 센터", HubType.REGIONAL);
+        hub.startClosing("마감");
+        hub.deactivate();
+        UUID hubId = (UUID) ReflectionTestUtils.getField(hub, "id");
+        HubUpdateRequestDto request = new HubUpdateRequestDto("새 이름", null, null, null, null, null, null);
+
+        given(hubRepository.findById(hubId)).willReturn(Optional.of(hub));
+
+        // when & then
+        assertThatThrownBy(() -> hubService.updateHub(hubId, request))
+                .isInstanceOf(BaseException.class)
+                .satisfies(e -> assertThat(((BaseException) e).getErrorCode())
+                        .isEqualTo(HubErrorCode.HUB_INACTIVE));
+    }
+
+    @Test
+    @DisplayName("CLOSING 허브 수정 시 예외 발생")
+    void updateHub_closingHub_throwsException() {
+        // given
+        Hub hub = buildHub("서울 센터", HubType.REGIONAL);
+        hub.startClosing("마감 예정");
+        UUID hubId = (UUID) ReflectionTestUtils.getField(hub, "id");
+        HubUpdateRequestDto request = new HubUpdateRequestDto("새 이름", null, null, null, null, null, null);
+
+        given(hubRepository.findById(hubId)).willReturn(Optional.of(hub));
+
+        // when & then
+        assertThatThrownBy(() -> hubService.updateHub(hubId, request))
+                .isInstanceOf(BaseException.class)
+                .satisfies(e -> assertThat(((BaseException) e).getErrorCode())
+                        .isEqualTo(HubErrorCode.HUB_CLOSING));
+    }
+
+    @Test
+    @DisplayName("중복된 이름으로 허브 수정 시 예외 발생")
+    void updateHub_duplicateName_throwsException() {
+        // given
+        Hub hub = buildHub("서울 센터", HubType.REGIONAL);
+        UUID hubId = (UUID) ReflectionTestUtils.getField(hub, "id");
+        HubUpdateRequestDto request = new HubUpdateRequestDto("부산 센터", null, null, null, null, null, null);
+
+        given(hubRepository.findById(hubId)).willReturn(Optional.of(hub));
+        given(hubRepository.existsByNameAndIdNot(request.name(), hubId)).willReturn(true);
+
+        // when & then
+        assertThatThrownBy(() -> hubService.updateHub(hubId, request))
+                .isInstanceOf(BaseException.class)
+                .satisfies(e -> assertThat(((BaseException) e).getErrorCode())
+                        .isEqualTo(HubErrorCode.DUPLICATE_HUB_NAME));
+    }
+
+    @Test
+    @DisplayName("허브 마감 예정 전환 성공")
+    void startClosingHub_success() {
+        // given
+        Hub hub = buildHub("서울 센터", HubType.REGIONAL);
+        UUID hubId = (UUID) ReflectionTestUtils.getField(hub, "id");
+        HubClosingRequestDto request = new HubClosingRequestDto("운영 종료 예정");
+
+        given(hubRepository.findById(hubId)).willReturn(Optional.of(hub));
+
+        // when
+        HubGetResponseDto response = hubService.startClosingHub(hubId, request);
+
+        // then
+        assertThat(response.hubType()).isEqualTo(HubType.CLOSING);
+    }
+
+    @Test
+    @DisplayName("CENTRAL 허브 마감 예정 전환 시 예외 발생")
+    void startClosingHub_centralHub_throwsException() {
+        // given
+        Hub hub = buildHub("경기 남부 센터", HubType.CENTRAL);
+        UUID hubId = (UUID) ReflectionTestUtils.getField(hub, "id");
+        HubClosingRequestDto request = new HubClosingRequestDto("운영 종료");
+
+        given(hubRepository.findById(hubId)).willReturn(Optional.of(hub));
+
+        // when & then
+        assertThatThrownBy(() -> hubService.startClosingHub(hubId, request))
+                .isInstanceOf(BaseException.class)
+                .satisfies(e -> assertThat(((BaseException) e).getErrorCode())
+                        .isEqualTo(HubErrorCode.CENTRAL_HUB_CANNOT_CLOSE));
+    }
+
+    @Test
+    @DisplayName("이미 CLOSING 허브 마감 예정 전환 시 예외 발생")
+    void startClosingHub_alreadyClosing_throwsException() {
+        // given
+        Hub hub = buildHub("서울 센터", HubType.REGIONAL);
+        hub.startClosing("이미 마감 중");
+        UUID hubId = (UUID) ReflectionTestUtils.getField(hub, "id");
+        HubClosingRequestDto request = new HubClosingRequestDto("재시도");
+
+        given(hubRepository.findById(hubId)).willReturn(Optional.of(hub));
+
+        // when & then
+        assertThatThrownBy(() -> hubService.startClosingHub(hubId, request))
+                .isInstanceOf(BaseException.class)
+                .satisfies(e -> assertThat(((BaseException) e).getErrorCode())
+                        .isEqualTo(HubErrorCode.HUB_ALREADY_CLOSING));
+    }
+
+    @Test
+    @DisplayName("INACTIVE 허브 마감 예정 전환 시 예외 발생")
+    void startClosingHub_alreadyInactive_throwsException() {
+        // given
+        Hub hub = buildHub("서울 센터", HubType.REGIONAL);
+        hub.startClosing("마감");
+        hub.deactivate();
+        UUID hubId = (UUID) ReflectionTestUtils.getField(hub, "id");
+        HubClosingRequestDto request = new HubClosingRequestDto("재시도");
+
+        given(hubRepository.findById(hubId)).willReturn(Optional.of(hub));
+
+        // when & then
+        assertThatThrownBy(() -> hubService.startClosingHub(hubId, request))
+                .isInstanceOf(BaseException.class)
+                .satisfies(e -> assertThat(((BaseException) e).getErrorCode())
+                        .isEqualTo(HubErrorCode.HUB_ALREADY_INACTIVE));
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 허브 마감 예정 전환 시 예외 발생")
+    void startClosingHub_notFound_throwsException() {
+        // given
+        UUID hubId = UUID.randomUUID();
+        HubClosingRequestDto request = new HubClosingRequestDto("운영 종료");
+
+        given(hubRepository.findById(hubId)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> hubService.startClosingHub(hubId, request))
+                .isInstanceOf(BaseException.class)
+                .satisfies(e -> assertThat(((BaseException) e).getErrorCode())
+                        .isEqualTo(HubErrorCode.HUB_NOT_FOUND));
+    }
+
+    @Test
+    @DisplayName("CLOSING 허브 운영 중단 성공")
+    void deactivateHub_success() {
+        // given
+        Hub hub = buildHub("서울 센터", HubType.REGIONAL);
+        hub.startClosing("운영 종료");
+        UUID hubId = (UUID) ReflectionTestUtils.getField(hub, "id");
+
+        given(hubRepository.findById(hubId)).willReturn(Optional.of(hub));
+
+        // when
+        HubDeactivateResponseDto response = hubService.deactivateHub(hubId);
+
+        // then
+        assertThat(response.isActive()).isFalse();
+        assertThat(hub.isInactive()).isTrue();
+    }
+
+    @Test
+    @DisplayName("CLOSING 아닌 허브 운영 중단 시 예외 발생")
+    void deactivateHub_notClosing_throwsException() {
+        // given
+        Hub hub = buildHub("서울 센터", HubType.REGIONAL);
+        UUID hubId = (UUID) ReflectionTestUtils.getField(hub, "id");
+
+        given(hubRepository.findById(hubId)).willReturn(Optional.of(hub));
+
+        // when & then
+        assertThatThrownBy(() -> hubService.deactivateHub(hubId))
+                .isInstanceOf(BaseException.class)
+                .satisfies(e -> assertThat(((BaseException) e).getErrorCode())
+                        .isEqualTo(HubErrorCode.HUB_NOT_CLOSING));
+    }
+
+    @Test
+    @DisplayName("이미 INACTIVE 허브 운영 중단 시 예외 발생")
+    void deactivateHub_alreadyInactive_throwsException() {
+        // given
+        Hub hub = buildHub("서울 센터", HubType.REGIONAL);
+        hub.startClosing("마감");
+        hub.deactivate();
+        UUID hubId = (UUID) ReflectionTestUtils.getField(hub, "id");
+
+        given(hubRepository.findById(hubId)).willReturn(Optional.of(hub));
+
+        // when & then
+        assertThatThrownBy(() -> hubService.deactivateHub(hubId))
+                .isInstanceOf(BaseException.class)
+                .satisfies(e -> assertThat(((BaseException) e).getErrorCode())
+                        .isEqualTo(HubErrorCode.HUB_ALREADY_INACTIVE));
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 허브 운영 중단 시 예외 발생")
+    void deactivateHub_notFound_throwsException() {
+        // given
+        UUID hubId = UUID.randomUUID();
+
+        given(hubRepository.findById(hubId)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> hubService.deactivateHub(hubId))
+                .isInstanceOf(BaseException.class)
+                .satisfies(e -> assertThat(((BaseException) e).getErrorCode())
+                        .isEqualTo(HubErrorCode.HUB_NOT_FOUND));
+    }
+
 }
