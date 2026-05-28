@@ -7,7 +7,7 @@ import boxoffice.deliveryservice.client.dto.response.HubRouteResponseDto.HubInfo
 import boxoffice.deliveryservice.client.dto.response.HubRouteResponseDto.HubRouteSegmentDto;
 import boxoffice.deliveryservice.client.dto.response.HubRouteResponseDto.HubType;
 import boxoffice.deliveryservice.domain.delivery.dto.request.DeliveryCreateRequestDto;
-import boxoffice.deliveryservice.domain.delivery.dto.request.DeliveryCreateRequestDto.AddressRequest;
+import com.boxoffice.common.entity.AddressVO;
 import boxoffice.deliveryservice.domain.delivery.dto.response.DeliveryResponseDto;
 import boxoffice.deliveryservice.domain.delivery.entity.Delivery;
 import boxoffice.deliveryservice.domain.delivery.entity.DeliveryStatus;
@@ -69,7 +69,7 @@ class DeliveryServiceTest {
                     orderId,
                     originHubId,
                     destinationHubId,
-                    new AddressRequest("12345", "서울시 송파구 송파대로 55", "101호"),
+                    new AddressVO("12345", "서울시 송파구 송파대로 55", "101호"),
                     "홍길동",
                     "U12345"
             );
