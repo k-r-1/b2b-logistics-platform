@@ -2,6 +2,7 @@ package boxoffice.deliveryservice.domain.delivery.entity;
 
 import com.boxoffice.common.entity.AddressVO;
 import com.boxoffice.common.entity.BaseEntity;
+import org.hibernate.annotations.SQLRestriction;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -20,6 +21,7 @@ import java.util.UUID;
 @Table(name = "p_delivery")
 @AllArgsConstructor
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
+@SQLRestriction("deleted_at IS NULL")
 public class Delivery extends BaseEntity {
     @NotNull
     private UUID orderId;
@@ -40,6 +42,14 @@ public class Delivery extends BaseEntity {
 
     public void assignDeliveryPerson(UUID deliveryPersonId) {
         this.deliveryPersonId = deliveryPersonId;
+    }
+
+    public boolean isCanceled() {
+        return this.deliveryStatus == DeliveryStatus.CANCELED;
+    }
+
+    public void cancel() {
+        this.deliveryStatus = DeliveryStatus.CANCELED;
     }
 
     // 정적 팩토리 메서드
