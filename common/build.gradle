@@ -13,11 +13,20 @@ dependencies {
     // 4. 유효성 검증
     implementation 'org.springframework.boot:spring-boot-starter-validation'
 
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+
     // 5. MSA 인프라 및 서비스 간 통신 관련
     implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
 
     // 6. UUID v7
     implementation 'com.fasterxml.uuid:java-uuid-generator:5.1.0'
+
+    // 7. QueryDSL
+    implementation 'com.querydsl:querydsl-jpa:5.1.0:jakarta'
+    annotationProcessor 'com.querydsl:querydsl-apt:5.1.0:jakarta'
+    annotationProcessor 'jakarta.annotation:jakarta.annotation-api'
+    annotationProcessor 'jakarta.persistence:jakarta.persistence-api'
 }
 
 // 루트에서 bootJar = true로 설정되어 있으므로 common은 명시적으로 재정의
