@@ -39,3 +39,11 @@ out/
 # 환경변수 파일
 .env
 setup-env.ps1
+
+# Docker Local Data Volumes
+docker_data/
+.secrets
+
+# test 관련 파일
+/.github/test/*
+/.github/_service-ci-local-test.yml

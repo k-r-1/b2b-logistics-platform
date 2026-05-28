@@ -12,7 +12,7 @@ public class UserResponseDto {
     private String email;
     private String name;
     private String role;
-    private String hubId;
+    private UUID hubId;
     private String status;
 
     private UUID companyId;

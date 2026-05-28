@@ -14,6 +14,9 @@ spring:
   cloud:
     compatibility-verifier:
       enabled: false
+    openfeign:
+      okhttp:
+        enabled: true
 
   datasource:
     url: jdbc:postgresql://localhost:5432/${DB_NAME:sparta_logistics}?currentSchema=user_schema
@@ -49,3 +52,7 @@ keycloak:
     username: admin
     password: boxoffice123
     client-id: admin-cli
+
+logging:
+  level:
+    org.springframework.security: TRACE
