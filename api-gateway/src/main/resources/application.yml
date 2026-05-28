@@ -46,6 +46,13 @@ spring:
           filters:
             - JwtAuthenticationFilter
 
+        - id: hub-service
+          uri: lb://hub-service
+          predicates:
+            - Path=/api/v1/hubs/**
+          filters:
+            - JwtAuthenticationFilter
+
 eureka:
   instance:
     prefer-ip-address: true
