@@ -1,7 +1,12 @@
 dependencies {
-	// API 게이트웨이 라우터 엔진
 	implementation 'org.springframework.cloud:spring-cloud-starter-gateway'
 
-	// 유레카 서버에 나를 등록하기 위한 클라이언트
 	implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
+
+	implementation 'org.springframework.boot:spring-boot-starter-data-redis-reactive'
+
+	implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
+
+	compileOnly 'org.projectlombok:lombok'
+	annotationProcessor 'org.projectlombok:lombok'
 }

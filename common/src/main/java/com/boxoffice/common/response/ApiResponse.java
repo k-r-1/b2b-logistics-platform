@@ -48,15 +48,15 @@ public class ApiResponse<T> {
         return new ApiResponse<>(HttpStatus.OK.value(), "SUCCESS", null, null);
     }
 
-    public static <T> ApiResponse<T> error(int status, String errorCode) {
-        return new ApiResponse<>(status, errorCode, null, null);
+    public static <T> ApiResponse<T> error(int status, String errorMessage) {
+        return new ApiResponse<>(status, errorMessage, null, null);
     }
 
-    public static <T> ApiResponse<T> error(int status, String errorCode, List<String> errors) {
-        return new ApiResponse<>(status, errorCode, null, errors);
+    public static <T> ApiResponse<T> error(int status, String errorMessage, List<String> errors) {
+        return new ApiResponse<>(status, errorMessage, null, errors);
     }
 
-    public static <T> ApiResponse<T> error(HttpStatus status, String errorCode) {
-        return new ApiResponse<>(status.value(), errorCode, null, null);
+    public static <T> ApiResponse<T> error(HttpStatus status, String errorMessage) {
+        return new ApiResponse<>(status.value(), errorMessage, null, null);
     }
 }
