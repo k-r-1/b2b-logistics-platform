@@ -37,6 +37,7 @@ public class CompanyController {
 
     private final CompanyFacade companyFacade;
 
+    @Operation(summary = "업체 목록 및 검색 조회", description = "조건에 따라 업체 목록을 페이징하여 조회합니다.")
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<CompanyResponseDto>>> searchCompanies(
             @RequestHeader(value = "X-User-Role", required = false) String userRole,
@@ -61,6 +62,7 @@ public class CompanyController {
         return ResponseEntity.ok(ApiResponse.success(PageResponse.of(companies, sort)));
     }
 
+    @Operation(summary = "업체 상세 조회", description = "업체 ID(UUID)를 통해 특정 업체의 상세 정보를 조회합니다.")
     @GetMapping("/{companyId}")
     public ResponseEntity<ApiResponse<CompanyResponseDto>> getCompany(
             @RequestHeader(value = "X-User-Role", required = false) String userRole,
