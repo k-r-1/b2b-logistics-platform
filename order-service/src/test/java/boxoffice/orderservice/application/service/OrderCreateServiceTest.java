@@ -227,13 +227,12 @@ class OrderCreateServiceTest {
         @DisplayName("[예외] 주문 저장 실패 시 재고 보상 트랜잭션 수행 후 ORDER_SAVE_FAILED 발생")
         void exception_order_save_failed_triggers_compensation() {
             // given
-            UUID orderId = UUID.randomUUID();
             UserDetailInfo user = Mockito.mock(UserDetailInfo.class);
             given(user.role()).willReturn("MASTER");
             given(userFeignClient.getUserById(requesterId)).willReturn(ApiResponse.success(user));
             given(companyProductFeignClient.deductStocks(any(UUID.class), any(StockDeductRequest.class)))
                 .willReturn(ApiResponse.success(stockDeductResponse));
-            given(orderCommandService.saveOrder(orderId, any(), any(), any(), any(), any(), any(), any()))
+            given(orderCommandService.saveOrder(any(), any(), any(), any(), any(), any(), any(), any()))
                 .willThrow(new RuntimeException("DB Timeout"));
 
             // when & then
@@ -241,22 +240,21 @@ class OrderCreateServiceTest {
                 .isInstanceOf(BaseException.class)
                 .hasFieldOrPropertyWithValue("errorCode", OrderErrorCode.ORDER_SAVE_FAILED);
 
-            verify(companyProductFeignClient).restoreStocks(orderId, anyList());
+            verify(companyProductFeignClient).restoreStocks(any(UUID.class), anyList());
         }
 
         @Test
         @DisplayName("[예외] 보상 트랜잭션(재고 복구)도 실패해도 ORDER_SAVE_FAILED 예외는 정상 전파된다.")
         void exception_compensation_also_fails_still_propagates_original_error() {
-            UUID orderId = UUID.randomUUID();
             // given
             UserDetailInfo user = Mockito.mock(UserDetailInfo.class);
             given(user.role()).willReturn("MASTER");
             given(userFeignClient.getUserById(requesterId)).willReturn(ApiResponse.success(user));
             given(companyProductFeignClient.deductStocks(any(UUID.class), any(StockDeductRequest.class)))
                 .willReturn(ApiResponse.success(stockDeductResponse));
-            given(orderCommandService.saveOrder(orderId, any(), any(), any(), any(), any(), any(), any()))
+            given(orderCommandService.saveOrder(any(), any(), any(), any(), any(), any(), any(), any()))
                 .willThrow(new RuntimeException("DB Timeout"));
-            doThrow(new RuntimeException("Feign Timeout")).when(companyProductFeignClient).restoreStocks(orderId, anyList());
+            doThrow(new RuntimeException("Feign Timeout")).when(companyProductFeignClient).restoreStocks(any(UUID.class), anyList());
 
             // when & then
             assertThatThrownBy(() -> orderCreateService.createOrder(command, requesterId))
