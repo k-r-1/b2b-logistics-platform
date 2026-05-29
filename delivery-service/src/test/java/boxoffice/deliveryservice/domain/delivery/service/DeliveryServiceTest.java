@@ -938,4 +938,207 @@ class DeliveryServiceTest {
             verify(deliveryRouteService, never()).updateRouteStatus(any(), any(), any());
         }
     }
+
+    @Nested
+    @DisplayName("deleteDelivery()")
+    class DeleteDelivery {
+
+        private final String keycloakSub = "sub-" + UUID.randomUUID();
+
+        @Test
+        @DisplayName("성공 - MASTER는 모든 배송 삭제 가능")
+        void success_master() {
+            // given
+            UUID deliveryId = UUID.randomUUID();
+            UUID userId = UUID.randomUUID();
+            UserResponseDto userInfo = UserResponseDto.builder().id(userId).role(UserRole.MASTER).build();
+            Delivery delivery = createDelivery(UUID.randomUUID());
+
+            given(userServiceClient.getUserBySub(keycloakSub)).willReturn(ApiResponse.success(userInfo));
+            given(deliveryRepository.findByIdAndDeletedAtIsNull(deliveryId)).willReturn(Optional.of(delivery));
+
+            // when
+            deliveryService.deleteDelivery(keycloakSub, deliveryId);
+
+            // then
+            verify(deliveryRouteService).deleteAllByDelivery(deliveryId, userId);
+        }
+
+        @Test
+        @DisplayName("성공 - HUB_MANAGER는 소속 허브의 배송 삭제 가능")
+        void success_hub_manager() {
+            // given
+            UUID deliveryId = UUID.randomUUID();
+            UUID userId = UUID.randomUUID();
+            UUID hubId = UUID.randomUUID();
+            UserResponseDto userInfo = UserResponseDto.builder().id(userId).role(UserRole.HUB_MANAGER).hubId(hubId).build();
+            Delivery delivery = Delivery.create(
+                    UUID.randomUUID(), UUID.randomUUID(), hubId, UUID.randomUUID(),
+                    new AddressVO("12345", "서울시 송파구 송파대로 55", "101호"),
+                    "홍길동", "U12345"
+            );
+
+            given(userServiceClient.getUserBySub(keycloakSub)).willReturn(ApiResponse.success(userInfo));
+            given(deliveryRepository.findByIdAndDeletedAtIsNull(deliveryId)).willReturn(Optional.of(delivery));
+
+            // when
+            deliveryService.deleteDelivery(keycloakSub, deliveryId);
+
+            // then
+            verify(deliveryRouteService).deleteAllByDelivery(deliveryId, userId);
+        }
+
+        @Test
+        @DisplayName("실패 - HUB_MANAGER가 다른 허브 배송 삭제 시 FORBIDDEN")
+        void fail_hub_manager_forbidden() {
+            // given
+            UUID deliveryId = UUID.randomUUID();
+            UserResponseDto userInfo = UserResponseDto.builder().id(UUID.randomUUID()).role(UserRole.HUB_MANAGER).hubId(UUID.randomUUID()).build();
+            Delivery delivery = createDelivery(UUID.randomUUID());
+
+            given(userServiceClient.getUserBySub(keycloakSub)).willReturn(ApiResponse.success(userInfo));
+            given(deliveryRepository.findByIdAndDeletedAtIsNull(deliveryId)).willReturn(Optional.of(delivery));
+
+            // when & then
+            assertThatThrownBy(() -> deliveryService.deleteDelivery(keycloakSub, deliveryId))
+                    .isInstanceOf(BaseException.class);
+            verify(deliveryRouteService, never()).deleteAllByDelivery(any(), any());
+        }
+
+        @Test
+        @DisplayName("실패 - DELIVERY_MANAGER는 항상 FORBIDDEN")
+        void fail_delivery_manager_forbidden() {
+            // given
+            UUID deliveryId = UUID.randomUUID();
+            UUID userId = UUID.randomUUID();
+            UserResponseDto userInfo = UserResponseDto.builder().id(userId).role(UserRole.DELIVERY_MANAGER).build();
+            Delivery delivery = createDelivery(UUID.randomUUID());
+            delivery.assignDeliveryPerson(userId);
+
+            given(userServiceClient.getUserBySub(keycloakSub)).willReturn(ApiResponse.success(userInfo));
+            given(deliveryRepository.findByIdAndDeletedAtIsNull(deliveryId)).willReturn(Optional.of(delivery));
+
+            // when & then
+            assertThatThrownBy(() -> deliveryService.deleteDelivery(keycloakSub, deliveryId))
+                    .isInstanceOf(BaseException.class);
+            verify(deliveryRouteService, never()).deleteAllByDelivery(any(), any());
+        }
+
+        @Test
+        @DisplayName("실패 - SUPPLIER_MANAGER는 항상 FORBIDDEN")
+        void fail_supplier_manager_forbidden() {
+            // given
+            UUID deliveryId = UUID.randomUUID();
+            UUID companyId = UUID.randomUUID();
+            UserResponseDto userInfo = UserResponseDto.builder().id(UUID.randomUUID()).role(UserRole.SUPPLIER_MANAGER).companyId(companyId).build();
+            Delivery delivery = createDelivery(companyId);
+
+            given(userServiceClient.getUserBySub(keycloakSub)).willReturn(ApiResponse.success(userInfo));
+            given(deliveryRepository.findByIdAndDeletedAtIsNull(deliveryId)).willReturn(Optional.of(delivery));
+
+            // when & then
+            assertThatThrownBy(() -> deliveryService.deleteDelivery(keycloakSub, deliveryId))
+                    .isInstanceOf(BaseException.class);
+            verify(deliveryRouteService, never()).deleteAllByDelivery(any(), any());
+        }
+
+        @Test
+        @DisplayName("실패 - 존재하지 않는 배송 ID")
+        void fail_not_found() {
+            // given
+            UUID deliveryId = UUID.randomUUID();
+            UserResponseDto userInfo = UserResponseDto.builder().id(UUID.randomUUID()).role(UserRole.MASTER).build();
+
+            given(userServiceClient.getUserBySub(keycloakSub)).willReturn(ApiResponse.success(userInfo));
+            given(deliveryRepository.findByIdAndDeletedAtIsNull(deliveryId)).willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> deliveryService.deleteDelivery(keycloakSub, deliveryId))
+                    .isInstanceOf(BaseException.class);
+            verify(deliveryRouteService, never()).deleteAllByDelivery(any(), any());
+        }
+    }
+
+    @Nested
+    @DisplayName("deleteDeliveryRoute()")
+    class DeleteDeliveryRoute {
+
+        private final String keycloakSub = "sub-" + UUID.randomUUID();
+
+        @Test
+        @DisplayName("성공 - MASTER는 배송 경로 삭제 가능, DeliveryRouteService에 위임")
+        void success_master() {
+            // given
+            UUID deliveryId = UUID.randomUUID();
+            UUID routeId = UUID.randomUUID();
+            UUID userId = UUID.randomUUID();
+            UserResponseDto userInfo = UserResponseDto.builder().id(userId).role(UserRole.MASTER).build();
+            Delivery delivery = createDelivery(UUID.randomUUID());
+
+            given(userServiceClient.getUserBySub(keycloakSub)).willReturn(ApiResponse.success(userInfo));
+            given(deliveryRepository.findByIdAndDeletedAtIsNull(deliveryId)).willReturn(Optional.of(delivery));
+
+            // when
+            deliveryService.deleteDeliveryRoute(keycloakSub, deliveryId, routeId);
+
+            // then
+            verify(deliveryRouteService).deleteRoute(routeId, deliveryId, userId);
+        }
+
+        @Test
+        @DisplayName("실패 - DELIVERY_MANAGER는 항상 FORBIDDEN, 경로 서비스 호출 안 함")
+        void fail_delivery_manager_forbidden() {
+            // given
+            UUID deliveryId = UUID.randomUUID();
+            UUID routeId = UUID.randomUUID();
+            UUID userId = UUID.randomUUID();
+            UserResponseDto userInfo = UserResponseDto.builder().id(userId).role(UserRole.DELIVERY_MANAGER).build();
+            Delivery delivery = createDelivery(UUID.randomUUID());
+            delivery.assignDeliveryPerson(userId);
+
+            given(userServiceClient.getUserBySub(keycloakSub)).willReturn(ApiResponse.success(userInfo));
+            given(deliveryRepository.findByIdAndDeletedAtIsNull(deliveryId)).willReturn(Optional.of(delivery));
+
+            // when & then
+            assertThatThrownBy(() -> deliveryService.deleteDeliveryRoute(keycloakSub, deliveryId, routeId))
+                    .isInstanceOf(BaseException.class);
+            verify(deliveryRouteService, never()).deleteRoute(any(), any(), any());
+        }
+
+        @Test
+        @DisplayName("실패 - SUPPLIER_MANAGER는 항상 FORBIDDEN, 경로 서비스 호출 안 함")
+        void fail_supplier_manager_forbidden() {
+            // given
+            UUID deliveryId = UUID.randomUUID();
+            UUID routeId = UUID.randomUUID();
+            UUID companyId = UUID.randomUUID();
+            UserResponseDto userInfo = UserResponseDto.builder().id(UUID.randomUUID()).role(UserRole.SUPPLIER_MANAGER).companyId(companyId).build();
+            Delivery delivery = createDelivery(companyId);
+
+            given(userServiceClient.getUserBySub(keycloakSub)).willReturn(ApiResponse.success(userInfo));
+            given(deliveryRepository.findByIdAndDeletedAtIsNull(deliveryId)).willReturn(Optional.of(delivery));
+
+            // when & then
+            assertThatThrownBy(() -> deliveryService.deleteDeliveryRoute(keycloakSub, deliveryId, routeId))
+                    .isInstanceOf(BaseException.class);
+            verify(deliveryRouteService, never()).deleteRoute(any(), any(), any());
+        }
+
+        @Test
+        @DisplayName("실패 - 존재하지 않는 배송 ID")
+        void fail_not_found() {
+            // given
+            UUID deliveryId = UUID.randomUUID();
+            UUID routeId = UUID.randomUUID();
+            UserResponseDto userInfo = UserResponseDto.builder().id(UUID.randomUUID()).role(UserRole.MASTER).build();
+
+            given(userServiceClient.getUserBySub(keycloakSub)).willReturn(ApiResponse.success(userInfo));
+            given(deliveryRepository.findByIdAndDeletedAtIsNull(deliveryId)).willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> deliveryService.deleteDeliveryRoute(keycloakSub, deliveryId, routeId))
+                    .isInstanceOf(BaseException.class);
+            verify(deliveryRouteService, never()).deleteRoute(any(), any(), any());
+        }
+    }
 }

@@ -26,6 +26,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
+import static boxoffice.deliveryservice.client.entity.UserRole.DELIVERY_MANAGER;
+import static boxoffice.deliveryservice.client.entity.UserRole.HUB_MANAGER;
+import static boxoffice.deliveryservice.client.entity.UserRole.MASTER;
+import static boxoffice.deliveryservice.client.entity.UserRole.SUPPLIER_MANAGER;
+
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -145,6 +150,21 @@ public class DeliveryService {
         return deliveryRouteService.updateRouteStatus(routeId, deliveryId, request);
     }
 
+    public void deleteDelivery(String keycloakSub, UUID deliveryId) {
+        UserResponseDto userInfo = getUserInfo(keycloakSub);
+        Delivery delivery = findDeliveryOrThrow(deliveryId);
+        checkDeleteAccess(delivery, userInfo);
+        deliveryRouteService.deleteAllByDelivery(deliveryId, userInfo.getId());
+        delivery.softDelete(userInfo.getId());
+    }
+
+    public void deleteDeliveryRoute(String keycloakSub, UUID deliveryId, UUID routeId) {
+        UserResponseDto userInfo = getUserInfo(keycloakSub);
+        Delivery delivery = findDeliveryOrThrow(deliveryId);
+        checkDeleteAccess(delivery, userInfo);
+        deliveryRouteService.deleteRoute(routeId, deliveryId, userInfo.getId());
+    }
+
     private Delivery findDeliveryOrThrow(UUID deliveryId) {
         return deliveryRepository.findByIdAndDeletedAtIsNull(deliveryId)
                 .orElseThrow(() -> new BaseException(DeliveryErrorCode.DELIVERY_NOT_FOUND));
@@ -192,6 +212,20 @@ public class DeliveryService {
                     throw new BaseException(CommonErrorCode.FORBIDDEN);
                 }
             }
+        }
+    }
+
+    private void checkDeleteAccess(Delivery delivery, UserResponseDto userInfo) {
+        switch (userInfo.getRole()) {
+            case MASTER -> {}
+            case HUB_MANAGER -> {
+                if (userInfo.getHubId() == null ||
+                        (!userInfo.getHubId().equals(delivery.getOriginHubId()) &&
+                                !userInfo.getHubId().equals(delivery.getDestinationHubId()))) {
+                    throw new BaseException(CommonErrorCode.FORBIDDEN);
+                }
+            }
+            case DELIVERY_MANAGER, SUPPLIER_MANAGER -> throw new BaseException(CommonErrorCode.FORBIDDEN);
         }
     }
 }

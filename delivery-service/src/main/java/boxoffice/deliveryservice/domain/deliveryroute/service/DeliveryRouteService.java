@@ -81,4 +81,15 @@ public class DeliveryRouteService {
         route.updateStatus(request.status());
         return DeliveryRouteResponseDto.from(route);
     }
+
+    public void deleteRoute(UUID routeId, UUID deliveryId, UUID deletedBy) {
+        DeliveryRoute route = deliveryRouteRepository.findByIdAndDeliveryIdAndDeletedAtIsNull(routeId, deliveryId)
+                .orElseThrow(() -> new BaseException(DeliveryRouteErrorCode.DELIVERY_ROUTE_NOT_FOUND));
+        route.softDelete(deletedBy);
+    }
+
+    public void deleteAllByDelivery(UUID deliveryId, UUID deletedBy) {
+        deliveryRouteRepository.findAllByDeliveryIdAndDeletedAtIsNull(deliveryId)
+                .forEach(route -> route.softDelete(deletedBy));
+    }
 }
