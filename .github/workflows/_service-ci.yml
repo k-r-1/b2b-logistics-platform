@@ -1,0 +1,212 @@
+name: Service CI (서비스 단위의 CI)
+
+on:
+  workflow_call:
+    inputs:
+      service:
+        description: "Gradle 서브프로젝트 이름 (예: api-gateway)"
+        required: true
+        type: string
+      changed:
+        description: "해당 서비스가 변경되었는지 여부 ('true' / 'false')"
+        required: true
+        type: string
+      common-changed:
+        description: "공통 모듈(common)이 변경되었는지 여부"
+        required: false
+        type: string
+        default: 'false'
+      run-integration-test:
+        description: "통합 테스트 실행 여부"
+        required: false
+        type: boolean
+        default: false
+
+env:
+  JAVA_VERSION: '21'
+  GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.parallel=true"
+
+jobs:
+  checkstyle:
+    name: "Checkstyle - ${{ inputs.service }}"
+
+    if: inputs.changed == 'true' || inputs.common-changed == 'true'
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: '1'
+
+      - name: 서비스 디렉토리 존재 여부 확인
+        id: check-dir
+        run: |
+          if [ -d "${{ inputs.service }}" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ ${{ inputs.service }} 디렉토리가 없습니다. 이후 step을 건너뜁니다."
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Set up Java ${{ env.JAVA_VERSION }}
+        if: steps.check-dir.outputs.exists == 'true'
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Run Checkstyle
+        if: steps.check-dir.outputs.exists == 'true'
+        continue-on-error: true
+        run: |
+          ./gradlew :${{ inputs.service }}:checkstyleMain \
+            --no-daemon \
+            --continue \
+            --stacktrace
+
+      - name: Upload Checkstyle report
+        if: always() && steps.check-dir.outputs.exists == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          if-no-files-found: ignore
+          name: checkstyle-report-${{ inputs.service }}
+          path: ${{ inputs.service }}/build/reports/checkstyle/
+          retention-days: 7
+
+  unit-test:
+    name: "Unit Test - ${{ inputs.service }}"
+    needs: checkstyle
+
+    if: inputs.changed == 'true' || inputs.common-changed == 'true'
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: '1'
+
+      - name: 서비스 디렉토리 존재 여부 확인
+        id: check-dir
+        run: |
+          if [ -d "${{ inputs.service }}" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ ${{ inputs.service }} 디렉토리가 없습니다. 이후 step을 건너뜁니다."
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Set up Java ${{ env.JAVA_VERSION }}
+        if: steps.check-dir.outputs.exists == 'true'
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Run unit tests
+        if: steps.check-dir.outputs.exists == 'true'
+        run: |
+          ./gradlew :${{ inputs.service }}:test \
+            --no-daemon \
+            -x checkstyleMain \
+            -x checkstyleTest
+
+      - name: Upload Jacoco coverage report
+        if: always() && steps.check-dir.outputs.exists == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          if-no-files-found: ignore
+          name: jacoco-coverage-${{ inputs.service }}
+          path: ${{ inputs.service }}/build/reports/jacoco/test/html/
+          retention-days: 3
+
+      - name: Upload test results
+        if: always() && steps.check-dir.outputs.exists == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          if-no-files-found: ignore
+          name: unit-test-results-${{ inputs.service }}
+          path: ${{ inputs.service }}/build/reports/tests/test/
+          retention-days: 7
+
+      - name: Jacoco PR Comment
+        if: steps.check-dir.outputs.exists == 'true'
+        uses: Madrapps/jacoco-report@v1.6.1
+        with:
+          paths: ${{ inputs.service }}/build/reports/jacoco/test/jacocoTestReport.xml
+          token: ${{ secrets.GITHUB_TOKEN }}
+          min-coverage-overall: 50
+          min-coverage-changed-files: 50
+          title: "Jacoco 커버리지 리포트 - ${{ inputs.service }}"
+          update-comment: true
+
+  integration-test:
+    name: "Integration Test - ${{ inputs.service }}"
+    needs: unit-test
+
+    if: |
+      inputs.run-integration-test == true &&
+      (inputs.changed == 'true' || inputs.common-changed == 'true')
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: '1'
+
+      - name: 서비스 디렉토리 존재 여부 확인
+        id: check-dir
+        run: |
+          if [ -d "${{ inputs.service }}" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ ${{ inputs.service }} 디렉토리가 없습니다. 이후 step을 건너뜁니다."
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - uses: actions/setup-java@v4
+        if: steps.check-dir.outputs.exists == 'true'
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Start Docker Compose (헬스체크 대기)
+        if: steps.check-dir.outputs.exists == 'true'
+        run: |
+          docker compose -f docker-compose.test.yml up -d --wait
+          echo "모든 컨테이너가 healthy 합니다."
+
+      - name: Run integration tests
+        if: steps.check-dir.outputs.exists == 'true'
+        run: |
+          ./gradlew :${{ inputs.service }}:test \
+            --tests "*IntegrationTest" \
+            --no-daemon \
+            -x checkstyleMain \
+            -x checkstyleTest
+        env:
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/boxoffice
+          SPRING_DATASOURCE_USERNAME: sparta_admin
+          SPRING_DATASOURCE_PASSWORD: password123
+          SPRING_DATA_REDIS_HOST: localhost
+          SPRING_DATA_REDIS_PORT: 6379
+
+      - name: Upload integration test results
+        if: always() && steps.check-dir.outputs.exists == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          if-no-files-found: ignore
+          name: integration-test-results-${{ inputs.service }}
+          path: ${{ inputs.service }}/build/reports/tests/test/
+          retention-days: 30
+
+      - name: Tear down Docker Compose
+        if: always() && steps.check-dir.outputs.exists == 'true'
+        run: docker compose -f docker-compose.test.yml down -v

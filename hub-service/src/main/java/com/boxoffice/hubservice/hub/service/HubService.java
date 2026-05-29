@@ -49,6 +49,7 @@ public class HubService {
                 .address(new AddressVO(request.zipCode(), request.address(), request.detailAddress()))
                 .coordinate(new CoordinateVO(request.latitude(), request.longitude()))
                 .hubType(request.hubType())
+                .capacity(request.capacity())
                 .build();
 
         return HubCreateResponseDto.from(hubRepository.save(hub));
@@ -94,17 +95,25 @@ public class HubService {
             throw new BaseException(HubErrorCode.DUPLICATE_HUB_NAME);
         }
 
+        boolean hasAddressChange = request.zipCode() != null
+                || request.address() != null
+                || request.detailAddress() != null;
+
         AddressVO address = null;
-        if (request.zipCode() != null || request.address() != null || request.detailAddress() != null) {
-            address = new AddressVO(request.zipCode(), request.address(), request.detailAddress());
+        if (hasAddressChange) {
+            address = new AddressVO(
+                    request.zipCode() != null ? request.zipCode() : hub.getAddress().getZipCode(),
+                    request.address() != null ? request.address() : hub.getAddress().getAddress(),
+                    request.detailAddress() != null ? request.detailAddress() : hub.getAddress().getDetailAddress()
+            );
         }
 
         CoordinateVO coordinate = null;
-        if (request.latitude() != null || request.longitude() != null) {
+        if (request.latitude() != null && request.longitude() != null) {
             coordinate = new CoordinateVO(request.latitude(), request.longitude());
         }
 
-        hub.update(request.name(), address, coordinate);
+        hub.update(request.name(), address, coordinate, request.capacity());
         return HubGetResponseDto.from(hub);
     }
 
@@ -135,6 +144,10 @@ public class HubService {
     public HubDeactivateResponseDto deactivateHub(UUID hubId) {
         Hub hub = hubRepository.findById(hubId)
                 .orElseThrow(() -> new BaseException(HubErrorCode.HUB_NOT_FOUND));
+
+        if (hub.getHubType() == HubType.CENTRAL) {
+            throw new BaseException(HubErrorCode.CENTRAL_HUB_CANNOT_DEACTIVATE);
+        }
 
         if (hub.isInactive()) {
             throw new BaseException(HubErrorCode.HUB_ALREADY_INACTIVE);

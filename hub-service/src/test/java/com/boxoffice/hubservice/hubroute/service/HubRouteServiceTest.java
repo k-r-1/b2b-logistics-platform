@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -490,6 +491,21 @@ class HubRouteServiceTest {
         // then
         assertThat(response.estimatedDurationMin()).isEqualTo(120); // 기존 값 유지
         assertThat(response.estimatedDistanceKm()).isEqualTo(130.0);
+    }
+
+    @Test
+    @DisplayName("수정할 필드가 없으면 예외 발생")
+    void updateHubRoute_noFieldsToUpdate_throwsException() {
+        // given
+        UUID routeId = UUID.randomUUID();
+        HubRouteUpdateRequestDto request = new HubRouteUpdateRequestDto(null, null);
+
+        // when & then
+        assertThatThrownBy(() -> hubRouteService.updateHubRoute(routeId, request))
+                .isInstanceOf(BaseException.class)
+                .satisfies(e -> assertThat(((BaseException) e).getErrorCode())
+                        .isEqualTo(HubErrorCode.NO_FIELDS_TO_UPDATE));
+        verify(hubRouteRepository, never()).findById(any());
     }
 
     @Test

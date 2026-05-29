@@ -31,7 +31,8 @@ public enum HubErrorCode implements ErrorCode {
     HUB_ALREADY_CLOSING(HttpStatus.BAD_REQUEST, "HUB-020", "이미 CLOSING 상태인 허브입니다."),
     HUB_NOT_CLOSING(HttpStatus.BAD_REQUEST, "HUB-021", "CLOSING 상태의 허브만 운영중단할 수 있습니다."),
     CENTRAL_HUB_CANNOT_CLOSE(HttpStatus.BAD_REQUEST, "HUB-022", "CENTRAL 허브는 마감 예정 상태로 전환할 수 없습니다."),
-    HUB_CLOSING(HttpStatus.BAD_REQUEST, "HUB-023", "CLOSING 상태의 허브에서는 허용되지 않는 작업입니다.");
+    HUB_CLOSING(HttpStatus.BAD_REQUEST, "HUB-023", "CLOSING 상태의 허브에서는 허용되지 않는 작업입니다."),
+    NO_FIELDS_TO_UPDATE(HttpStatus.BAD_REQUEST, "HUB-024", "수정할 항목이 없습니다.");
 
     private final HttpStatus httpStatus;
     private final String code;

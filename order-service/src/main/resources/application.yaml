@@ -1,0 +1,20 @@
+spring:
+  profiles:
+    active: local
+  application:
+    name: order-service
+  cloud:
+    compatibility-verifier:
+      enabled: false
+    openfeign:
+      circuitbreaker:
+        enabled: true
+
+
+server:
+  port: 8084
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://${EUREKA_HOST:boxoffice-eureka}:8761/eureka/
