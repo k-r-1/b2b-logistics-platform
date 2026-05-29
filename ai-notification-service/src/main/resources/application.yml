@@ -54,6 +54,8 @@ spring:
         default_schema: notification_schema
 
 notification:
+  slack:
+    webhook-url: ${SLACK_WEBHOOK_URL:}
   dispatch:
     max-attempts: 3
   recovery:
