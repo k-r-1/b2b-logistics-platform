@@ -78,13 +78,18 @@ public class HubRouteService {
         return HubRouteGetResponseDto.from(route, originHub, destinationHub);
     }
 
-    public PageResponse<HubRouteGetResponseDto> getHubRoutes(UUID originHubId, UUID destinationHubId, int page, int size) {
+    public PageResponse<HubRouteGetResponseDto> getHubRoutes(
+            UUID originHubId, UUID destinationHubId, int page, int size) {
         Pageable pageable = PageableUtils.ofDefault(page, size);
 
         QHubRoute qHubRoute = QHubRoute.hubRoute;
         BooleanBuilder builder = new BooleanBuilder();
-        if (originHubId != null) builder.and(qHubRoute.originHubId.eq(originHubId));
-        if (destinationHubId != null) builder.and(qHubRoute.destinationHubId.eq(destinationHubId));
+        if (originHubId != null) {
+            builder.and(qHubRoute.originHubId.eq(originHubId));
+        }
+        if (destinationHubId != null) {
+            builder.and(qHubRoute.destinationHubId.eq(destinationHubId));
+        }
 
         Page<HubRoute> routes = hubRouteRepository.findAll(builder, pageable);
 
