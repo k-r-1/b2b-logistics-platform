@@ -15,4 +15,4 @@ public record DeliveryCreateRequestDto(
         @Valid @NotNull AddressVO deliveryAddress,
         @NotBlank String recipientName,
         String recipientSlackId
-) {}
+) { }

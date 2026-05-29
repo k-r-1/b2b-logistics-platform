@@ -25,7 +25,8 @@ public class HubTransferService {
         UUID transferId = event.transferId();
         try {
             var response = deliveryManagerClient
-                    .assignDeliveryManager(new DeliveryManagerAssignRequestDto(event.fromHubId(), DeliveryType.HUB_TO_HUB))
+                    .assignDeliveryManager(
+                            new DeliveryManagerAssignRequestDto(event.fromHubId(), DeliveryType.HUB_TO_HUB))
                     .getData();
 
             producer.publishSuccess(new TransferAssignSuccessEvent(transferId, response.deliveryManagerId()));

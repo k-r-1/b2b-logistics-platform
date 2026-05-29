@@ -11,7 +11,7 @@ public record HubRouteResponseDto(
         int totalDurationMin,
         BigDecimal totalDistanceKm
 ) {
-    public record HubInfo(UUID hubId, String name, HubType hubType) {}
+    public record HubInfo(UUID hubId, String name, HubType hubType) { }
 
     public record HubRouteSegmentDto(
             int sequence,
@@ -19,7 +19,7 @@ public record HubRouteResponseDto(
             HubInfo destinationHub,
             int estimatedDurationMin,
             BigDecimal estimatedDistanceKm
-    ) {}
+    ) { }
 
     public enum HubType { CENTRAL, REGIONAL, CLOSING, INACTIVE }
 }
