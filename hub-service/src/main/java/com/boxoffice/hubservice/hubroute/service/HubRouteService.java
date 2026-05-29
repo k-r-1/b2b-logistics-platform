@@ -5,6 +5,7 @@ import com.boxoffice.common.response.PageResponse;
 import com.boxoffice.common.util.PageableUtils;
 import com.boxoffice.hubservice.exception.HubErrorCode;
 import com.boxoffice.hubservice.hub.entity.Hub;
+import com.boxoffice.hubservice.hubroute.dto.request.HubRouteUpdateRequestDto;
 import com.boxoffice.hubservice.hubroute.entity.QHubRoute;
 import com.boxoffice.hubservice.hub.repository.HubRepository;
 import com.boxoffice.hubservice.hubroute.dto.request.HubRouteCreateRequestDto;
@@ -14,6 +15,7 @@ import com.boxoffice.hubservice.hubroute.entity.HubRoute;
 import com.boxoffice.hubservice.hubroute.repository.HubRouteRepository;
 import com.querydsl.core.BooleanBuilder;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -108,5 +110,30 @@ public class HubRouteService {
             }
             return HubRouteGetResponseDto.from(r, origin, destination);
         }));
+    }
+
+    @Transactional
+    @CacheEvict(cacheNames = "hub-routes", allEntries = true)
+    public HubRouteGetResponseDto updateHubRoute(UUID routeId, HubRouteUpdateRequestDto request) {
+        if (request.estimatedDurationMin() == null && request.estimatedDistanceKm() == null) {
+            throw new BaseException(HubErrorCode.NO_FIELDS_TO_UPDATE);
+        }
+
+        HubRoute route = hubRouteRepository.findById(routeId)
+                .orElseThrow(() -> new BaseException(HubErrorCode.HUB_ROUTE_NOT_FOUND));
+
+        BigDecimal distanceKm = request.estimatedDistanceKm() != null
+                ? BigDecimal.valueOf(request.estimatedDistanceKm())
+                : null;
+
+        route.update(request.estimatedDurationMin(), distanceKm);
+        hubRouteRepository.saveAndFlush(route);
+
+        Hub originHub = hubRepository.findById(route.getOriginHubId())
+                .orElseThrow(() -> new BaseException(HubErrorCode.HUB_NOT_FOUND));
+        Hub destinationHub = hubRepository.findById(route.getDestinationHubId())
+                .orElseThrow(() -> new BaseException(HubErrorCode.HUB_NOT_FOUND));
+
+        return HubRouteGetResponseDto.from(route, originHub, destinationHub);
     }
 }

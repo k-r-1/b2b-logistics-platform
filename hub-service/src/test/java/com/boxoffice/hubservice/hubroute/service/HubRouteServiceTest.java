@@ -9,6 +9,7 @@ import com.boxoffice.hubservice.hub.entity.Hub;
 import com.boxoffice.hubservice.hub.entity.HubType;
 import com.boxoffice.hubservice.hub.repository.HubRepository;
 import com.boxoffice.hubservice.hubroute.dto.request.HubRouteCreateRequestDto;
+import com.boxoffice.hubservice.hubroute.dto.request.HubRouteUpdateRequestDto;
 import com.boxoffice.hubservice.hubroute.dto.response.HubRouteCreateResponseDto;
 import com.boxoffice.hubservice.hubroute.dto.response.HubRouteGetResponseDto;
 import com.boxoffice.hubservice.hubroute.entity.HubRoute;
@@ -423,5 +424,138 @@ class HubRouteServiceTest {
 
         // then
         assertThat(response.getContent()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("허브 경로 수정 성공 - 두 필드 모두 수정")
+    void updateHubRoute_success_bothFields() {
+        // given
+        Hub origin = buildHub("서울특별시 센터", HubType.CENTRAL);
+        Hub destination = buildHub("대전광역시 센터", HubType.REGIONAL);
+        HubRoute route = buildSavedRoute(origin.getId(), destination.getId());
+        HubRouteUpdateRequestDto request = new HubRouteUpdateRequestDto(90, 130.0);
+
+        given(hubRouteRepository.findById(route.getId())).willReturn(Optional.of(route));
+        given(hubRepository.findById(origin.getId())).willReturn(Optional.of(origin));
+        given(hubRepository.findById(destination.getId())).willReturn(Optional.of(destination));
+
+        // when
+        HubRouteGetResponseDto response = hubRouteService.updateHubRoute(route.getId(), request);
+
+        // then
+        assertThat(response.estimatedDurationMin()).isEqualTo(90);
+        assertThat(response.estimatedDistanceKm()).isEqualTo(130.0);
+    }
+
+    @Test
+    @DisplayName("허브 경로 수정 성공 - 소요 시간만 수정")
+    void updateHubRoute_success_durationOnly() {
+        // given
+        Hub origin = buildHub("서울특별시 센터", HubType.CENTRAL);
+        Hub destination = buildHub("대전광역시 센터", HubType.REGIONAL);
+        HubRoute route = buildSavedRoute(origin.getId(), destination.getId());
+        HubRouteUpdateRequestDto request = new HubRouteUpdateRequestDto(90, null);
+
+        given(hubRouteRepository.findById(route.getId())).willReturn(Optional.of(route));
+        given(hubRepository.findById(origin.getId())).willReturn(Optional.of(origin));
+        given(hubRepository.findById(destination.getId())).willReturn(Optional.of(destination));
+
+        // when
+        HubRouteGetResponseDto response = hubRouteService.updateHubRoute(route.getId(), request);
+
+        // then
+        assertThat(response.estimatedDurationMin()).isEqualTo(90);
+        assertThat(response.estimatedDistanceKm()).isEqualTo(160.5); // 기존 값 유지
+    }
+
+    @Test
+    @DisplayName("허브 경로 수정 성공 - 거리만 수정")
+    void updateHubRoute_success_distanceOnly() {
+        // given
+        Hub origin = buildHub("서울특별시 센터", HubType.CENTRAL);
+        Hub destination = buildHub("대전광역시 센터", HubType.REGIONAL);
+        HubRoute route = buildSavedRoute(origin.getId(), destination.getId());
+        HubRouteUpdateRequestDto request = new HubRouteUpdateRequestDto(null, 130.0);
+
+        given(hubRouteRepository.findById(route.getId())).willReturn(Optional.of(route));
+        given(hubRepository.findById(origin.getId())).willReturn(Optional.of(origin));
+        given(hubRepository.findById(destination.getId())).willReturn(Optional.of(destination));
+
+        // when
+        HubRouteGetResponseDto response = hubRouteService.updateHubRoute(route.getId(), request);
+
+        // then
+        assertThat(response.estimatedDurationMin()).isEqualTo(120); // 기존 값 유지
+        assertThat(response.estimatedDistanceKm()).isEqualTo(130.0);
+    }
+
+    @Test
+    @DisplayName("수정할 필드가 없으면 예외 발생")
+    void updateHubRoute_noFieldsToUpdate_throwsException() {
+        // given
+        UUID routeId = UUID.randomUUID();
+        HubRouteUpdateRequestDto request = new HubRouteUpdateRequestDto(null, null);
+
+        // when & then
+        assertThatThrownBy(() -> hubRouteService.updateHubRoute(routeId, request))
+                .isInstanceOf(BaseException.class)
+                .satisfies(e -> assertThat(((BaseException) e).getErrorCode())
+                        .isEqualTo(HubErrorCode.NO_FIELDS_TO_UPDATE));
+        verify(hubRouteRepository, never()).findById(any());
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 경로 수정 시 예외 발생")
+    void updateHubRoute_routeNotFound_throwsException() {
+        // given
+        UUID routeId = UUID.randomUUID();
+        HubRouteUpdateRequestDto request = new HubRouteUpdateRequestDto(90, 130.0);
+        given(hubRouteRepository.findById(routeId)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> hubRouteService.updateHubRoute(routeId, request))
+                .isInstanceOf(BaseException.class)
+                .satisfies(e -> assertThat(((BaseException) e).getErrorCode())
+                        .isEqualTo(HubErrorCode.HUB_ROUTE_NOT_FOUND));
+        verify(hubRepository, never()).findById(any());
+    }
+
+    @Test
+    @DisplayName("출발 허브가 삭제된 경우 수정 시 예외 발생")
+    void updateHubRoute_originHubNotFound_throwsException() {
+        // given
+        UUID originId = UUID.randomUUID();
+        Hub destination = buildHub("대전광역시 센터", HubType.REGIONAL);
+        HubRoute route = buildSavedRoute(originId, destination.getId());
+        HubRouteUpdateRequestDto request = new HubRouteUpdateRequestDto(90, 130.0);
+
+        given(hubRouteRepository.findById(route.getId())).willReturn(Optional.of(route));
+        given(hubRepository.findById(originId)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> hubRouteService.updateHubRoute(route.getId(), request))
+                .isInstanceOf(BaseException.class)
+                .satisfies(e -> assertThat(((BaseException) e).getErrorCode())
+                        .isEqualTo(HubErrorCode.HUB_NOT_FOUND));
+    }
+
+    @Test
+    @DisplayName("도착 허브가 삭제된 경우 수정 시 예외 발생")
+    void updateHubRoute_destinationHubNotFound_throwsException() {
+        // given
+        Hub origin = buildHub("서울특별시 센터", HubType.CENTRAL);
+        UUID destinationId = UUID.randomUUID();
+        HubRoute route = buildSavedRoute(origin.getId(), destinationId);
+        HubRouteUpdateRequestDto request = new HubRouteUpdateRequestDto(90, 130.0);
+
+        given(hubRouteRepository.findById(route.getId())).willReturn(Optional.of(route));
+        given(hubRepository.findById(origin.getId())).willReturn(Optional.of(origin));
+        given(hubRepository.findById(destinationId)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> hubRouteService.updateHubRoute(route.getId(), request))
+                .isInstanceOf(BaseException.class)
+                .satisfies(e -> assertThat(((BaseException) e).getErrorCode())
+                        .isEqualTo(HubErrorCode.HUB_NOT_FOUND));
     }
 }
