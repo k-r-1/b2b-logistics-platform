@@ -41,6 +41,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
@@ -289,6 +290,39 @@ class CompanyServiceTest {
         Throwable throwable = catchThrowable(() -> companyService.updateCompany(companyId, request));
 
         // then
+        assertThat(throwable)
+                .isInstanceOfSatisfying(BaseException.class,
+                        exception -> assertThat(exception.getErrorCode()).isEqualTo(CompanyErrorCode.COMPANY_NOT_FOUND));
+        verify(companyRepository).findById(companyId);
+        verifyNoMoreInteractions(companyRepository);
+    }
+
+    @Test
+    @DisplayName("성공 - 업체를 soft delete 처리하고 삭제자를 기록한다")
+    void deleteCompanySoftDeletesCompanyWithDeletedBy() {
+        UUID companyId = UUID.randomUUID();
+        UUID deletedBy = UUID.randomUUID();
+        Company company = createCompany(companyId, UUID.randomUUID());
+        when(companyRepository.findById(companyId)).thenReturn(Optional.of(company));
+
+        companyService.deleteCompany(companyId, deletedBy);
+
+        verify(companyRepository).findById(companyId);
+        verifyNoMoreInteractions(companyRepository);
+        assertThat(company.isDeleted()).isTrue();
+        assertThat(company.getDeletedAt()).isNotNull();
+        assertThat(company.getDeletedBy()).isEqualTo(deletedBy);
+    }
+
+    @Test
+    @DisplayName("실패 - 삭제 대상 업체가 없으면 not found 예외를 반환한다")
+    void deleteCompanyWithUnknownCompanyIdThrowsNotFound() {
+        UUID companyId = UUID.randomUUID();
+        UUID deletedBy = UUID.randomUUID();
+        when(companyRepository.findById(companyId)).thenReturn(Optional.empty());
+
+        Throwable throwable = catchThrowable(() -> companyService.deleteCompany(companyId, deletedBy));
+
         assertThat(throwable)
                 .isInstanceOfSatisfying(BaseException.class,
                         exception -> assertThat(exception.getErrorCode()).isEqualTo(CompanyErrorCode.COMPANY_NOT_FOUND));

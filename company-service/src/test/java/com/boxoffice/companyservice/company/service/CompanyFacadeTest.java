@@ -13,6 +13,8 @@ import com.boxoffice.companyservice.company.entity.Company;
 import com.boxoffice.companyservice.company.entity.CompanyType;
 import com.boxoffice.companyservice.company.exception.CompanyErrorCode;
 import com.boxoffice.companyservice.company.validator.HubValidator;
+import feign.FeignException;
+import feign.Request;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -32,6 +34,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
 import java.lang.reflect.Constructor;
+import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.Mockito.doThrow;
@@ -454,6 +458,30 @@ class CompanyFacadeTest {
     }
 
     @Test
+    @DisplayName("실패 - SUPPLIER_MANAGER 수정 권한 검증 중 user-service 호출이 실패하면 Feign 실패 예외로 변환한다")
+    void updateCompanyWithSupplierManagerRoleAndUserServiceCallFails() {
+        UUID companyId = UUID.randomUUID();
+        String keycloakSub = UUID.randomUUID().toString();
+        Company company = createCompany(companyId, UUID.randomUUID());
+        CompanyUpdateRequestDto request = createUpdateRequest("수정 업체", null);
+
+        when(companyService.getCompanyEntity(companyId)).thenReturn(company);
+        when(userClient.getUserByKeycloakSub(keycloakSub)).thenThrow(createFeignException(500));
+
+        Throwable throwable = catchThrowable(() ->
+                companyFacade.updateCompany(companyId, request, "SUPPLIER_MANAGER", null, keycloakSub)
+        );
+
+        assertThat(throwable)
+                .isInstanceOfSatisfying(BaseException.class,
+                        exception -> assertThat(exception.getErrorCode()).isEqualTo(CommonErrorCode.FEIGN_CLIENT_ERROR));
+        verify(companyService).getCompanyEntity(companyId);
+        verify(userClient).getUserByKeycloakSub(keycloakSub);
+        verifyNoMoreInteractions(userClient, companyService);
+        verifyNoInteractions(hubValidator);
+    }
+
+    @Test
     @DisplayName("실패 - 수정할 필드가 없으면 입력값 오류로 처리한다")
     void updateCompanyWithoutUpdateField() {
         // given
@@ -470,6 +498,203 @@ class CompanyFacadeTest {
         verifyNoInteractions(hubValidator, userClient, companyService);
     }
 
+    @Test
+    @DisplayName("성공 - MASTER는 업체를 삭제할 수 있다")
+    void deleteCompanyWithMasterRole() {
+        // given
+        UUID companyId = UUID.randomUUID();
+        UUID deletedBy = UUID.randomUUID();
+        String keycloakSub = UUID.randomUUID().toString();
+        Company company = createCompany(companyId, UUID.randomUUID());
+        ApiResponse<UserResponseDto> userResponse = createUserResponseWithId(deletedBy);
+
+        when(companyService.getCompanyEntity(companyId)).thenReturn(company);
+        when(userClient.getUserByKeycloakSub(keycloakSub)).thenReturn(userResponse);
+
+        // when
+        companyFacade.deleteCompany(companyId, "MASTER", null, keycloakSub);
+
+        // then
+        verify(companyService).getCompanyEntity(companyId);
+        verify(userClient).getUserByKeycloakSub(keycloakSub);
+        verify(companyService).deleteCompany(companyId, deletedBy);
+        verifyNoMoreInteractions(userClient, companyService);
+        verifyNoInteractions(hubValidator);
+    }
+
+    @Test
+    @DisplayName("성공 - HUB_MANAGER는 담당 허브 업체를 삭제할 수 있다")
+    void deleteCompanyWithHubManagerRoleAndSameHub() {
+        // given
+        UUID companyId = UUID.randomUUID();
+        UUID hubId = UUID.randomUUID();
+        UUID deletedBy = UUID.randomUUID();
+        String keycloakSub = UUID.randomUUID().toString();
+        Company company = createCompany(companyId, hubId);
+        ApiResponse<UserResponseDto> userResponse = createUserResponseWithId(deletedBy);
+
+        when(companyService.getCompanyEntity(companyId)).thenReturn(company);
+        when(userClient.getUserByKeycloakSub(keycloakSub)).thenReturn(userResponse);
+
+        // when
+        companyFacade.deleteCompany(companyId, "HUB_MANAGER", hubId, keycloakSub);
+
+        // then
+        verify(companyService).getCompanyEntity(companyId);
+        verify(userClient).getUserByKeycloakSub(keycloakSub);
+        verify(companyService).deleteCompany(companyId, deletedBy);
+        verifyNoMoreInteractions(userClient, companyService);
+        verifyNoInteractions(hubValidator);
+    }
+
+    @Test
+    @DisplayName("실패 - HUB_MANAGER는 담당 허브가 아닌 업체를 삭제할 수 없다")
+    void deleteCompanyWithHubManagerRoleAndDifferentCompanyHub() {
+        // given
+        UUID companyId = UUID.randomUUID();
+        Company company = createCompany(companyId, UUID.randomUUID());
+        when(companyService.getCompanyEntity(companyId)).thenReturn(company);
+
+        // when
+        Throwable throwable = catchThrowable(() ->
+                companyFacade.deleteCompany(companyId, "HUB_MANAGER", UUID.randomUUID(), UUID.randomUUID().toString())
+        );
+
+        // then
+        assertForbidden(throwable);
+        verify(companyService).getCompanyEntity(companyId);
+        verifyNoMoreInteractions(companyService);
+        verifyNoInteractions(hubValidator, userClient);
+    }
+
+    @ParameterizedTest(name = "실패 - role={0}은 업체를 삭제할 수 없다")
+    @ValueSource(strings = {"DELIVERY_MANAGER", "SUPPLIER_MANAGER", "UNKNOWN_ROLE"})
+    void deleteCompanyWithForbiddenRole(String userRole) {
+        // given
+        UUID companyId = UUID.randomUUID();
+
+        // when
+        Throwable throwable = catchThrowable(() ->
+                companyFacade.deleteCompany(companyId, userRole, null, UUID.randomUUID().toString())
+        );
+
+        // then
+        assertForbidden(throwable);
+        verifyNoInteractions(hubValidator, userClient, companyService);
+    }
+
+    @Test
+    @DisplayName("실패 - X-User-Id 헤더가 없으면 업체를 삭제할 수 없다")
+    void deleteCompanyWithoutKeycloakSub() {
+        // given
+        UUID companyId = UUID.randomUUID();
+
+        // when
+        Throwable throwable = catchThrowable(() ->
+                companyFacade.deleteCompany(companyId, "MASTER", null, null)
+        );
+
+        // then
+        assertUnauthorized(throwable);
+        verifyNoInteractions(hubValidator, userClient, companyService);
+    }
+
+    @Test
+    @DisplayName("실패 - user-service 응답 data가 없으면 업체를 삭제할 수 없다")
+    void deleteCompanyWithoutUserDataInUserResponse() {
+        // given
+        UUID companyId = UUID.randomUUID();
+        String keycloakSub = UUID.randomUUID().toString();
+        Company company = createCompany(companyId, UUID.randomUUID());
+        ApiResponse<UserResponseDto> userResponse = ApiResponse.success(null);
+
+        when(companyService.getCompanyEntity(companyId)).thenReturn(company);
+        when(userClient.getUserByKeycloakSub(keycloakSub)).thenReturn(userResponse);
+
+        // when
+        Throwable throwable = catchThrowable(() ->
+                companyFacade.deleteCompany(companyId, "MASTER", null, keycloakSub)
+        );
+
+        // then
+        assertUnauthorized(throwable);
+        verify(companyService).getCompanyEntity(companyId);
+        verify(userClient).getUserByKeycloakSub(keycloakSub);
+        verifyNoMoreInteractions(userClient, companyService);
+        verifyNoInteractions(hubValidator);
+    }
+
+    @Test
+    @DisplayName("실패 - user-service 응답 data에 내부 사용자 ID가 없으면 업체를 삭제할 수 없다")
+    void deleteCompanyWithoutUserIdInUserData() {
+        // given
+        UUID companyId = UUID.randomUUID();
+        String keycloakSub = UUID.randomUUID().toString();
+        Company company = createCompany(companyId, UUID.randomUUID());
+        ApiResponse<UserResponseDto> userResponse = createUserResponseWithId(null);
+
+        when(companyService.getCompanyEntity(companyId)).thenReturn(company);
+        when(userClient.getUserByKeycloakSub(keycloakSub)).thenReturn(userResponse);
+
+        // when
+        Throwable throwable = catchThrowable(() ->
+                companyFacade.deleteCompany(companyId, "MASTER", null, keycloakSub)
+        );
+
+        // then
+        assertUnauthorized(throwable);
+        verify(companyService).getCompanyEntity(companyId);
+        verify(userClient).getUserByKeycloakSub(keycloakSub);
+        verifyNoMoreInteractions(userClient, companyService);
+        verifyNoInteractions(hubValidator);
+    }
+
+    @Test
+    @DisplayName("실패 - user-service 호출이 실패하면 Feign 실패 예외로 변환한다")
+    void deleteCompanyWhenUserServiceCallFails() {
+        // given
+        UUID companyId = UUID.randomUUID();
+        String keycloakSub = UUID.randomUUID().toString();
+        Company company = createCompany(companyId, UUID.randomUUID());
+
+        when(companyService.getCompanyEntity(companyId)).thenReturn(company);
+        when(userClient.getUserByKeycloakSub(keycloakSub)).thenThrow(createFeignException(500));
+
+        // when
+        Throwable throwable = catchThrowable(() ->
+                companyFacade.deleteCompany(companyId, "MASTER", null, keycloakSub)
+        );
+
+        // then
+        assertThat(throwable)
+                .isInstanceOfSatisfying(BaseException.class,
+                        exception -> assertThat(exception.getErrorCode()).isEqualTo(CommonErrorCode.FEIGN_CLIENT_ERROR));
+        verify(companyService).getCompanyEntity(companyId);
+        verify(userClient).getUserByKeycloakSub(keycloakSub);
+        verifyNoMoreInteractions(userClient, companyService);
+        verifyNoInteractions(hubValidator);
+    }
+
+    @Test
+    @DisplayName("실패 - 존재하지 않거나 삭제된 업체는 삭제할 수 없다")
+    void deleteCompanyWithUnknownCompanyIdThrowsNotFound() {
+        // given
+        UUID companyId = UUID.randomUUID();
+        BaseException notFoundException = new BaseException(CompanyErrorCode.COMPANY_NOT_FOUND);
+        when(companyService.getCompanyEntity(companyId)).thenThrow(notFoundException);
+
+        // when
+        Throwable throwable = catchThrowable(() ->
+                companyFacade.deleteCompany(companyId, "MASTER", null, UUID.randomUUID().toString())
+        );
+
+        // then
+        assertThat(throwable).isSameAs(notFoundException);
+        verify(companyService).getCompanyEntity(companyId);
+        verifyNoMoreInteractions(companyService);
+        verifyNoInteractions(hubValidator, userClient);
+    }
+
     private void verifyCreateOrder(CompanyCreateRequestDto request) {
         // Facade는 권한과 담당 허브를 먼저 확인한 뒤 Hub 검증, 저장 순서로 진행해야 한다.
         InOrder inOrder = inOrder(hubValidator, companyService);
@@ -482,6 +707,12 @@ class CompanyFacadeTest {
         assertThat(throwable)
                 .isInstanceOfSatisfying(BaseException.class,
                         exception -> assertThat(exception.getErrorCode()).isEqualTo(CommonErrorCode.FORBIDDEN));
+    }
+
+    private void assertUnauthorized(Throwable throwable) {
+        assertThat(throwable)
+                .isInstanceOfSatisfying(BaseException.class,
+                        exception -> assertThat(exception.getErrorCode()).isEqualTo(CommonErrorCode.UNAUTHORIZED));
     }
 
     private void assertInvalidInput(Throwable throwable) {
@@ -529,5 +760,31 @@ class CompanyFacadeTest {
         ReflectionTestUtils.setField(user, "companyId", companyId);
 
         return ApiResponse.success(user);
+    }
+
+    private ApiResponse<UserResponseDto> createUserResponseWithId(UUID userId) {
+        UserResponseDto user = new UserResponseDto();
+        ReflectionTestUtils.setField(user, "id", userId);
+
+        return ApiResponse.success(user);
+    }
+
+    private FeignException createFeignException(int status) {
+        Request request = Request.create(
+                Request.HttpMethod.GET,
+                "/api/v1/users/keycloak/{keycloakSub}",
+                Collections.emptyMap(),
+                null,
+                StandardCharsets.UTF_8,
+                null
+        );
+        return FeignException.errorStatus(
+                "UserClient#getUserByKeycloakSub(String)",
+                feign.Response.builder()
+                        .status(status)
+                        .reason("Feign error")
+                        .request(request)
+                        .build()
+        );
     }
 }

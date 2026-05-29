@@ -76,6 +76,16 @@ public class CompanyService {
                 .orElseThrow(() -> new BaseException(CompanyErrorCode.COMPANY_NOT_FOUND));
         AddressVO address = request.getAddress() == null ? null : request.getAddress().toAddressVO();
         company.update(request.getName(), request.getType(), address);
+        log.info("Company updated. companyId={}, name={}, type={}, addressChanged={}",
+                company.getId(), company.getName(), company.getType(), request.getAddress() != null);
+    }
+
+    @Transactional
+    public void deleteCompany(UUID companyId, UUID deletedBy) {
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() -> new BaseException(CompanyErrorCode.COMPANY_NOT_FOUND));
+        company.softDelete(deletedBy);
+        log.info("Company deleted. companyId={}, deletedBy={}", company.getId(), deletedBy);
     }
 
     @Transactional(readOnly = true)

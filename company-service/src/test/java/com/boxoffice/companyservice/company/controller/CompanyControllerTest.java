@@ -32,11 +32,13 @@ import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -319,6 +321,59 @@ class CompanyControllerTest {
                 .andExpect(jsonPath("$.data.companyId", is(companyId.toString())));
 
         verify(companyFacade).createCompany(any(), eq("MASTER"), isNull());
+        verifyNoMoreInteractions(companyFacade);
+    }
+
+    @Test
+    @DisplayName("성공 - 업체 삭제 요청 시 Facade로 삭제 요청을 전달하고 204를 반환한다")
+    void deleteCompanyReturnsNoContent() throws Exception {
+        UUID companyId = UUID.randomUUID();
+        UUID userHubId = UUID.randomUUID();
+        String keycloakSub = UUID.randomUUID().toString();
+
+        mockMvc.perform(delete("/api/v1/companies/{companyId}", companyId)
+                        .header("X-User-Role", "MASTER")
+                        .header("X-User-Hub-Id", userHubId.toString())
+                        .header("X-User-Id", keycloakSub))
+                .andExpect(status().isNoContent());
+
+        verify(companyFacade).deleteCompany(companyId, "MASTER", userHubId, keycloakSub);
+        verifyNoMoreInteractions(companyFacade);
+    }
+
+    @Test
+    @DisplayName("실패 - 삭제 요청에 X-User-Id 헤더가 없으면 401을 반환한다")
+    void deleteCompanyWithoutUserIdHeaderReturnsUnauthorized() throws Exception {
+        UUID companyId = UUID.randomUUID();
+        doThrow(new BaseException(CommonErrorCode.UNAUTHORIZED))
+                .when(companyFacade).deleteCompany(companyId, "MASTER", null, null);
+
+        mockMvc.perform(delete("/api/v1/companies/{companyId}", companyId)
+                .header("X-User-Role", "MASTER"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.status", is(401)))
+                .andExpect(jsonPath("$.message", is(CommonErrorCode.UNAUTHORIZED.getMessage())));
+
+        verify(companyFacade).deleteCompany(companyId, "MASTER", null, null);
+        verifyNoMoreInteractions(companyFacade);
+    }
+
+    @Test
+    @DisplayName("실패 - 삭제 권한이 없는 role이면 403을 반환한다")
+    void deleteCompanyWithForbiddenRoleReturnsForbidden() throws Exception {
+        UUID companyId = UUID.randomUUID();
+        String keycloakSub = UUID.randomUUID().toString();
+        doThrow(new BaseException(CommonErrorCode.FORBIDDEN))
+                .when(companyFacade).deleteCompany(companyId, "SUPPLIER_MANAGER", null, keycloakSub);
+
+        mockMvc.perform(delete("/api/v1/companies/{companyId}", companyId)
+                        .header("X-User-Role", "SUPPLIER_MANAGER")
+                .header("X-User-Id", keycloakSub))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status", is(403)))
+                .andExpect(jsonPath("$.message", is(CommonErrorCode.FORBIDDEN.getMessage())));
+
+        verify(companyFacade).deleteCompany(companyId, "SUPPLIER_MANAGER", null, keycloakSub);
         verifyNoMoreInteractions(companyFacade);
     }
 

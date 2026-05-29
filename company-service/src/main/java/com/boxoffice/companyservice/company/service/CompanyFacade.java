@@ -3,9 +3,9 @@ package com.boxoffice.companyservice.company.service;
 import com.boxoffice.common.exception.BaseException;
 import com.boxoffice.common.exception.CommonErrorCode;
 import com.boxoffice.common.response.ApiResponse;
-import com.boxoffice.companyservice.company.domain.CompanyUserRole;
 import com.boxoffice.companyservice.company.client.UserClient;
 import com.boxoffice.companyservice.company.client.dto.UserResponseDto;
+import com.boxoffice.companyservice.company.domain.CompanyUserRole;
 import com.boxoffice.companyservice.company.dto.request.CompanyCreateRequestDto;
 import com.boxoffice.companyservice.company.dto.request.CompanyUpdateRequestDto;
 import com.boxoffice.companyservice.company.dto.response.CompanyCreateResponseDto;
@@ -14,6 +14,7 @@ import com.boxoffice.companyservice.company.dto.search.CompanySearchCondition;
 import com.boxoffice.companyservice.company.entity.Company;
 import com.boxoffice.companyservice.company.entity.CompanyType;
 import com.boxoffice.companyservice.company.validator.HubValidator;
+import feign.FeignException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -33,7 +34,7 @@ public class CompanyFacade {
         validateCreateRequest(request);
         CompanyUserRole role = validateCompanyCreatePermission(userRoleStr);
         validateHubManagerCanCreateCompany(request.getHubId(), role, userHubId);
-        // Feign 기반 허브 검증은 외부 응답 대기 시간을 트랜잭션 범위에 포함하지 않도록 트랜잭션 전에 수행한다.
+        // Feign 기반 허브 검증은 DB 트랜잭션 밖에서 수행한다.
         hubValidator.validateHubActive(request.getHubId());
         return companyService.createCompany(request);
     }
@@ -45,7 +46,7 @@ public class CompanyFacade {
 
     public Page<CompanyResponseDto> searchCompanies(CompanySearchCondition condition, Pageable pageable, String userRoleStr) {
         validateCompanyReadPermission(userRoleStr);
-        
+
         CompanyType parsedType = null;
         if (condition != null && condition.getType() != null && !condition.getType().isBlank()) {
             try {
@@ -54,7 +55,7 @@ public class CompanyFacade {
                 throw new BaseException(CommonErrorCode.INVALID_INPUT);
             }
         }
-        
+
         return companyService.searchCompanies(condition, parsedType, pageable);
     }
 
@@ -66,6 +67,17 @@ public class CompanyFacade {
         validateCompanyUpdateScope(company, role, userHubId, keycloakSub);
 
         companyService.updateCompany(companyId, request);
+    }
+
+    public void deleteCompany(UUID companyId, String userRoleStr, UUID userHubId, String keycloakSub) {
+        validateDeleteRequest(companyId, keycloakSub);
+        CompanyUserRole role = validateCompanyDeletePermission(userRoleStr);
+        Company company = companyService.getCompanyEntity(companyId);
+
+        validateCompanyDeleteScope(company, role, userHubId);
+
+        UUID deletedBy = resolveCurrentUserId(keycloakSub);
+        companyService.deleteCompany(companyId, deletedBy);
     }
 
     private void validateCreateRequest(CompanyCreateRequestDto request) {
@@ -80,13 +92,23 @@ public class CompanyFacade {
         }
     }
 
+    private void validateDeleteRequest(UUID companyId, String keycloakSub) {
+        if (companyId == null) {
+            throw new BaseException(CommonErrorCode.INVALID_INPUT);
+        }
+
+        if (keycloakSub == null || keycloakSub.isBlank()) {
+            throw new BaseException(CommonErrorCode.UNAUTHORIZED);
+        }
+    }
+
     private CompanyUserRole validateCompanyCreatePermission(String userRoleStr) {
         if (userRoleStr == null || userRoleStr.isBlank()) {
             throw new BaseException(CommonErrorCode.UNAUTHORIZED);
         }
 
         CompanyUserRole role = CompanyUserRole.fromString(userRoleStr);
-        boolean canCreateCompany = (role == CompanyUserRole.MASTER) || (role == CompanyUserRole.HUB_MANAGER);
+        boolean canCreateCompany = role == CompanyUserRole.MASTER || role == CompanyUserRole.HUB_MANAGER;
 
         if (!canCreateCompany) {
             throw new BaseException(CommonErrorCode.FORBIDDEN);
@@ -128,6 +150,21 @@ public class CompanyFacade {
         return role;
     }
 
+    private CompanyUserRole validateCompanyDeletePermission(String userRoleStr) {
+        if (userRoleStr == null || userRoleStr.isBlank()) {
+            throw new BaseException(CommonErrorCode.UNAUTHORIZED);
+        }
+
+        CompanyUserRole role = CompanyUserRole.fromString(userRoleStr);
+        boolean canDeleteCompany = role == CompanyUserRole.MASTER || role == CompanyUserRole.HUB_MANAGER;
+
+        if (!canDeleteCompany) {
+            throw new BaseException(CommonErrorCode.FORBIDDEN);
+        }
+
+        return role;
+    }
+
     private void validateCompanyUpdateScope(Company company, CompanyUserRole role, UUID userHubId, String keycloakSub) {
         if (role == CompanyUserRole.MASTER) {
             return;
@@ -143,12 +180,21 @@ public class CompanyFacade {
         }
     }
 
+    private void validateCompanyDeleteScope(Company company, CompanyUserRole role, UUID userHubId) {
+        if (role == CompanyUserRole.MASTER) {
+            return;
+        }
+
+        if (role == CompanyUserRole.HUB_MANAGER) {
+            validateHubManagerCanDeleteCompany(company, userHubId);
+        }
+    }
+
     private void validateHubManagerCanCreateCompany(UUID requestHubId, CompanyUserRole role, UUID userHubId) {
         if (role != CompanyUserRole.HUB_MANAGER) {
             return;
         }
 
-        // 허브 관리자는 Gateway가 전달한 담당 허브 ID와 요청 허브 ID가 일치할 때만 업체를 생성할 수 있다.
         if (userHubId == null || !userHubId.equals(requestHubId)) {
             throw new BaseException(CommonErrorCode.FORBIDDEN);
         }
@@ -160,18 +206,40 @@ public class CompanyFacade {
         }
     }
 
+    private void validateHubManagerCanDeleteCompany(Company company, UUID userHubId) {
+        if (userHubId == null || !userHubId.equals(company.getHubId())) {
+            throw new BaseException(CommonErrorCode.FORBIDDEN);
+        }
+    }
+
     private void validateSupplierManagerCanUpdateCompany(UUID companyId, String keycloakSub) {
         if (keycloakSub == null || keycloakSub.isBlank()) {
             throw new BaseException(CommonErrorCode.UNAUTHORIZED);
         }
 
-        ApiResponse<UserResponseDto> response = userClient.getUserByKeycloakSub(keycloakSub);
+        ApiResponse<UserResponseDto> response = getUserByKeycloakSub(keycloakSub);
         if (response == null || response.getData() == null || response.getData().getCompanyId() == null) {
             throw new BaseException(CommonErrorCode.FORBIDDEN);
         }
 
         if (!companyId.equals(response.getData().getCompanyId())) {
             throw new BaseException(CommonErrorCode.FORBIDDEN);
+        }
+    }
+
+    private UUID resolveCurrentUserId(String keycloakSub) {
+        ApiResponse<UserResponseDto> response = getUserByKeycloakSub(keycloakSub);
+        if (response == null || response.getData() == null || response.getData().getId() == null) {
+            throw new BaseException(CommonErrorCode.UNAUTHORIZED);
+        }
+        return response.getData().getId();
+    }
+
+    private ApiResponse<UserResponseDto> getUserByKeycloakSub(String keycloakSub) {
+        try {
+            return userClient.getUserByKeycloakSub(keycloakSub);
+        } catch (FeignException e) {
+            throw new BaseException(CommonErrorCode.FEIGN_CLIENT_ERROR);
         }
     }
 }
