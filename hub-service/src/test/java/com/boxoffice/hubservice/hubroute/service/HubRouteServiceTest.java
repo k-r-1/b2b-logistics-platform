@@ -579,6 +579,24 @@ class HubRouteServiceTest {
     }
 
     @Test
+    @DisplayName("허브 경로 삭제 성공 - 감사자 정보가 있으면 deletedBy가 기록된다")
+    void deleteHubRoute_success_withAuditor() {
+        // given
+        UUID auditorId = UUID.randomUUID();
+        HubRoute route = buildSavedRoute(UUID.randomUUID(), UUID.randomUUID());
+        given(hubRouteRepository.findById(route.getId())).willReturn(Optional.of(route));
+        given(auditorAware.getCurrentAuditor()).willReturn(Optional.of(auditorId));
+
+        // when
+        hubRouteService.deleteHubRoute(route.getId());
+
+        // then
+        assertThat(route.isDeleted()).isTrue();
+        assertThat(route.getDeletedAt()).isNotNull();
+        assertThat(route.getDeletedBy()).isEqualTo(auditorId);
+    }
+
+    @Test
     @DisplayName("존재하지 않는 경로 삭제 시 예외 발생")
     void deleteHubRoute_routeNotFound_throwsException() {
         // given
