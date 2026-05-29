@@ -53,3 +53,5 @@ docker_data/
 # QueryDSL generated sources
 **/src/main/generated/
 
+# Local runtime artifacts
+*-bootrun.log

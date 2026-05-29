@@ -76,11 +76,14 @@ public class CompanyService {
                 .orElseThrow(() -> new BaseException(CompanyErrorCode.COMPANY_NOT_FOUND));
         AddressVO address = request.getAddress() == null ? null : request.getAddress().toAddressVO();
         company.update(request.getName(), request.getType(), address);
+        log.info("Company updated. companyId={}, name={}, type={}, addressChanged={}",
+                company.getId(), company.getName(), company.getType(), request.getAddress() != null);
     }
 
     @Transactional
     public void deleteCompany(Company company, UUID deletedBy) {
         company.softDelete(deletedBy);
+        log.info("Company deleted. companyId={}, deletedBy={}", company.getId(), deletedBy);
     }
 
     @Transactional(readOnly = true)
