@@ -21,7 +21,7 @@ public class UpdateOrderService {
     private final OrderCommandService orderCommandService;
 
     public CreateOrderResponseDto updateOrder(UUID orderId, UpdateOrderRequest request, String keycloakId) {
-        UserDetailInfo user = userFeignClient.getUserById(keycloakId);
+        UserDetailInfo user = userFeignClient.getUserById(keycloakId).getData();
         validateRole(user);
 
         Order order = orderQueryService.findById(orderId);
@@ -41,9 +41,7 @@ public class UpdateOrderService {
     private void validateRole(UserDetailInfo user) {
         switch (user.role()) {
             case "MASTER", "HUB_MANAGER" -> {}
-            case "SUPPLIER_MANAGER", "DELIVERY_MANAGER" ->
-                throw new BaseException(OrderErrorCode.UNAUTHORIZED_ORDER);
-            default -> throw new BaseException(OrderErrorCode.UNAUTHORIZED_ORDER);
+          default -> throw new BaseException(OrderErrorCode.UNAUTHORIZED_ORDER);
         }
     }
 
