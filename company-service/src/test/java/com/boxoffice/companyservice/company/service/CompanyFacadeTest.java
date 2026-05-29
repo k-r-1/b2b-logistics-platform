@@ -2,9 +2,9 @@ package com.boxoffice.companyservice.company.service;
 
 import com.boxoffice.common.exception.BaseException;
 import com.boxoffice.common.exception.CommonErrorCode;
+import com.boxoffice.common.response.ApiResponse;
 import com.boxoffice.companyservice.company.client.UserClient;
 import com.boxoffice.companyservice.company.client.dto.UserResponseDto;
-import com.boxoffice.companyservice.company.client.dto.UserResponseWrapperDto;
 import com.boxoffice.companyservice.company.dto.request.CompanyCreateRequestDto;
 import com.boxoffice.companyservice.company.dto.request.CompanyUpdateRequestDto;
 import com.boxoffice.companyservice.company.dto.response.CompanyCreateResponseDto;
@@ -442,7 +442,7 @@ class CompanyFacadeTest {
         String keycloakSub = UUID.randomUUID().toString();
         Company company = createCompany(companyId, UUID.randomUUID());
         CompanyUpdateRequestDto request = createUpdateRequest("수정 업체", null);
-        UserResponseWrapperDto userResponse = createUserResponse(companyId);
+        ApiResponse<UserResponseDto> userResponse = createUserResponse(companyId);
 
         when(companyService.getCompanyEntity(companyId)).thenReturn(company);
         when(userClient.getUserByKeycloakSub(keycloakSub)).thenReturn(userResponse);
@@ -529,14 +529,10 @@ class CompanyFacadeTest {
         }
     }
 
-    private UserResponseWrapperDto createUserResponse(UUID companyId) {
+    private ApiResponse<UserResponseDto> createUserResponse(UUID companyId) {
         UserResponseDto user = new UserResponseDto();
         ReflectionTestUtils.setField(user, "companyId", companyId);
 
-        UserResponseWrapperDto response = new UserResponseWrapperDto();
-        ReflectionTestUtils.setField(response, "status", 200);
-        ReflectionTestUtils.setField(response, "message", "SUCCESS");
-        ReflectionTestUtils.setField(response, "data", user);
-        return response;
+        return ApiResponse.success(user);
     }
 }

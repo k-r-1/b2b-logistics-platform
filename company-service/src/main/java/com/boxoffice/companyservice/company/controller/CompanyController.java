@@ -89,6 +89,7 @@ public class CompanyController {
                 .body(ApiResponse.success(HttpStatus.CREATED, response));
     }
 
+    @Operation(summary = "업체 수정", description = "업체명, 타입, 주소를 수정합니다. 업체 소속 허브와 담당자는 별도 API로 변경합니다.")
     @PatchMapping("/{companyId}")
     public ResponseEntity<Void> updateCompany(
             @RequestHeader(value = "X-User-Role", required = false) String userRole,

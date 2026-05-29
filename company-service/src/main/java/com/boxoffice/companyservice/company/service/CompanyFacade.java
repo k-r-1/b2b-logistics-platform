@@ -2,9 +2,10 @@ package com.boxoffice.companyservice.company.service;
 
 import com.boxoffice.common.exception.BaseException;
 import com.boxoffice.common.exception.CommonErrorCode;
+import com.boxoffice.common.response.ApiResponse;
 import com.boxoffice.companyservice.company.domain.CompanyUserRole;
 import com.boxoffice.companyservice.company.client.UserClient;
-import com.boxoffice.companyservice.company.client.dto.UserResponseWrapperDto;
+import com.boxoffice.companyservice.company.client.dto.UserResponseDto;
 import com.boxoffice.companyservice.company.dto.request.CompanyCreateRequestDto;
 import com.boxoffice.companyservice.company.dto.request.CompanyUpdateRequestDto;
 import com.boxoffice.companyservice.company.dto.response.CompanyCreateResponseDto;
@@ -164,7 +165,7 @@ public class CompanyFacade {
             throw new BaseException(CommonErrorCode.UNAUTHORIZED);
         }
 
-        UserResponseWrapperDto response = userClient.getUserByKeycloakSub(keycloakSub);
+        ApiResponse<UserResponseDto> response = userClient.getUserByKeycloakSub(keycloakSub);
         if (response == null || response.getData() == null || response.getData().getCompanyId() == null) {
             throw new BaseException(CommonErrorCode.FORBIDDEN);
         }

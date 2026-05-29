@@ -2,7 +2,7 @@ package com.boxoffice.companyservice.company.client;
 
 import com.boxoffice.common.response.ApiResponse;
 import com.boxoffice.companyservice.company.client.dto.UserCompanyUpdateRequestDto;
-import com.boxoffice.companyservice.company.client.dto.UserResponseWrapperDto;
+import com.boxoffice.companyservice.company.client.dto.UserResponseDto;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -21,5 +21,5 @@ public interface UserClient {
     );
 
     @GetMapping("/api/v1/users/keycloak/{keycloakSub}")
-    UserResponseWrapperDto getUserByKeycloakSub(@PathVariable("keycloakSub") String keycloakSub);
+    ApiResponse<UserResponseDto> getUserByKeycloakSub(@PathVariable("keycloakSub") String keycloakSub);
 }
