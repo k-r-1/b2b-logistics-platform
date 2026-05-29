@@ -127,6 +127,7 @@ public class HubRouteService {
                 : null;
 
         route.update(request.estimatedDurationMin(), distanceKm);
+        hubRouteRepository.saveAndFlush(route);
 
         Hub originHub = hubRepository.findById(route.getOriginHubId())
                 .orElseThrow(() -> new BaseException(HubErrorCode.HUB_NOT_FOUND));
