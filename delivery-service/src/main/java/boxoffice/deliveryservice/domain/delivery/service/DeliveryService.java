@@ -3,7 +3,7 @@ package boxoffice.deliveryservice.domain.delivery.service;
 import boxoffice.deliveryservice.client.HubClient;
 import boxoffice.deliveryservice.client.UserServiceClient;
 import boxoffice.deliveryservice.client.dto.response.HubRouteResponseDto;
-import boxoffice.deliveryservice.client.dto.response.UserInfoDto;
+import boxoffice.deliveryservice.client.dto.response.UserResponseDto;
 import boxoffice.deliveryservice.domain.delivery.dto.request.DeliveryCreateRequestDto;
 import boxoffice.deliveryservice.domain.delivery.dto.response.DeliveryResponseDto;
 import boxoffice.deliveryservice.domain.delivery.entity.Delivery;
@@ -66,13 +66,13 @@ public class DeliveryService {
 
     @Transactional(readOnly = true)
     public PageResponse<DeliveryResponseDto> getDeliveries(String keycloakSub, Pageable pageable) {
-        UserInfoDto userInfo = getUserInfo(keycloakSub);
+        UserResponseDto userInfo = getUserInfo(keycloakSub);
 
-        Page<Delivery> deliveries = switch (userInfo.role()) {
+        Page<Delivery> deliveries = switch (userInfo.getRole()) {
             case MASTER -> deliveryRepository.findAllByDeletedAtIsNull(pageable);
-            case HUB_MANAGER -> deliveryRepository.findAllByHubIdAndDeletedAtIsNull(userInfo.hubId(), pageable);
-            case DELIVERY_MANAGER -> deliveryRepository.findAllByDeliveryPersonIdAndDeletedAtIsNull(userInfo.id(), pageable);
-            case SUPPLIER_MANAGER -> deliveryRepository.findAllByCompanyIdAndDeletedAtIsNull(userInfo.companyId(), pageable);
+            case HUB_MANAGER -> deliveryRepository.findAllByHubIdAndDeletedAtIsNull(userInfo.getHubId(), pageable);
+            case DELIVERY_MANAGER -> deliveryRepository.findAllByDeliveryPersonIdAndDeletedAtIsNull(userInfo.getId(), pageable);
+            case SUPPLIER_MANAGER -> deliveryRepository.findAllByCompanyIdAndDeletedAtIsNull(userInfo.getCompanyId(), pageable);
         };
 
         return PageResponse.of(deliveries.map(DeliveryResponseDto::from));
@@ -80,7 +80,7 @@ public class DeliveryService {
 
     @Transactional(readOnly = true)
     public DeliveryResponseDto getDelivery(String keycloakSub, UUID deliveryId) {
-        UserInfoDto userInfo = getUserInfo(keycloakSub);
+        UserResponseDto userInfo = getUserInfo(keycloakSub);
         Delivery delivery = deliveryRepository.findByIdAndDeletedAtIsNull(deliveryId)
                 .orElseThrow(() -> new BaseException(DeliveryErrorCode.DELIVERY_NOT_FOUND));
         checkDeliveryAccess(delivery, userInfo);
@@ -89,7 +89,7 @@ public class DeliveryService {
 
     @Transactional(readOnly = true)
     public PageResponse<DeliveryRouteResponseDto> getDeliveryRoutes(String keycloakSub, UUID deliveryId, Pageable pageable) {
-        UserInfoDto userInfo = getUserInfo(keycloakSub);
+        UserResponseDto userInfo = getUserInfo(keycloakSub);
         Delivery delivery = deliveryRepository.findByIdAndDeletedAtIsNull(deliveryId)
                 .orElseThrow(() -> new BaseException(DeliveryErrorCode.DELIVERY_NOT_FOUND));
         checkDeliveryAccess(delivery, userInfo);
@@ -98,36 +98,36 @@ public class DeliveryService {
 
     @Transactional(readOnly = true)
     public DeliveryRouteResponseDto getDeliveryRoute(String keycloakSub, UUID deliveryId, UUID routeId) {
-        UserInfoDto userInfo = getUserInfo(keycloakSub);
+        UserResponseDto userInfo = getUserInfo(keycloakSub);
         Delivery delivery = deliveryRepository.findByIdAndDeletedAtIsNull(deliveryId)
                 .orElseThrow(() -> new BaseException(DeliveryErrorCode.DELIVERY_NOT_FOUND));
         checkDeliveryAccess(delivery, userInfo);
         return deliveryRouteService.getRouteByDelivery(deliveryId, routeId);
     }
 
-    private UserInfoDto getUserInfo(String keycloakSub) {
+    private UserResponseDto getUserInfo(String keycloakSub) {
         return userServiceClient.getUserBySub(keycloakSub).getData();
     }
 
-    private void checkDeliveryAccess(Delivery delivery, UserInfoDto userInfo) {
-        switch (userInfo.role()) {
+    private void checkDeliveryAccess(Delivery delivery, UserResponseDto userInfo) {
+        switch (userInfo.getRole()) {
             case MASTER -> {}
             case HUB_MANAGER -> {
-                if (userInfo.hubId() == null ||
-                    (!userInfo.hubId().equals(delivery.getOriginHubId()) &&
-                     !userInfo.hubId().equals(delivery.getDestinationHubId()))) {
+                if (userInfo.getHubId() == null ||
+                    (!userInfo.getHubId().equals(delivery.getOriginHubId()) &&
+                     !userInfo.getHubId().equals(delivery.getDestinationHubId()))) {
                     throw new BaseException(CommonErrorCode.FORBIDDEN);
                 }
             }
             case DELIVERY_MANAGER -> {
                 if (delivery.getDeliveryPersonId() == null ||
-                    !userInfo.id().equals(delivery.getDeliveryPersonId())) {
+                    !userInfo.getId().equals(delivery.getDeliveryPersonId())) {
                     throw new BaseException(CommonErrorCode.FORBIDDEN);
                 }
             }
             case SUPPLIER_MANAGER -> {
-                if (userInfo.companyId() == null ||
-                    !userInfo.companyId().equals(delivery.getCompanyId())) {
+                if (userInfo.getCompanyId() == null ||
+                    !userInfo.getCompanyId().equals(delivery.getCompanyId())) {
                     throw new BaseException(CommonErrorCode.FORBIDDEN);
                 }
             }
