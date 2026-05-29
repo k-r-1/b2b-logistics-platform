@@ -361,7 +361,7 @@ class CompanyFacadeTest {
 
         // then
         verify(companyService).getCompanyEntity(companyId);
-        verify(companyService).updateCompany(company, request);
+        verify(companyService).updateCompany(companyId, request);
         verifyNoMoreInteractions(userClient, companyService);
         verifyNoInteractions(hubValidator);
     }
@@ -371,10 +371,7 @@ class CompanyFacadeTest {
     void updateCompanyWithDeliveryManagerRole() {
         // given
         UUID companyId = UUID.randomUUID();
-        Company company = createCompany(companyId, UUID.randomUUID());
         CompanyUpdateRequestDto request = createUpdateRequest("수정 업체", null);
-
-        when(companyService.getCompanyEntity(companyId)).thenReturn(company);
 
         // when
         Throwable throwable = catchThrowable(() ->
@@ -383,9 +380,7 @@ class CompanyFacadeTest {
 
         // then
         assertForbidden(throwable);
-        verify(companyService).getCompanyEntity(companyId);
-        verifyNoMoreInteractions(companyService);
-        verifyNoInteractions(hubValidator, userClient);
+        verifyNoInteractions(hubValidator, userClient, companyService);
     }
 
     @Test
@@ -453,7 +448,7 @@ class CompanyFacadeTest {
         // then
         verify(companyService).getCompanyEntity(companyId);
         verify(userClient).getUserByKeycloakSub(keycloakSub);
-        verify(companyService).updateCompany(company, request);
+        verify(companyService).updateCompany(companyId, request);
         verifyNoMoreInteractions(userClient, companyService);
         verifyNoInteractions(hubValidator);
     }

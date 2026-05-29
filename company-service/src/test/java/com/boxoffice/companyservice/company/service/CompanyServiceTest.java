@@ -6,6 +6,7 @@ import com.boxoffice.companyservice.company.client.UserClient;
 import com.boxoffice.companyservice.company.client.dto.UserCompanyUpdateRequestDto;
 import com.boxoffice.companyservice.company.dto.request.AddressRequestDto;
 import com.boxoffice.companyservice.company.dto.request.CompanyCreateRequestDto;
+import com.boxoffice.companyservice.company.dto.request.CompanyUpdateRequestDto;
 import com.boxoffice.companyservice.company.dto.response.CompanyCreateResponseDto;
 import com.boxoffice.companyservice.company.dto.response.CompanyResponseDto;
 import com.boxoffice.companyservice.company.dto.search.CompanySearchCondition;
@@ -27,6 +28,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.lang.reflect.Constructor;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -246,6 +248,54 @@ class CompanyServiceTest {
         assertThat(responsePage.getContent().get(0).getName()).isEqualTo("테스트 업체");
     }
 
+    @Test
+    @DisplayName("성공 - 업체 수정은 트랜잭션 내부에서 업체를 다시 조회한 뒤 변경한다")
+    void updateCompanyFindsManagedEntityAndUpdatesProvidedFields() {
+        // given
+        UUID companyId = UUID.randomUUID();
+        UUID hubId = UUID.randomUUID();
+        Company company = createCompany(companyId, hubId);
+        CompanyUpdateRequestDto request = createUpdateRequest(
+                "수정 업체",
+                CompanyType.RECEIVER,
+                createAddressRequest("54321", "수정 주소", "수정 상세")
+        );
+
+        when(companyRepository.findById(companyId)).thenReturn(Optional.of(company));
+
+        // when
+        companyService.updateCompany(companyId, request);
+
+        // then
+        verify(companyRepository).findById(companyId);
+        verifyNoMoreInteractions(companyRepository);
+        assertThat(company.getName()).isEqualTo("수정 업체");
+        assertThat(company.getType()).isEqualTo(CompanyType.RECEIVER);
+        assertThat(company.getHubId()).isEqualTo(hubId);
+        assertThat(company.getAddress().getZipCode()).isEqualTo("54321");
+        assertThat(company.getAddress().getAddress()).isEqualTo("수정 주소");
+        assertThat(company.getAddress().getDetailAddress()).isEqualTo("수정 상세");
+    }
+
+    @Test
+    @DisplayName("실패 - 수정 대상 업체가 없으면 not found 예외를 반환한다")
+    void updateCompanyWithUnknownCompanyIdThrowsNotFound() {
+        // given
+        UUID companyId = UUID.randomUUID();
+        CompanyUpdateRequestDto request = createUpdateRequest("수정 업체", null, null);
+        when(companyRepository.findById(companyId)).thenReturn(Optional.empty());
+
+        // when
+        Throwable throwable = catchThrowable(() -> companyService.updateCompany(companyId, request));
+
+        // then
+        assertThat(throwable)
+                .isInstanceOfSatisfying(BaseException.class,
+                        exception -> assertThat(exception.getErrorCode()).isEqualTo(CompanyErrorCode.COMPANY_NOT_FOUND));
+        verify(companyRepository).findById(companyId);
+        verifyNoMoreInteractions(companyRepository);
+    }
+
     private Company createCompany(UUID companyId, UUID hubId) {
         Company company = Company.create(
                 "테스트 업체",
@@ -279,5 +329,35 @@ class CompanyServiceTest {
         ReflectionTestUtils.setField(request, "managerUserId", managerUserId);
         ReflectionTestUtils.setField(request, "address", addressRequest);
         return request;
+    }
+
+    private AddressRequestDto createAddressRequest(String zipCode, String address, String detailAddress) {
+        AddressRequestDto addressRequest = new AddressRequestDto();
+        ReflectionTestUtils.setField(addressRequest, "zipCode", zipCode);
+        ReflectionTestUtils.setField(addressRequest, "address", address);
+        ReflectionTestUtils.setField(addressRequest, "detailAddress", detailAddress);
+        return addressRequest;
+    }
+
+    private CompanyUpdateRequestDto createUpdateRequest(
+            String name,
+            CompanyType type,
+            AddressRequestDto address
+    ) {
+        CompanyUpdateRequestDto request = createEmptyUpdateRequest();
+        ReflectionTestUtils.setField(request, "name", name);
+        ReflectionTestUtils.setField(request, "type", type);
+        ReflectionTestUtils.setField(request, "address", address);
+        return request;
+    }
+
+    private CompanyUpdateRequestDto createEmptyUpdateRequest() {
+        try {
+            Constructor<CompanyUpdateRequestDto> constructor = CompanyUpdateRequestDto.class.getDeclaredConstructor();
+            constructor.setAccessible(true);
+            return constructor.newInstance();
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException("CompanyUpdateRequestDto 테스트 객체를 생성할 수 없습니다.", e);
+        }
     }
 }

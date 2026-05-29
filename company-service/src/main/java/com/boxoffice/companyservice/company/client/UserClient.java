@@ -11,15 +11,15 @@ import org.springframework.web.bind.annotation.RequestBody;
 
 import java.util.UUID;
 
-@FeignClient(name = "user-service")
+@FeignClient(name = "user-service", path = "/internal/v1/users")
 public interface UserClient {
 
-    @PatchMapping("/internal/v1/users/{userId}/company")
+    @PatchMapping("/{userId}/company")
     ApiResponse<Void> updateUserCompany(
             @PathVariable("userId") UUID userId,
             @RequestBody UserCompanyUpdateRequestDto request
     );
 
-    @GetMapping("/api/v1/users/keycloak/{keycloakSub}")
+    @GetMapping("/keycloak/{keycloakSub}")
     ApiResponse<UserResponseDto> getUserByKeycloakSub(@PathVariable("keycloakSub") String keycloakSub);
 }

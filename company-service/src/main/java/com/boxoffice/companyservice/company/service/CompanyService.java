@@ -71,7 +71,9 @@ public class CompanyService {
     }
 
     @Transactional
-    public void updateCompany(Company company, CompanyUpdateRequestDto request) {
+    public void updateCompany(UUID companyId, CompanyUpdateRequestDto request) {
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() -> new BaseException(CompanyErrorCode.COMPANY_NOT_FOUND));
         AddressVO address = request.getAddress() == null ? null : request.getAddress().toAddressVO();
         company.update(request.getName(), request.getType(), address);
     }

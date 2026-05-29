@@ -60,12 +60,12 @@ public class CompanyFacade {
 
     public void updateCompany(UUID companyId, CompanyUpdateRequestDto request, String userRoleStr, UUID userHubId, String keycloakSub) {
         validateUpdateRequest(companyId, request);
-        Company company = companyService.getCompanyEntity(companyId);
         CompanyUserRole role = validateCompanyUpdatePermission(userRoleStr);
+        Company company = companyService.getCompanyEntity(companyId);
 
         validateCompanyUpdateScope(company, role, userHubId, keycloakSub);
 
-        companyService.updateCompany(company, request);
+        companyService.updateCompany(companyId, request);
     }
 
     private void validateCreateRequest(CompanyCreateRequestDto request) {
