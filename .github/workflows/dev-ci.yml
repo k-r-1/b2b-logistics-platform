@@ -1,0 +1,360 @@
+# 새 서비스 추가 시 수정할 위치 3곳:
+#   1. detect-changes.outputs  에 출력 변수 추가
+#   2. paths-filter.filters    에 경로 패턴 추가
+#   3. 하단에 ci-<service> Job 블록 복붙 후 이름만 변경
+name: CI - Dev
+
+on:
+  push:
+    branches:
+      - dev
+  pull_request_target:
+    branches:
+      - dev
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+
+concurrency:
+  group: ci-dev-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  detect-changes:
+    name: "detect changes"
+    runs-on: ubuntu-latest
+    outputs:
+      # 서비스 추가 시 변경 1
+      common:                   ${{ steps.filter.outputs.common }}
+      api-gateway:              ${{ steps.filter.outputs.api-gateway }}
+      delivery_manager_service: ${{ steps.filter.outputs.delivery_manager_service }}
+      eureka-server:            ${{ steps.filter.outputs.eureka-server }}
+      user-service:             ${{ steps.filter.outputs.user-service }}
+      hub-service: ${{ steps.filter.outputs.hub-service }}
+      company-service: ${{ steps.filter.outputs.company-service }}
+      order-service: ${{ steps.filter.outputs.order-service }}
+      delivery-service: ${{ steps.filter.outputs.delivery-service }}
+      ai-notification-service: ${{ steps.filter.outputs.ai-notification-service }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: '1'
+
+      - name: 변경된 서비스 디렉토리 감지
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          # 서비스 추가 시 변경 2
+          filters: |
+            common:
+              - 'common/**'
+            api-gateway:
+              - 'api-gateway/**'
+            delivery_manager_service:
+              - 'delivery_manager_service/**'
+            eureka-server:
+              - 'eureka-server/**'
+            user-service:
+              - 'user-service/**'
+            hub-service:
+              - 'hub-service/**'
+            company-service:
+              - 'company-service/**'
+            order-service:
+              - 'order-service/**'
+            delivery-service:
+              - 'delivery-service/**'
+            ai-notification-service:
+              - 'ai-notification-service/**'
+
+
+  # 새 서비스 추가 시 변경 3
+  ci-api-gateway:
+    needs: detect-changes
+    uses: ./.github/workflows/_service-ci.yml
+    secrets: inherit
+    permissions:
+      pull-requests: write
+      contents: read
+    with:
+      service: api-gateway
+      changed: ${{ needs.detect-changes.outputs['api-gateway'] }}
+      common-changed: ${{ needs.detect-changes.outputs.common }}
+
+  ci-delivery-manager:
+    needs: detect-changes
+    uses: ./.github/workflows/_service-ci.yml
+    secrets: inherit
+    permissions:
+      pull-requests: write
+      contents: read
+    with:
+      service: delivery_manager_service
+      changed: ${{ needs.detect-changes.outputs.delivery_manager_service }}
+      common-changed: ${{ needs.detect-changes.outputs.common }}
+
+  ci-eureka-server:
+    needs: detect-changes
+    uses: ./.github/workflows/_service-ci.yml
+    secrets: inherit
+    permissions:
+      pull-requests: write
+      contents: read
+    with:
+      service: eureka-server
+      changed: ${{ needs.detect-changes.outputs['eureka-server'] }}
+      common-changed: ${{ needs.detect-changes.outputs.common }}
+
+  ci-user-service:
+    needs: detect-changes
+    uses: ./.github/workflows/_service-ci.yml
+    secrets: inherit
+    permissions:
+      pull-requests: write
+      contents: read
+    with:
+      service: user-service
+      changed: ${{ needs.detect-changes.outputs['user-service'] }}
+      common-changed: ${{ needs.detect-changes.outputs.common }}
+      
+  ci-hub-service:
+    needs: detect-changes
+    uses: ./.github/workflows/_service-ci.yml
+    secrets: inherit
+    permissions:
+      pull-requests: write
+      contents: read
+    with:
+      service: hub-service
+      changed: ${{ needs.detect-changes.outputs['hub-service'] }}
+      common-changed: ${{ needs.detect-changes.outputs.common }}
+
+  ci-company-service:
+    needs: detect-changes
+    uses: ./.github/workflows/_service-ci.yml
+    secrets: inherit
+    permissions:
+      pull-requests: write
+      contents: read
+    with:
+      service: company-service
+      changed: ${{ needs.detect-changes.outputs['company-service'] }}
+      common-changed: ${{ needs.detect-changes.outputs.common }}
+
+  ci-order-service:
+    needs: detect-changes
+    uses: ./.github/workflows/_service-ci.yml
+    secrets: inherit
+    permissions:
+      pull-requests: write
+      contents: read
+    with:
+      service: order-service
+      changed: ${{ needs.detect-changes.outputs['order-service'] }}
+      common-changed: ${{ needs.detect-changes.outputs.common }}
+
+  ci-delivery-service:
+    needs: detect-changes
+    uses: ./.github/workflows/_service-ci.yml
+    secrets: inherit
+    permissions:
+      pull-requests: write
+      contents: read
+    with:
+      service: delivery-service
+      changed: ${{ needs.detect-changes.outputs['delivery-service'] }}
+      common-changed: ${{ needs.detect-changes.outputs.common }}
+
+  ci-ai-notification-service:
+    needs: detect-changes
+    uses: ./.github/workflows/_service-ci.yml
+    secrets: inherit
+    permissions:
+      pull-requests: write
+      contents: read
+    with:
+      service: ai-notification-service
+      changed: ${{ needs.detect-changes.outputs['ai-notification-service'] }}
+      common-changed: ${{ needs.detect-changes.outputs.common }}
+
+
+  ci-result:
+    name: "결과지 생성중"
+    runs-on: ubuntu-latest
+    if: always()
+    needs:
+      - detect-changes
+      - ci-api-gateway
+      - ci-delivery-manager
+      - ci-eureka-server
+      - ci-user-service
+      - ci-hub-service
+      - ci-company-service
+      - ci-order-service
+      - ci-delivery-service
+      - ci-ai-notification-service
+
+    steps:
+      - name: CI 성공/실패 판정 + Discord 알림
+        if: always()
+        shell: bash
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_DEV_WEBHOOK }}
+          OUT_COMMON: ${{ needs.detect-changes.outputs.common }}
+          OUT_GW: ${{ needs.detect-changes.outputs['api-gateway'] }}
+          OUT_DM: ${{ needs.detect-changes.outputs.delivery_manager_service }}
+          OUT_EU: ${{ needs.detect-changes.outputs['eureka-server'] }}
+          OUT_US: ${{ needs.detect-changes.outputs['user-service'] }}
+          OUT_HUB: ${{ needs.detect-changes.outputs['hub-service'] }}
+          OUT_COMP: ${{ needs.detect-changes.outputs['company-service'] }}
+          OUT_ORD: ${{ needs.detect-changes.outputs['order-service'] }}
+          OUT_DEL: ${{ needs.detect-changes.outputs['delivery-service'] }}
+          OUT_NOTI: ${{ needs.detect-changes.outputs['ai-notification-service'] }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          R_DETECT: ${{ needs.detect-changes.result }}
+          R_GW: ${{ needs.ci-api-gateway.result }}
+          R_DM: ${{ needs.ci-delivery-manager.result }}
+          R_EU: ${{ needs.ci-eureka-server.result }}
+          R_US: ${{ needs.ci-user-service.result }}
+          R_HUB: ${{ needs.ci-hub-service.result }}
+          R_COMP: ${{ needs.ci-company-service.result }}
+          R_ORD: ${{ needs.ci-order-service.result }}
+          R_DEL: ${{ needs.ci-delivery-service.result }}
+          R_NOTI: ${{ needs.ci-ai-notification-service.result }}
+        run: |
+          # Webhook URL 누락 시 알림 건너뛰기 (CI 실패 방지)
+          if [[ -z "$DISCORD_WEBHOOK_URL" ]]; then
+            echo "⚠️ DISCORD_WEBHOOK_URL이 누락되었습니다. 알림 전송을 건너뜁니다."
+            exit 0
+          fi
+          
+          job_emoji() {
+            case "$1" in
+              success)   echo "✅" ;;
+              failure)   echo "❌" ;;
+              cancelled) echo "⚠️" ;;
+              skipped)   echo "⏭️" ;;
+              *)         echo "❓" ;;
+            esac
+          }
+          
+          # 1. CI 성공/실패 판정 (if문 사용으로 set -e 충돌 방지)
+          FAILED=false
+          for result in "$R_DETECT" "$R_GW" "$R_DM" "$R_EU" "$R_US" "$R_HUB" "$R_COMP" "$R_ORD" "$R_DEL" "$R_NOTI"; do
+            if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
+              FAILED=true
+            fi
+          done
+          
+          if [[ "$FAILED" == "true" ]]; then
+            COLOR=15548997
+            TITLE="❌  CI Failed — Dev CI"
+          else
+            COLOR=5763719
+            TITLE="✅  CI Passed — Dev CI"
+          fi
+          
+          # 2. 변경된 서비스 목록 수집
+          SERVICES=""
+          append() {
+            if [[ "$1" == "true" ]]; then
+              if [[ -z "$SERVICES" ]]; then
+                SERVICES="$2"
+              else
+                SERVICES="$SERVICES,$2"
+              fi
+            fi
+          }
+          
+          append "$OUT_COMMON" "common"
+          append "$OUT_GW"     "api-gateway"
+          append "$OUT_DM"     "delivery_manager_service"
+          append "$OUT_EU"     "eureka-server"
+          append "$OUT_US"     "user-service"
+          append "$OUT_HUB"  "hub-service"
+          append "$OUT_COMP" "company-service"
+          append "$OUT_ORD"  "order-service"
+          append "$OUT_DEL"  "delivery-service"
+          append "$OUT_NOTI" "ai-notification-service"
+          
+          if [[ -z "$SERVICES" ]]; then
+            SERVICE_LIST="변경된 서비스 없음"
+          else
+            # JSON 포맷에 맞게 이스케이프 및 줄바꿈 처리
+            SERVICE_LIST=$(echo "$SERVICES" | tr ',' '\n' | awk '{printf "• %s\\n", $0}' | sed 's/\\n$//')
+          fi
+          
+          # 3. Discord 전송 Payload (변수 쌍따옴표 묶기)
+          PAYLOAD=$(cat <<EOF
+          {
+            "username": "GitHub Actions",
+            "avatar_url": "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png",
+            "embeds": [{
+              "title": "${TITLE}",
+              "url": "${RUN_URL}",
+              "color": ${COLOR},
+              "fields": [
+                {"name":"📌 PR",           "value":"[${PR_TITLE}](${PR_URL})","inline":false},
+                {"name":"👤 작성자",        "value":"${PR_AUTHOR}",           "inline":true},
+                {"name":"🔀 대상 브랜치",   "value":"dev",                    "inline":true},
+                {"name":"📦 변경된 서비스", "value":"${SERVICE_LIST}",        "inline":false},
+                {"name":"📋 Job 결과",      "value":"$(job_emoji "$R_DETECT") detect-changes\n$(job_emoji "$R_GW") ci-api-gateway\n$(job_emoji "$R_DM") ci-delivery-manager\n$(job_emoji "$R_EU") ci-eureka-server\n$(job_emoji "$R_US") ci-user-service\n$(job_emoji "$R_HUB") ci-hub-service\n$(job_emoji "$R_COMP") ci-company-service\n$(job_emoji "$R_ORD") ci-order-service\n$(job_emoji "$R_DEL") ci-delivery-service\n$(job_emoji "$R_NOTI") ci-ai-notification-service","inline":false}
+              ],
+              "footer":{"text":"Run #${{ github.run_number }} • ${{ github.repository }}"},
+              "timestamp":"$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            }]
+          }
+          EOF
+          )
+          
+          # 4. HTTP API 호출 및 에러 처리
+          HTTP_STATUS=$(curl -s -o /tmp/res.txt -w "%{http_code}" \
+            -X POST "$DISCORD_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD")
+          
+          cat /tmp/res.txt
+          echo "" # 줄바꿈 확보
+          
+          if [[ "$HTTP_STATUS" -ge 200 && "$HTTP_STATUS" -lt 300 ]]; then
+            echo "✅ Discord 알림 완료"
+          else
+            echo "⚠️ Discord 전송 실패 (HTTP $HTTP_STATUS). 파이프라인을 통과시킵니다."
+            # 알림 실패로 인해 전체 CI가 실패하는 것을 방지하기 위해 exit 1 제거
+          fi
+
+      - name: 최종 CI 상태 확인
+        run: |
+          FAILED=false
+          for result in \
+            "${{ needs.detect-changes.result }}" \
+            "${{ needs.ci-api-gateway.result }}" \
+            "${{ needs.ci-delivery-manager.result }}" \
+            "${{ needs.ci-eureka-server.result }}" \
+            "${{ needs.ci-user-service.result }}" \
+            "${{ needs.ci-hub-service.result }}" \
+            "${{ needs.ci-company-service.result }}" \
+            "${{ needs.ci-order-service.result }}" \
+            "${{ needs.ci-delivery-service.result }}" \
+            "${{ needs.ci-ai-notification-service.result }}"; do
+            if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
+              FAILED=true
+            fi
+          done
+          
+          if [[ "$FAILED" == "true" ]]; then
+            echo "❌ CI 실패 — 코드를 다시 확인해주세요."
+            exit 1
+          else
+            echo "✅ CI SUCCESS"
+          fi

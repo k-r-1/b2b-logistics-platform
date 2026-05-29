@@ -1,0 +1,37 @@
+dependencyManagement {
+    imports {
+        mavenBom 'org.springframework.ai:spring-ai-bom:1.1.2'
+    }
+}
+
+dependencies {
+    implementation project(':common')
+
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'com.fasterxml.uuid:java-uuid-generator:5.1.0'
+    implementation 'org.springframework.ai:spring-ai-starter-model-google-genai'
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    runtimeOnly 'org.postgresql:postgresql'
+
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+}
+
+// 기본 test는 외부 호출 격리를 위해 e2e 태그 제외
+tasks.named('test') {
+    useJUnitPlatform {
+        excludeTags 'e2e'
+    }
+}
+
+// 실제 외부 호출(E2E) 전용. GEMINI_API_KEY·postgres 필요: ./gradlew :ai-notification-service:e2eTest
+tasks.register('e2eTest', Test) {
+    description = 'Runs e2e-tagged tests that call real external services (Gemini).'
+    group = 'verification'
+    useJUnitPlatform {
+        includeTags 'e2e'
+    }
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+}

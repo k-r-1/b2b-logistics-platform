@@ -71,7 +71,8 @@ class HubServiceTest {
                 null,
                 37.4956,
                 127.1236,
-                HubType.REGIONAL
+                HubType.REGIONAL,
+                null
         );
 
         given(hubRepository.existsByName(request.name())).willReturn(false);
@@ -84,6 +85,7 @@ class HubServiceTest {
         assertThat(response.name()).isEqualTo("서울특별시 센터");
         assertThat(response.hubType()).isEqualTo(HubType.REGIONAL);
         assertThat(response.latitude()).isEqualTo(37.4956);
+        assertThat(response.createdBy()).isNull();
         verify(hubRepository).save(any(Hub.class));
     }
 
@@ -98,7 +100,8 @@ class HubServiceTest {
                 null,
                 37.2749,
                 127.4431,
-                HubType.CENTRAL
+                HubType.CENTRAL,
+                null
         );
         given(hubRepository.existsByName(request.name())).willReturn(false);
         given(hubRepository.save(any(Hub.class))).willAnswer(i -> i.getArgument(0));
@@ -116,7 +119,7 @@ class HubServiceTest {
         // given
         HubCreateRequestDto request = new HubCreateRequestDto(
                 "테스트 센터", null, "서울특별시 송파구 송파대로 55", null,
-                37.4956, 127.1236, HubType.CLOSING
+                37.4956, 127.1236, HubType.CLOSING, null
         );
 
         // when & then
@@ -139,7 +142,8 @@ class HubServiceTest {
                 null,
                 37.4956,
                 127.1236,
-                HubType.INACTIVE
+                HubType.INACTIVE,
+                null
         );
 
         // when & then
@@ -162,7 +166,8 @@ class HubServiceTest {
                 null,
                 37.4956,
                 127.1236,
-                HubType.REGIONAL
+                HubType.REGIONAL,
+                null
         );
 
         given(hubRepository.existsByName(request.name())).willReturn(true);
@@ -274,7 +279,7 @@ class HubServiceTest {
         // given
         Hub hub = buildHub("서울 센터", HubType.REGIONAL);
         UUID hubId = (UUID) ReflectionTestUtils.getField(hub, "id");
-        HubUpdateRequestDto request = new HubUpdateRequestDto("서울특별시 센터", null, null, null, null, null);
+        HubUpdateRequestDto request = new HubUpdateRequestDto("서울특별시 센터", null, null, null, null, null, null);
 
         given(hubRepository.findById(hubId)).willReturn(Optional.of(hub));
         given(hubRepository.existsByNameAndIdNot(request.name(), hubId)).willReturn(false);
@@ -291,7 +296,7 @@ class HubServiceTest {
     void updateHub_notFound_throwsException() {
         // given
         UUID hubId = UUID.randomUUID();
-        HubUpdateRequestDto request = new HubUpdateRequestDto("새 이름", null, null, null, null, null);
+        HubUpdateRequestDto request = new HubUpdateRequestDto("새 이름", null, null, null, null, null, null);
 
         given(hubRepository.findById(hubId)).willReturn(Optional.empty());
 
@@ -310,7 +315,7 @@ class HubServiceTest {
         hub.startClosing("마감");
         hub.deactivate();
         UUID hubId = (UUID) ReflectionTestUtils.getField(hub, "id");
-        HubUpdateRequestDto request = new HubUpdateRequestDto("새 이름", null, null, null, null, null);
+        HubUpdateRequestDto request = new HubUpdateRequestDto("새 이름", null, null, null, null, null, null);
 
         given(hubRepository.findById(hubId)).willReturn(Optional.of(hub));
 
@@ -328,7 +333,7 @@ class HubServiceTest {
         Hub hub = buildHub("서울 센터", HubType.REGIONAL);
         hub.startClosing("마감 예정");
         UUID hubId = (UUID) ReflectionTestUtils.getField(hub, "id");
-        HubUpdateRequestDto request = new HubUpdateRequestDto("새 이름", null, null, null, null, null);
+        HubUpdateRequestDto request = new HubUpdateRequestDto("새 이름", null, null, null, null, null, null);
 
         given(hubRepository.findById(hubId)).willReturn(Optional.of(hub));
 
@@ -345,7 +350,7 @@ class HubServiceTest {
         // given
         Hub hub = buildHub("서울 센터", HubType.REGIONAL);
         UUID hubId = (UUID) ReflectionTestUtils.getField(hub, "id");
-        HubUpdateRequestDto request = new HubUpdateRequestDto("부산 센터", null, null, null, null, null);
+        HubUpdateRequestDto request = new HubUpdateRequestDto("부산 센터", null, null, null, null, null, null);
 
         given(hubRepository.findById(hubId)).willReturn(Optional.of(hub));
         given(hubRepository.existsByNameAndIdNot(request.name(), hubId)).willReturn(true);

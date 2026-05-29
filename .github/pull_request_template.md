@@ -1,5 +1,5 @@
 ## 💡 PR 제목
-> 예: feat: [KHG] 로그인 API 구현
+> 예: [feat] 로그인 API 구현
 
 ---
 
