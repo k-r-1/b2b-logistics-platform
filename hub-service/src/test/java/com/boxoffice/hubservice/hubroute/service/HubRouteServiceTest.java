@@ -88,7 +88,7 @@ class HubRouteServiceTest {
     void createHubRoute_success() {
         // given
         Hub origin = buildHub("서울특별시 센터", HubType.CENTRAL);
-        Hub destination = buildHub("대전광역시 센터", HubType.REGIONAL);
+        Hub destination = buildHub("인천광역시 센터", HubType.REGIONAL);
         UUID originId = origin.getId();
         UUID destinationId = destination.getId();
         HubRouteCreateRequestDto request = new HubRouteCreateRequestDto(originId, destinationId, 120, 160.5);

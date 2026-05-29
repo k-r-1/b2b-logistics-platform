@@ -7,6 +7,7 @@ import com.boxoffice.hubservice.exception.HubErrorCode;
 import com.boxoffice.hubservice.hub.dto.request.HubClosingRequestDto;
 import com.boxoffice.hubservice.hub.dto.request.HubCreateRequestDto;
 import com.boxoffice.hubservice.hub.dto.request.HubUpdateRequestDto;
+import com.boxoffice.hubservice.hub.dto.response.HubActiveResponseDto;
 import com.boxoffice.hubservice.hub.dto.response.HubCreateResponseDto;
 import com.boxoffice.hubservice.hub.dto.response.HubDeactivateResponseDto;
 import com.boxoffice.hubservice.hub.dto.response.HubGetResponseDto;
@@ -525,11 +526,11 @@ class HubServiceTest {
         given(hubRepository.findById(hubId)).willReturn(Optional.of(hub));
 
         // when
-        HubGetResponseDto response = hubService.getActiveHub(hubId);
+        HubActiveResponseDto response = hubService.getActiveHub(hubId);
 
         // then
         assertThat(response.hubId()).isEqualTo(hubId);
-        assertThat(response.hubType()).isEqualTo(HubType.CENTRAL);
+        assertThat(response.isActive()).isTrue();
     }
 
     @Test
@@ -541,11 +542,11 @@ class HubServiceTest {
         given(hubRepository.findById(hubId)).willReturn(Optional.of(hub));
 
         // when
-        HubGetResponseDto response = hubService.getActiveHub(hubId);
+        HubActiveResponseDto response = hubService.getActiveHub(hubId);
 
         // then
         assertThat(response.hubId()).isEqualTo(hubId);
-        assertThat(response.hubType()).isEqualTo(HubType.REGIONAL);
+        assertThat(response.isActive()).isTrue();
     }
 
     @Test
