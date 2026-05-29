@@ -1,5 +1,6 @@
 package boxoffice.orderservice.benchmark;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.openjdk.jmh.results.format.ResultFormatType;
@@ -19,6 +20,7 @@ import org.openjdk.jmh.runner.options.OptionsBuilder;
 @Tag("benchmark")
 class BenchmarkRunner {
 
+    @Disabled("CI 빌드에서 벤치마크는 제외")
     @Test
     void runUpdateOrderCacheBenchmark() throws Exception {
         Options opt = new OptionsBuilder()
