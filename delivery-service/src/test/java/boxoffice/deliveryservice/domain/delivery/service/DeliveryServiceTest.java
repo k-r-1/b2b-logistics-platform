@@ -951,7 +951,7 @@ class DeliveryServiceTest {
             // given
             UUID deliveryId = UUID.randomUUID();
             UUID userId = UUID.randomUUID();
-            UserInfoDto userInfo = new UserInfoDto(userId, UserRole.MASTER, null, null);
+            UserResponseDto userInfo = UserResponseDto.builder().id(userId).role(UserRole.MASTER).build();
             Delivery delivery = createDelivery(UUID.randomUUID());
 
             given(userServiceClient.getUserBySub(keycloakSub)).willReturn(ApiResponse.success(userInfo));
@@ -971,10 +971,10 @@ class DeliveryServiceTest {
             UUID deliveryId = UUID.randomUUID();
             UUID userId = UUID.randomUUID();
             UUID hubId = UUID.randomUUID();
-            UserInfoDto userInfo = new UserInfoDto(userId, UserRole.HUB_MANAGER, hubId, null);
+            UserResponseDto userInfo = UserResponseDto.builder().id(userId).role(UserRole.HUB_MANAGER).hubId(hubId).build();
             Delivery delivery = Delivery.create(
                     UUID.randomUUID(), UUID.randomUUID(), hubId, UUID.randomUUID(),
-                    new AddressRequest("12345", "서울시 송파구 송파대로 55", "101호").toAddressVO(),
+                    new AddressVO("12345", "서울시 송파구 송파대로 55", "101호"),
                     "홍길동", "U12345"
             );
 
@@ -993,7 +993,7 @@ class DeliveryServiceTest {
         void fail_hub_manager_forbidden() {
             // given
             UUID deliveryId = UUID.randomUUID();
-            UserInfoDto userInfo = new UserInfoDto(UUID.randomUUID(), UserRole.HUB_MANAGER, UUID.randomUUID(), null);
+            UserResponseDto userInfo = UserResponseDto.builder().id(UUID.randomUUID()).role(UserRole.HUB_MANAGER).hubId(UUID.randomUUID()).build();
             Delivery delivery = createDelivery(UUID.randomUUID());
 
             given(userServiceClient.getUserBySub(keycloakSub)).willReturn(ApiResponse.success(userInfo));
@@ -1011,7 +1011,7 @@ class DeliveryServiceTest {
             // given
             UUID deliveryId = UUID.randomUUID();
             UUID userId = UUID.randomUUID();
-            UserInfoDto userInfo = new UserInfoDto(userId, UserRole.DELIVERY_MANAGER, null, null);
+            UserResponseDto userInfo = UserResponseDto.builder().id(userId).role(UserRole.DELIVERY_MANAGER).build();
             Delivery delivery = createDelivery(UUID.randomUUID());
             delivery.assignDeliveryPerson(userId);
 
@@ -1030,7 +1030,7 @@ class DeliveryServiceTest {
             // given
             UUID deliveryId = UUID.randomUUID();
             UUID companyId = UUID.randomUUID();
-            UserInfoDto userInfo = new UserInfoDto(UUID.randomUUID(), UserRole.SUPPLIER_MANAGER, null, companyId);
+            UserResponseDto userInfo = UserResponseDto.builder().id(UUID.randomUUID()).role(UserRole.SUPPLIER_MANAGER).companyId(companyId).build();
             Delivery delivery = createDelivery(companyId);
 
             given(userServiceClient.getUserBySub(keycloakSub)).willReturn(ApiResponse.success(userInfo));
@@ -1047,7 +1047,7 @@ class DeliveryServiceTest {
         void fail_not_found() {
             // given
             UUID deliveryId = UUID.randomUUID();
-            UserInfoDto userInfo = new UserInfoDto(UUID.randomUUID(), UserRole.MASTER, null, null);
+            UserResponseDto userInfo = UserResponseDto.builder().id(UUID.randomUUID()).role(UserRole.MASTER).build();
 
             given(userServiceClient.getUserBySub(keycloakSub)).willReturn(ApiResponse.success(userInfo));
             given(deliveryRepository.findByIdAndDeletedAtIsNull(deliveryId)).willReturn(Optional.empty());
@@ -1072,7 +1072,7 @@ class DeliveryServiceTest {
             UUID deliveryId = UUID.randomUUID();
             UUID routeId = UUID.randomUUID();
             UUID userId = UUID.randomUUID();
-            UserInfoDto userInfo = new UserInfoDto(userId, UserRole.MASTER, null, null);
+            UserResponseDto userInfo = UserResponseDto.builder().id(userId).role(UserRole.MASTER).build();
             Delivery delivery = createDelivery(UUID.randomUUID());
 
             given(userServiceClient.getUserBySub(keycloakSub)).willReturn(ApiResponse.success(userInfo));
@@ -1092,7 +1092,7 @@ class DeliveryServiceTest {
             UUID deliveryId = UUID.randomUUID();
             UUID routeId = UUID.randomUUID();
             UUID userId = UUID.randomUUID();
-            UserInfoDto userInfo = new UserInfoDto(userId, UserRole.DELIVERY_MANAGER, null, null);
+            UserResponseDto userInfo = UserResponseDto.builder().id(userId).role(UserRole.DELIVERY_MANAGER).build();
             Delivery delivery = createDelivery(UUID.randomUUID());
             delivery.assignDeliveryPerson(userId);
 
@@ -1112,7 +1112,7 @@ class DeliveryServiceTest {
             UUID deliveryId = UUID.randomUUID();
             UUID routeId = UUID.randomUUID();
             UUID companyId = UUID.randomUUID();
-            UserInfoDto userInfo = new UserInfoDto(UUID.randomUUID(), UserRole.SUPPLIER_MANAGER, null, companyId);
+            UserResponseDto userInfo = UserResponseDto.builder().id(UUID.randomUUID()).role(UserRole.SUPPLIER_MANAGER).companyId(companyId).build();
             Delivery delivery = createDelivery(companyId);
 
             given(userServiceClient.getUserBySub(keycloakSub)).willReturn(ApiResponse.success(userInfo));
@@ -1130,7 +1130,7 @@ class DeliveryServiceTest {
             // given
             UUID deliveryId = UUID.randomUUID();
             UUID routeId = UUID.randomUUID();
-            UserInfoDto userInfo = new UserInfoDto(UUID.randomUUID(), UserRole.MASTER, null, null);
+            UserResponseDto userInfo = UserResponseDto.builder().id(UUID.randomUUID()).role(UserRole.MASTER).build();
 
             given(userServiceClient.getUserBySub(keycloakSub)).willReturn(ApiResponse.success(userInfo));
             given(deliveryRepository.findByIdAndDeletedAtIsNull(deliveryId)).willReturn(Optional.empty());

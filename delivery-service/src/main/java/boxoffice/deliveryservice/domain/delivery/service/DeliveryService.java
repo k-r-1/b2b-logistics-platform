@@ -151,18 +151,18 @@ public class DeliveryService {
     }
 
     public void deleteDelivery(String keycloakSub, UUID deliveryId) {
-        UserInfoDto userInfo = getUserInfo(keycloakSub);
+        UserResponseDto userInfo = getUserInfo(keycloakSub);
         Delivery delivery = findDeliveryOrThrow(deliveryId);
         checkDeleteAccess(delivery, userInfo);
-        deliveryRouteService.deleteAllByDelivery(deliveryId, userInfo.id());
-        delivery.softDelete(userInfo.id());
+        deliveryRouteService.deleteAllByDelivery(deliveryId, userInfo.getId());
+        delivery.softDelete(userInfo.getId());
     }
 
     public void deleteDeliveryRoute(String keycloakSub, UUID deliveryId, UUID routeId) {
-        UserInfoDto userInfo = getUserInfo(keycloakSub);
+        UserResponseDto userInfo = getUserInfo(keycloakSub);
         Delivery delivery = findDeliveryOrThrow(deliveryId);
         checkDeleteAccess(delivery, userInfo);
-        deliveryRouteService.deleteRoute(routeId, deliveryId, userInfo.id());
+        deliveryRouteService.deleteRoute(routeId, deliveryId, userInfo.getId());
     }
 
     private Delivery findDeliveryOrThrow(UUID deliveryId) {
@@ -216,12 +216,12 @@ public class DeliveryService {
     }
 
     private void checkDeleteAccess(Delivery delivery, UserResponseDto userInfo) {
-        switch (userInfo.role()) {
+        switch (userInfo.getRole()) {
             case MASTER -> {}
             case HUB_MANAGER -> {
-                if (userInfo.hubId() == null ||
-                        (!userInfo.hubId().equals(delivery.getOriginHubId()) &&
-                                !userInfo.hubId().equals(delivery.getDestinationHubId()))) {
+                if (userInfo.getHubId() == null ||
+                        (!userInfo.getHubId().equals(delivery.getOriginHubId()) &&
+                                !userInfo.getHubId().equals(delivery.getDestinationHubId()))) {
                     throw new BaseException(CommonErrorCode.FORBIDDEN);
                 }
             }
