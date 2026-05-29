@@ -5,10 +5,14 @@ import boxoffice.deliveryservice.client.UserServiceClient;
 import boxoffice.deliveryservice.client.dto.response.HubRouteResponseDto;
 import boxoffice.deliveryservice.client.dto.response.UserResponseDto;
 import boxoffice.deliveryservice.domain.delivery.dto.request.DeliveryCreateRequestDto;
+import boxoffice.deliveryservice.domain.delivery.dto.request.DeliveryStatusUpdateRequestDto;
+import boxoffice.deliveryservice.domain.delivery.dto.request.DeliveryUpdateRequestDto;
 import boxoffice.deliveryservice.domain.delivery.dto.response.DeliveryResponseDto;
 import boxoffice.deliveryservice.domain.delivery.entity.Delivery;
 import boxoffice.deliveryservice.domain.delivery.exception.DeliveryErrorCode;
 import boxoffice.deliveryservice.domain.delivery.repository.DeliveryRepository;
+import boxoffice.deliveryservice.domain.deliveryroute.dto.request.DeliveryRouteStatusUpdateRequestDto;
+import boxoffice.deliveryservice.domain.deliveryroute.dto.request.DeliveryRouteUpdateRequestDto;
 import boxoffice.deliveryservice.domain.deliveryroute.dto.response.DeliveryRouteResponseDto;
 import boxoffice.deliveryservice.domain.deliveryroute.service.DeliveryRouteService;
 import com.boxoffice.common.exception.BaseException;
@@ -112,32 +116,32 @@ public class DeliveryService {
         return userServiceClient.getUserBySub(keycloakSub).getData();
     }
     public DeliveryResponseDto updateDelivery(String keycloakSub, UUID deliveryId, DeliveryUpdateRequestDto request) {
-        UserInfoDto userInfo = getUserInfo(keycloakSub);
+        UserResponseDto userInfo = getUserInfo(keycloakSub);
         Delivery delivery = findDeliveryOrThrow(deliveryId);
-        checkWriteAccess(delivery, userInfo);
+        checkDeliveryAccess(delivery, userInfo);
         delivery.updateInfo(request.recipientName(), request.recipientSlackId(), request.deliveryAddress().toAddressVO());
         return DeliveryResponseDto.from(delivery);
     }
 
     public DeliveryResponseDto updateDeliveryStatus(String keycloakSub, UUID deliveryId, DeliveryStatusUpdateRequestDto request) {
-        UserInfoDto userInfo = getUserInfo(keycloakSub);
+        UserResponseDto userInfo = getUserInfo(keycloakSub);
         Delivery delivery = findDeliveryOrThrow(deliveryId);
-        checkWriteAccess(delivery, userInfo);
+        checkDeliveryAccess(delivery, userInfo);
         delivery.updateStatus(request.status());
         return DeliveryResponseDto.from(delivery);
     }
 
     public DeliveryRouteResponseDto updateDeliveryRoute(String keycloakSub, UUID deliveryId, UUID routeId, DeliveryRouteUpdateRequestDto request) {
-        UserInfoDto userInfo = getUserInfo(keycloakSub);
+        UserResponseDto userInfo = getUserInfo(keycloakSub);
         Delivery delivery = findDeliveryOrThrow(deliveryId);
-        checkWriteAccess(delivery, userInfo);
+        checkDeliveryAccess(delivery, userInfo);
         return deliveryRouteService.updateRoute(routeId, deliveryId, request);
     }
 
     public DeliveryRouteResponseDto updateDeliveryRouteStatus(String keycloakSub, UUID deliveryId, UUID routeId, DeliveryRouteStatusUpdateRequestDto request) {
-        UserInfoDto userInfo = getUserInfo(keycloakSub);
+        UserResponseDto userInfo = getUserInfo(keycloakSub);
         Delivery delivery = findDeliveryOrThrow(deliveryId);
-        checkWriteAccess(delivery, userInfo);
+        checkDeliveryAccess(delivery, userInfo);
         return deliveryRouteService.updateRouteStatus(routeId, deliveryId, request);
     }
 
