@@ -16,6 +16,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -76,6 +77,17 @@ public class HubRouteController {
     ) {
         validateMasterRole(role);
         return ResponseEntity.ok(ApiResponse.success(hubRouteService.updateHubRoute(routeId, request)));
+    }
+
+    @Operation(summary = "허브 경로 삭제", description = "허브 경로를 삭제합니다. MASTER 권한 필요.")
+    @DeleteMapping("/{routeId}")
+    public ResponseEntity<Void> deleteHubRoute(
+            @RequestHeader("X-User-Role") String role,
+            @PathVariable UUID routeId
+    ) {
+        validateMasterRole(role);
+        hubRouteService.deleteHubRoute(routeId);
+        return ResponseEntity.noContent().build();
     }
 
     private void validateMasterRole(String role) {
