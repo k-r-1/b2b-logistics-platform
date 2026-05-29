@@ -1,15 +1,26 @@
 package com.boxoffice.companyservice.company.controller;
 
 import com.boxoffice.common.response.ApiResponse;
+import com.boxoffice.common.response.PageResponse;
+import com.boxoffice.common.util.PageableUtils;
 import com.boxoffice.companyservice.company.dto.request.CompanyCreateRequestDto;
 import com.boxoffice.companyservice.company.dto.response.CompanyCreateResponseDto;
+import com.boxoffice.companyservice.company.dto.response.CompanyResponseDto;
+import com.boxoffice.companyservice.company.dto.search.CompanySearchCondition;
 import com.boxoffice.companyservice.company.service.CompanyFacade;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -25,6 +36,42 @@ import java.util.UUID;
 public class CompanyController {
 
     private final CompanyFacade companyFacade;
+
+    @Operation(summary = "업체 목록 및 검색 조회", description = "조건에 따라 업체 목록을 페이징하여 조회합니다.")
+    @GetMapping
+    public ResponseEntity<ApiResponse<PageResponse<CompanyResponseDto>>> searchCompanies(
+            @RequestHeader(value = "X-User-Role", required = false) String userRole,
+            @ModelAttribute CompanySearchCondition condition,
+            @PageableDefault(sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        // PageableUtils를 사용하여 페이지 사이즈(10, 30, 50)를 강제로 보정한다.
+        Pageable validPageable = PageableUtils.of(
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                pageable.getSort().stream().findFirst().map(Sort.Order::getProperty).orElse("createdAt"),
+                pageable.getSort().stream().findFirst().map(Sort.Order::isDescending).orElse(true)
+        );
+
+        Page<CompanyResponseDto> companies = companyFacade.searchCompanies(condition, validPageable, userRole);
+        // 요청 정렬이 있으면 실제 적용값을, 없으면 기본 정렬(createdAt,DESC)을 응답에 표시한다.
+        String sort = validPageable.getSort().stream()
+                .findFirst()
+                .map(order -> order.getProperty() + "," + order.getDirection())
+                .orElse("createdAt,DESC");
+
+        return ResponseEntity.ok(ApiResponse.success(PageResponse.of(companies, sort)));
+    }
+
+    @Operation(summary = "업체 상세 조회", description = "업체 ID(UUID)를 통해 특정 업체의 상세 정보를 조회합니다.")
+    @GetMapping("/{companyId}")
+    public ResponseEntity<ApiResponse<CompanyResponseDto>> getCompany(
+            @RequestHeader(value = "X-User-Role", required = false) String userRole,
+            @PathVariable("companyId") UUID companyId
+    ) {
+        CompanyResponseDto response = companyFacade.getCompany(companyId, userRole);
+
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
 
     @Operation(summary = "업체 생성", description = "MASTER 또는 담당 허브 HUB_MANAGER가 업체를 생성합니다.")
     @PostMapping

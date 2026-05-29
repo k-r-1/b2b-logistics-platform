@@ -53,6 +53,13 @@ spring:
           filters:
             - JwtAuthenticationFilter
 
+        - id: company-service
+          uri: lb://company-service
+          predicates:
+            - Path=/api/v1/companies/**
+          filters:
+            - JwtAuthenticationFilter
+
 eureka:
   instance:
     prefer-ip-address: true

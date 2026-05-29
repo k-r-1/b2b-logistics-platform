@@ -1,10 +1,13 @@
 package com.boxoffice.hubservice.hub.dto.request;
 
 import com.boxoffice.hubservice.hub.entity.HubType;
-import jakarta.validation.constraints.*;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 
 public record HubCreateRequestDto(
-
         @NotBlank(message = "허브 이름은 필수입니다.")
         String name,
 
@@ -30,4 +33,4 @@ public record HubCreateRequestDto(
 
         @Positive(message = "최대 수용량은 양수여야 합니다.")
         Integer capacity
-) {}
+) { }
