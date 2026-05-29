@@ -77,7 +77,7 @@ public class CompanyFacade {
         validateCompanyDeleteScope(company, role, userHubId);
 
         UUID deletedBy = resolveCurrentUserId(keycloakSub);
-        companyService.deleteCompany(company, deletedBy);
+        companyService.deleteCompany(companyId, deletedBy);
     }
 
     private void validateCreateRequest(CompanyCreateRequestDto request) {
@@ -217,7 +217,7 @@ public class CompanyFacade {
             throw new BaseException(CommonErrorCode.UNAUTHORIZED);
         }
 
-        ApiResponse<UserResponseDto> response = userClient.getUserByKeycloakSub(keycloakSub);
+        ApiResponse<UserResponseDto> response = getUserByKeycloakSub(keycloakSub);
         if (response == null || response.getData() == null || response.getData().getCompanyId() == null) {
             throw new BaseException(CommonErrorCode.FORBIDDEN);
         }
@@ -228,12 +228,16 @@ public class CompanyFacade {
     }
 
     private UUID resolveCurrentUserId(String keycloakSub) {
+        ApiResponse<UserResponseDto> response = getUserByKeycloakSub(keycloakSub);
+        if (response == null || response.getData() == null || response.getData().getId() == null) {
+            throw new BaseException(CommonErrorCode.UNAUTHORIZED);
+        }
+        return response.getData().getId();
+    }
+
+    private ApiResponse<UserResponseDto> getUserByKeycloakSub(String keycloakSub) {
         try {
-            ApiResponse<UserResponseDto> response = userClient.getUserByKeycloakSub(keycloakSub);
-            if (response == null || response.getData() == null || response.getData().getId() == null) {
-                throw new BaseException(CommonErrorCode.UNAUTHORIZED);
-            }
-            return response.getData().getId();
+            return userClient.getUserByKeycloakSub(keycloakSub);
         } catch (FeignException e) {
             throw new BaseException(CommonErrorCode.FEIGN_CLIENT_ERROR);
         }

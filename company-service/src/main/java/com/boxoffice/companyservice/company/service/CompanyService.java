@@ -81,7 +81,9 @@ public class CompanyService {
     }
 
     @Transactional
-    public void deleteCompany(Company company, UUID deletedBy) {
+    public void deleteCompany(UUID companyId, UUID deletedBy) {
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() -> new BaseException(CompanyErrorCode.COMPANY_NOT_FOUND));
         company.softDelete(deletedBy);
         log.info("Company deleted. companyId={}, deletedBy={}", company.getId(), deletedBy);
     }

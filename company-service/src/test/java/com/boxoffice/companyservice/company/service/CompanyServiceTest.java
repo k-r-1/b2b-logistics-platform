@@ -303,13 +303,31 @@ class CompanyServiceTest {
         UUID companyId = UUID.randomUUID();
         UUID deletedBy = UUID.randomUUID();
         Company company = createCompany(companyId, UUID.randomUUID());
+        when(companyRepository.findById(companyId)).thenReturn(Optional.of(company));
 
-        companyService.deleteCompany(company, deletedBy);
+        companyService.deleteCompany(companyId, deletedBy);
 
-        verifyNoInteractions(companyRepository);
+        verify(companyRepository).findById(companyId);
+        verifyNoMoreInteractions(companyRepository);
         assertThat(company.isDeleted()).isTrue();
         assertThat(company.getDeletedAt()).isNotNull();
         assertThat(company.getDeletedBy()).isEqualTo(deletedBy);
+    }
+
+    @Test
+    @DisplayName("실패 - 삭제 대상 업체가 없으면 not found 예외를 반환한다")
+    void deleteCompanyWithUnknownCompanyIdThrowsNotFound() {
+        UUID companyId = UUID.randomUUID();
+        UUID deletedBy = UUID.randomUUID();
+        when(companyRepository.findById(companyId)).thenReturn(Optional.empty());
+
+        Throwable throwable = catchThrowable(() -> companyService.deleteCompany(companyId, deletedBy));
+
+        assertThat(throwable)
+                .isInstanceOfSatisfying(BaseException.class,
+                        exception -> assertThat(exception.getErrorCode()).isEqualTo(CompanyErrorCode.COMPANY_NOT_FOUND));
+        verify(companyRepository).findById(companyId);
+        verifyNoMoreInteractions(companyRepository);
     }
 
     private Company createCompany(UUID companyId, UUID hubId) {

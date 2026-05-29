@@ -458,6 +458,30 @@ class CompanyFacadeTest {
     }
 
     @Test
+    @DisplayName("실패 - SUPPLIER_MANAGER 수정 권한 검증 중 user-service 호출이 실패하면 Feign 실패 예외로 변환한다")
+    void updateCompanyWithSupplierManagerRoleAndUserServiceCallFails() {
+        UUID companyId = UUID.randomUUID();
+        String keycloakSub = UUID.randomUUID().toString();
+        Company company = createCompany(companyId, UUID.randomUUID());
+        CompanyUpdateRequestDto request = createUpdateRequest("수정 업체", null);
+
+        when(companyService.getCompanyEntity(companyId)).thenReturn(company);
+        when(userClient.getUserByKeycloakSub(keycloakSub)).thenThrow(createFeignException(500));
+
+        Throwable throwable = catchThrowable(() ->
+                companyFacade.updateCompany(companyId, request, "SUPPLIER_MANAGER", null, keycloakSub)
+        );
+
+        assertThat(throwable)
+                .isInstanceOfSatisfying(BaseException.class,
+                        exception -> assertThat(exception.getErrorCode()).isEqualTo(CommonErrorCode.FEIGN_CLIENT_ERROR));
+        verify(companyService).getCompanyEntity(companyId);
+        verify(userClient).getUserByKeycloakSub(keycloakSub);
+        verifyNoMoreInteractions(userClient, companyService);
+        verifyNoInteractions(hubValidator);
+    }
+
+    @Test
     @DisplayName("실패 - 수정할 필드가 없으면 입력값 오류로 처리한다")
     void updateCompanyWithoutUpdateField() {
         // given
@@ -493,7 +517,7 @@ class CompanyFacadeTest {
         // then
         verify(companyService).getCompanyEntity(companyId);
         verify(userClient).getUserByKeycloakSub(keycloakSub);
-        verify(companyService).deleteCompany(company, deletedBy);
+        verify(companyService).deleteCompany(companyId, deletedBy);
         verifyNoMoreInteractions(userClient, companyService);
         verifyNoInteractions(hubValidator);
     }
@@ -518,7 +542,7 @@ class CompanyFacadeTest {
         // then
         verify(companyService).getCompanyEntity(companyId);
         verify(userClient).getUserByKeycloakSub(keycloakSub);
-        verify(companyService).deleteCompany(company, deletedBy);
+        verify(companyService).deleteCompany(companyId, deletedBy);
         verifyNoMoreInteractions(userClient, companyService);
         verifyNoInteractions(hubValidator);
     }
