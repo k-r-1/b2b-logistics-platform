@@ -274,7 +274,7 @@ public class StockTransferService {
         Map<UUID, Hub> hubMap = hubRepository.findAllById(destinationIds)
                 .stream().collect(Collectors.toMap(Hub::getId, h -> h));
 
-        Map<UUID, Integer> stockCounts = fetchBulkStockCount(destinationIds);
+        Map<UUID, Long> stockCounts = fetchBulkStockCount(destinationIds);
 
         return routes.stream()
                 .map(route -> {
@@ -282,7 +282,7 @@ public class StockTransferService {
                     if (toHub == null || toHub.isInactive() || toHub.isClosing() || toHub.getCapacity() == null) {
                         return null;
                     }
-                    int available = toHub.getCapacity() - stockCounts.getOrDefault(toHub.getId(), 0);
+                    int available = toHub.getCapacity() - stockCounts.getOrDefault(toHub.getId(), 0L).intValue();
                     if (available <= 0) {
                         return null;
                     }
@@ -339,7 +339,7 @@ public class StockTransferService {
         return response.getData();
     }
 
-    private Map<UUID, Integer> fetchBulkStockCount(List<UUID> hubIds) {
+    private Map<UUID, Long> fetchBulkStockCount(List<UUID> hubIds) {
         if (hubIds.isEmpty()) {
             return Map.of();
         }
