@@ -1141,4 +1141,54 @@ class DeliveryServiceTest {
             verify(deliveryRouteService, never()).deleteRoute(any(), any(), any());
         }
     }
+
+    @Nested
+    @DisplayName("getActiveDeliveryCount()")
+    class GetActiveDeliveryCount {
+
+        @Test
+        @DisplayName("성공 - 진행 중 배송이 있을 때 건수 반환")
+        void success_returns_count() {
+            // given
+            UUID hubId = UUID.randomUUID();
+            given(deliveryRepository.countActiveByHubId(hubId, List.of(DeliveryStatus.DELIVERED, DeliveryStatus.CANCELED)))
+                    .willReturn(3);
+
+            // when
+            int result = deliveryService.getActiveDeliveryCount(hubId);
+
+            // then
+            assertThat(result).isEqualTo(3);
+        }
+
+        @Test
+        @DisplayName("성공 - 진행 중 배송이 없을 때 0 반환")
+        void success_returns_zero() {
+            // given
+            UUID hubId = UUID.randomUUID();
+            given(deliveryRepository.countActiveByHubId(hubId, List.of(DeliveryStatus.DELIVERED, DeliveryStatus.CANCELED)))
+                    .willReturn(0);
+
+            // when
+            int result = deliveryService.getActiveDeliveryCount(hubId);
+
+            // then
+            assertThat(result).isZero();
+        }
+
+        @Test
+        @DisplayName("성공 - DELIVERED, CANCELED 상태를 제외 목록으로 전달")
+        void success_passes_correct_excluded_statuses() {
+            // given
+            UUID hubId = UUID.randomUUID();
+            given(deliveryRepository.countActiveByHubId(any(), any())).willReturn(0);
+
+            // when
+            deliveryService.getActiveDeliveryCount(hubId);
+
+            // then
+            verify(deliveryRepository).countActiveByHubId(hubId,
+                    List.of(DeliveryStatus.DELIVERED, DeliveryStatus.CANCELED));
+        }
+    }
 }

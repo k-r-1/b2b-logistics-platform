@@ -9,6 +9,7 @@ import boxoffice.deliveryservice.domain.delivery.dto.request.DeliveryStatusUpdat
 import boxoffice.deliveryservice.domain.delivery.dto.request.DeliveryUpdateRequestDto;
 import boxoffice.deliveryservice.domain.delivery.dto.response.DeliveryResponseDto;
 import boxoffice.deliveryservice.domain.delivery.entity.Delivery;
+import boxoffice.deliveryservice.domain.delivery.entity.DeliveryStatus;
 import boxoffice.deliveryservice.domain.delivery.exception.DeliveryErrorCode;
 import boxoffice.deliveryservice.domain.delivery.repository.DeliveryRepository;
 import boxoffice.deliveryservice.domain.deliveryroute.dto.request.DeliveryRouteStatusUpdateRequestDto;
@@ -24,12 +25,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.UUID;
-
-import static boxoffice.deliveryservice.client.entity.UserRole.DELIVERY_MANAGER;
-import static boxoffice.deliveryservice.client.entity.UserRole.HUB_MANAGER;
-import static boxoffice.deliveryservice.client.entity.UserRole.MASTER;
-import static boxoffice.deliveryservice.client.entity.UserRole.SUPPLIER_MANAGER;
 
 @Service
 @RequiredArgsConstructor
@@ -156,6 +153,11 @@ public class DeliveryService {
         checkDeleteAccess(delivery, userInfo);
         deliveryRouteService.deleteAllByDelivery(deliveryId, userInfo.getId());
         delivery.softDelete(userInfo.getId());
+    }
+
+    @Transactional(readOnly = true)
+    public int getActiveDeliveryCount(UUID hubId) {
+        return deliveryRepository.countActiveByHubId(hubId, List.of(DeliveryStatus.DELIVERED, DeliveryStatus.CANCELED));
     }
 
     public void deleteDeliveryRoute(String keycloakSub, UUID deliveryId, UUID routeId) {
