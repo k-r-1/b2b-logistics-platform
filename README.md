@@ -14,7 +14,18 @@
 <br>
 
 ## 🚀 서비스 구성 및 실행 방법
+Prerequisites
+Java 21
 
+Docker & Docker Compose
+
+인프라 원클릭 셋업 (Infra Setup)
+프로젝트 루트 디렉토리에서 아래 명령어를 통해 PostgreSQL(도메인별 스키마 분리), Redis, Kafka, Keycloak 인프라를 한 번에 기동합니다.
+<img width="453" height="75" alt="image" src="https://github.com/user-attachments/assets/058f64c6-d9a9-4a38-bff2-93e6c71c6b38" />
+
+서비스 실행 (Service Run)
+Eureka Server와 API Gateway를 먼저 기동한 후, 비즈니스 마이크로서비스들을 순차적으로 실행합니다.
+<img width="364" height="237" alt="image" src="https://github.com/user-attachments/assets/37424a44-6ac9-4641-ac4a-4b5987bc8a74" />
 
 
 ## 🔍 프로젝트 목적/상세
