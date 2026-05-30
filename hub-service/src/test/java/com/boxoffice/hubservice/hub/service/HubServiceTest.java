@@ -767,7 +767,7 @@ class HubServiceTest {
         hub.deactivate();
         UUID hubId = (UUID) ReflectionTestUtils.getField(hub, "id");
 
-        CompanyDetailResponseDto company = new CompanyDetailResponseDto(UUID.randomUUID(), "업체A", 10);
+        CompanyDetailResponseDto company = new CompanyDetailResponseDto(UUID.randomUUID(), "업체A", 10L);
         ApiResponse<List<CompanyDetailResponseDto>> response = mock(ApiResponse.class);
         given(response.getData()).willReturn(List.of(company));
 

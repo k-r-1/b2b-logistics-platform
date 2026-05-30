@@ -71,7 +71,7 @@ public class StockTransferService {
             throw new BaseException(HubErrorCode.NO_COMPANIES_TO_TRANSFER);
         }
 
-        int totalStock = companies.stream().mapToInt(CompanyDetailResponseDto::stockCount).sum();
+        long totalStock = companies.stream().mapToLong(CompanyDetailResponseDto::stockCount).sum();
         List<Candidate> candidates = buildCandidates(fromHubId);
         Map<UUID, List<CompanyDetailResponseDto>> assignment = runFFD(companies, candidates);
 
@@ -79,7 +79,7 @@ public class StockTransferService {
                 .filter(c -> assignment.containsKey(c.hub().getId()))
                 .map(c -> {
                     List<CompanyDetailResponseDto> assigned = assignment.get(c.hub().getId());
-                    int suggestedCount = assigned.stream().mapToInt(CompanyDetailResponseDto::stockCount).sum();
+                    long suggestedCount = assigned.stream().mapToLong(CompanyDetailResponseDto::stockCount).sum();
                     List<AssignedCompanyResponseDto> companyDtos = assigned.stream()
                             .map(co -> new AssignedCompanyResponseDto(
                                     co.companyId(), co.companyName(), co.stockCount()))
@@ -120,7 +120,7 @@ public class StockTransferService {
         for (Map.Entry<UUID, List<CompanyDetailResponseDto>> entry : assignment.entrySet()) {
             List<CompanyDetailResponseDto> assigned = entry.getValue();
             List<UUID> companyIds = assigned.stream().map(CompanyDetailResponseDto::companyId).toList();
-            int totalProductCount = assigned.stream().mapToInt(CompanyDetailResponseDto::stockCount).sum();
+            int totalProductCount = (int) assigned.stream().mapToLong(CompanyDetailResponseDto::stockCount).sum();
 
             StockTransfer transfer = StockTransfer.builder()
                     .fromHubId(request.fromHubId())
@@ -302,7 +302,7 @@ public class StockTransferService {
         }
 
         List<CompanyDetailResponseDto> sorted = companies.stream()
-                .sorted(Comparator.comparingInt(CompanyDetailResponseDto::stockCount).reversed())
+                .sorted(Comparator.comparingLong(CompanyDetailResponseDto::stockCount).reversed())
                 .toList();
 
         Map<UUID, Long> remaining = candidates.stream()

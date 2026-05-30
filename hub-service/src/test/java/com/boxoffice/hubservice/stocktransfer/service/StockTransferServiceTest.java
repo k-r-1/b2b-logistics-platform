@@ -137,7 +137,7 @@ class StockTransferServiceTest {
         UUID fromHubId = UUID.randomUUID();
         Hub fromHub = buildHub(fromHubId, HubType.INACTIVE, null);
         Hub toHub = buildHub(HubType.REGIONAL, 100);
-        CompanyDetailResponseDto company = new CompanyDetailResponseDto(UUID.randomUUID(), "테스트 업체", 30);
+        CompanyDetailResponseDto company = new CompanyDetailResponseDto(UUID.randomUUID(), "테스트 업체", 30L);
 
         given(hubRepository.findById(fromHubId)).willReturn(Optional.of(fromHub));
         given(companyFeignClient.getCompaniesByHubId(fromHubId))
@@ -147,7 +147,7 @@ class StockTransferServiceTest {
         TransferPlanResponseDto result = stockTransferService.getTransferPlan(fromHubId);
 
         assertThat(result.fromHubId()).isEqualTo(fromHubId);
-        assertThat(result.totalStock()).isEqualTo(30);
+        assertThat(result.totalStock()).isEqualTo(30L);
         assertThat(result.suggestedTransfers()).hasSize(1);
         assertThat(result.suggestedTransfers().get(0).toHubId()).isEqualTo(toHub.getId());
         assertThat(result.suggestedTransfers().get(0).suggestedCount()).isEqualTo(30);
@@ -200,7 +200,7 @@ class StockTransferServiceTest {
     void getTransferPlan_noCandidates() {
         UUID fromHubId = UUID.randomUUID();
         Hub fromHub = buildHub(fromHubId, HubType.INACTIVE, null);
-        CompanyDetailResponseDto company = new CompanyDetailResponseDto(UUID.randomUUID(), "테스트 업체", 30);
+        CompanyDetailResponseDto company = new CompanyDetailResponseDto(UUID.randomUUID(), "테스트 업체", 30L);
 
         given(hubRepository.findById(fromHubId)).willReturn(Optional.of(fromHub));
         given(companyFeignClient.getCompaniesByHubId(fromHubId))
@@ -219,7 +219,7 @@ class StockTransferServiceTest {
         UUID fromHubId = UUID.randomUUID();
         Hub fromHub = buildHub(fromHubId, HubType.INACTIVE, null);
         Hub toHub = buildHub(HubType.REGIONAL, 10);
-        CompanyDetailResponseDto company = new CompanyDetailResponseDto(UUID.randomUUID(), "테스트 업체", 100);
+        CompanyDetailResponseDto company = new CompanyDetailResponseDto(UUID.randomUUID(), "테스트 업체", 100L);
 
         given(hubRepository.findById(fromHubId)).willReturn(Optional.of(fromHub));
         given(companyFeignClient.getCompaniesByHubId(fromHubId))
@@ -238,7 +238,7 @@ class StockTransferServiceTest {
         UUID fromHubId = UUID.randomUUID();
         Hub fromHub = buildHub(fromHubId, HubType.INACTIVE, null);
         Hub toHub = buildHub(HubType.REGIONAL, 100);
-        CompanyDetailResponseDto company = new CompanyDetailResponseDto(UUID.randomUUID(), "테스트 업체", 30);
+        CompanyDetailResponseDto company = new CompanyDetailResponseDto(UUID.randomUUID(), "테스트 업체", 30L);
 
         given(hubRepository.findById(fromHubId)).willReturn(Optional.of(fromHub));
         given(stockTransferRepository.existsByFromHubIdAndStatusIn(any(), any())).willReturn(false);
@@ -330,7 +330,7 @@ class StockTransferServiceTest {
         UUID fromHubId = UUID.randomUUID();
         Hub fromHub = buildHub(fromHubId, HubType.INACTIVE, null);
         Hub toHub = buildHub(HubType.REGIONAL, 10);
-        CompanyDetailResponseDto company = new CompanyDetailResponseDto(UUID.randomUUID(), "테스트 업체", 100);
+        CompanyDetailResponseDto company = new CompanyDetailResponseDto(UUID.randomUUID(), "테스트 업체", 100L);
 
         given(hubRepository.findById(fromHubId)).willReturn(Optional.of(fromHub));
         given(stockTransferRepository.existsByFromHubIdAndStatusIn(any(), any())).willReturn(false);

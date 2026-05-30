@@ -6,6 +6,6 @@ import java.util.UUID;
 public record TransferPlanResponseDto(
         UUID fromHubId,
         String fromHubName,
-        Integer totalStock,
+        Long totalStock,
         List<SuggestedTransferResponseDto> suggestedTransfers
 ) { }
