@@ -3,11 +3,14 @@ package com.boxoffice.ainotificationservice.notification.consumer;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
+import com.boxoffice.ainotificationservice.notification.entity.message.NotificationStatus;
+import com.boxoffice.ainotificationservice.notification.entity.message.SlackMessage;
 import com.boxoffice.ainotificationservice.notification.repository.ProcessedEventRepository;
 import com.boxoffice.ainotificationservice.notification.repository.SlackMessageRepository;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.serialization.StringDeserializer;
@@ -62,7 +65,9 @@ class KafkaConsumerIntegrationTest {
                 "{\"eventType\":\"UserApproved\",\"eventId\":\"it-1\",\"userName\":\"홍길동\"}");
 
         await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
-            assertThat(slackMessageRepository.findByIdempotencyKey("it-1")).isPresent();
+            Optional<SlackMessage> message = slackMessageRepository.findByIdempotencyKey("it-1");
+            assertThat(message).isPresent();
+            assertThat(message.get().getStatus()).isEqualTo(NotificationStatus.SENT);
             assertThat(processedEventRepository.existsByEventIdAndConsumerGroup("it-1", GROUP)).isTrue();
         });
     }
@@ -99,7 +104,10 @@ class KafkaConsumerIntegrationTest {
                 """);
 
         await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
-            assertThat(slackMessageRepository.findByIdempotencyKey("it-da")).isPresent();
+            Optional<SlackMessage> message = slackMessageRepository.findByIdempotencyKey("it-da");
+            assertThat(message).isPresent();
+            // 예측(FakeLlm)→템플릿 렌더→발송까지 완주 검증
+            assertThat(message.get().getStatus()).isEqualTo(NotificationStatus.SENT);
             assertThat(processedEventRepository.existsByEventIdAndConsumerGroup("it-da", GROUP)).isTrue();
         });
     }
