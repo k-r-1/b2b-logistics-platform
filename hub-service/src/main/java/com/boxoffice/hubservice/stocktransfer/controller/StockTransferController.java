@@ -70,8 +70,8 @@ public class StockTransferController {
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<StockTransferResponseDto>>> getTransfers(
             @RequestHeader("X-User-Role") String role,
-            @RequestHeader(value = "X-User-Hub-Id", required = false) String hubIdStr,
-            @RequestHeader(value = "X-User-Id", required = false) String userIdStr,
+            @RequestHeader(value = "X-User-Hub-Id", required = false) UUID hubId,
+            @RequestHeader(value = "X-User-Id", required = false) UUID userId,
             @RequestParam(required = false) TransferStatus status,
             @RequestParam(required = false) UUID fromHubId,
             @RequestParam(required = false) UUID toHubId,
@@ -83,22 +83,18 @@ public class StockTransferController {
                     stockTransferService.getTransfers(status, fromHubId, toHubId, page, size)));
         }
         if ("HUB_MANAGER".equals(role)) {
-            try {
-                UUID hubId = UUID.fromString(hubIdStr);
-                return ResponseEntity.ok(ApiResponse.success(
-                        stockTransferService.getTransfersByHub(status, hubId, page, size)));
-            } catch (IllegalArgumentException | NullPointerException e) {
+            if (hubId == null) {
                 throw new BaseException(CommonErrorCode.INVALID_INPUT);
             }
+            return ResponseEntity.ok(ApiResponse.success(
+                    stockTransferService.getTransfersByHub(status, hubId, page, size)));
         }
         if ("DELIVERY_MANAGER".equals(role)) {
-            try {
-                UUID deliveryManagerId = UUID.fromString(userIdStr);
-                return ResponseEntity.ok(ApiResponse.success(
-                        stockTransferService.getTransfersByDeliveryManager(status, deliveryManagerId, page, size)));
-            } catch (IllegalArgumentException | NullPointerException e) {
+            if (userId == null) {
                 throw new BaseException(CommonErrorCode.INVALID_INPUT);
             }
+            return ResponseEntity.ok(ApiResponse.success(
+                    stockTransferService.getTransfersByDeliveryManager(status, userId, page, size)));
         }
         throw new BaseException(CommonErrorCode.FORBIDDEN);
     }
@@ -110,30 +106,26 @@ public class StockTransferController {
     @GetMapping("/{transferId}")
     public ResponseEntity<ApiResponse<StockTransferResponseDto>> getTransfer(
             @RequestHeader("X-User-Role") String role,
-            @RequestHeader(value = "X-User-Hub-Id", required = false) String hubIdStr,
-            @RequestHeader(value = "X-User-Id", required = false) String userIdStr,
+            @RequestHeader(value = "X-User-Hub-Id", required = false) UUID hubId,
+            @RequestHeader(value = "X-User-Id", required = false) UUID userId,
             @PathVariable UUID transferId
     ) {
         if ("MASTER".equals(role)) {
             return ResponseEntity.ok(ApiResponse.success(stockTransferService.getTransfer(transferId)));
         }
         if ("HUB_MANAGER".equals(role)) {
-            try {
-                UUID hubId = UUID.fromString(hubIdStr);
-                return ResponseEntity.ok(ApiResponse.success(
-                        stockTransferService.getTransferByHub(transferId, hubId)));
-            } catch (IllegalArgumentException | NullPointerException e) {
+            if (hubId == null) {
                 throw new BaseException(CommonErrorCode.INVALID_INPUT);
             }
+            return ResponseEntity.ok(ApiResponse.success(
+                    stockTransferService.getTransferByHub(transferId, hubId)));
         }
         if ("DELIVERY_MANAGER".equals(role)) {
-            try {
-                UUID deliveryManagerId = UUID.fromString(userIdStr);
-                return ResponseEntity.ok(ApiResponse.success(
-                        stockTransferService.getTransferByDeliveryManager(transferId, deliveryManagerId)));
-            } catch (IllegalArgumentException | NullPointerException e) {
+            if (userId == null) {
                 throw new BaseException(CommonErrorCode.INVALID_INPUT);
             }
+            return ResponseEntity.ok(ApiResponse.success(
+                    stockTransferService.getTransferByDeliveryManager(transferId, userId)));
         }
         throw new BaseException(CommonErrorCode.FORBIDDEN);
     }
@@ -142,17 +134,11 @@ public class StockTransferController {
     @PatchMapping("/{transferId}/dispatch")
     public ResponseEntity<ApiResponse<StockTransferResponseDto>> dispatch(
             @RequestHeader("X-User-Role") String role,
-            @RequestHeader("X-User-Hub-Id") String hubIdStr,
+            @RequestHeader("X-User-Hub-Id") UUID hubId,
             @PathVariable UUID transferId
     ) {
-        UUID hubId;
         if (!"HUB_MANAGER".equals(role)) {
             throw new BaseException(CommonErrorCode.FORBIDDEN);
-        }
-        try {
-            hubId = UUID.fromString(hubIdStr);
-        } catch (IllegalArgumentException e) {
-            throw new BaseException(CommonErrorCode.INVALID_INPUT);
         }
         return ResponseEntity.ok(ApiResponse.success(
                 stockTransferService.dispatch(transferId, hubId)));
@@ -165,28 +151,24 @@ public class StockTransferController {
     @PatchMapping("/{transferId}/complete")
     public ResponseEntity<ApiResponse<StockTransferResponseDto>> complete(
             @RequestHeader("X-User-Role") String role,
-            @RequestHeader(value = "X-User-Hub-Id", required = false) String hubIdStr,
-            @RequestHeader(value = "X-User-Id", required = false) String userIdStr,
+            @RequestHeader(value = "X-User-Hub-Id", required = false) UUID hubId,
+            @RequestHeader(value = "X-User-Id", required = false) UUID userId,
             @PathVariable UUID transferId,
             @Valid @RequestBody(required = false) StockTransferCompleteRequestDto request
     ) {
         if ("HUB_MANAGER".equals(role)) {
-            try {
-                UUID hubId = UUID.fromString(hubIdStr);
-                return ResponseEntity.ok(ApiResponse.success(
-                        stockTransferService.complete(transferId, hubId, request)));
-            } catch (IllegalArgumentException | NullPointerException e) {
+            if (hubId == null) {
                 throw new BaseException(CommonErrorCode.INVALID_INPUT);
             }
+            return ResponseEntity.ok(ApiResponse.success(
+                    stockTransferService.complete(transferId, hubId, request)));
         }
         if ("DELIVERY_MANAGER".equals(role)) {
-            try {
-                UUID deliveryManagerId = UUID.fromString(userIdStr);
-                return ResponseEntity.ok(ApiResponse.success(
-                        stockTransferService.completeByDeliveryManager(transferId, deliveryManagerId, request)));
-            } catch (IllegalArgumentException | NullPointerException e) {
+            if (userId == null) {
                 throw new BaseException(CommonErrorCode.INVALID_INPUT);
             }
+            return ResponseEntity.ok(ApiResponse.success(
+                    stockTransferService.completeByDeliveryManager(transferId, userId, request)));
         }
         throw new BaseException(CommonErrorCode.FORBIDDEN);
     }
@@ -195,19 +177,17 @@ public class StockTransferController {
     @PatchMapping("/{transferId}/cancel")
     public ResponseEntity<ApiResponse<StockTransferResponseDto>> cancel(
             @RequestHeader("X-User-Role") String role,
-            @RequestHeader(value = "X-User-Hub-Id", required = false) String hubIdStr,
+            @RequestHeader(value = "X-User-Hub-Id", required = false) UUID hubId,
             @PathVariable UUID transferId
     ) {
         if ("MASTER".equals(role)) {
             return ResponseEntity.ok(ApiResponse.success(stockTransferService.cancel(transferId)));
         }
         if ("HUB_MANAGER".equals(role)) {
-            try {
-                UUID hubId = UUID.fromString(hubIdStr);
-                return ResponseEntity.ok(ApiResponse.success(stockTransferService.cancel(transferId, hubId)));
-            } catch (IllegalArgumentException | NullPointerException e) {
+            if (hubId == null) {
                 throw new BaseException(CommonErrorCode.INVALID_INPUT);
             }
+            return ResponseEntity.ok(ApiResponse.success(stockTransferService.cancel(transferId, hubId)));
         }
         throw new BaseException(CommonErrorCode.FORBIDDEN);
     }
