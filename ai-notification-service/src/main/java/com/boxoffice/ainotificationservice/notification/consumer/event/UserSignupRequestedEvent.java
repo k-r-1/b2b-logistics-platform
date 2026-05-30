@@ -10,4 +10,5 @@ public record UserSignupRequestedEvent(
         String email,
         String requestedRole
 ) implements UserEvent {
+
 }

@@ -46,8 +46,7 @@ public record DeliveryStatusContext(
 
     private String detail() {
         return switch (status) {
-            case ARRIVED_AT_DESTINATION, DELIVERED ->
-                    "수령인: " + (recipientName != null ? recipientName : "미상");
+            case ARRIVED_AT_DESTINATION, DELIVERED -> "수령인: " + (recipientName != null ? recipientName : "미상");
             case FAILED -> "사유: " + (failureReason != null ? failureReason : "미상");
         };
     }

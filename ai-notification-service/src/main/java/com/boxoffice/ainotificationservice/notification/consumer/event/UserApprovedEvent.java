@@ -8,4 +8,5 @@ public record UserApprovedEvent(
         String eventId,
         String userName
 ) implements UserEvent {
+
 }

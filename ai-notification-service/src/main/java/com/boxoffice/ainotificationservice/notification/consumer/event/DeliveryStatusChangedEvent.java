@@ -13,4 +13,5 @@ public record DeliveryStatusChangedEvent(
         String recipientName,
         String failureReason
 ) implements DeliveryEvent {
+
 }

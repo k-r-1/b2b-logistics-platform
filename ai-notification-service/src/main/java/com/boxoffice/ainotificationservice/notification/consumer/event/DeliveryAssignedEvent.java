@@ -23,21 +23,26 @@ public record DeliveryAssignedEvent(
             String requesterNote,
             String requestedDeadline
     ) {
+
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Product(String name, int quantity) {
+
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Route(String origin, List<String> waypoints, String destination) {
+
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Agent(String name, WorkingHours workingHours) {
+
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record WorkingHours(String start, String end) {
+
     }
 }

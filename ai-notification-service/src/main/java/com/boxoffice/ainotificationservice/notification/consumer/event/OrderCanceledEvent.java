@@ -11,4 +11,5 @@ public record OrderCanceledEvent(
         String ordererName,
         String hubManagerName
 ) implements OrderEvent {
+
 }

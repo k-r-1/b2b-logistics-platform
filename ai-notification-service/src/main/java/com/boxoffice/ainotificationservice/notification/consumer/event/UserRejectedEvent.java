@@ -9,4 +9,5 @@ public record UserRejectedEvent(
         String userName,
         String reason
 ) implements UserEvent {
+
 }
