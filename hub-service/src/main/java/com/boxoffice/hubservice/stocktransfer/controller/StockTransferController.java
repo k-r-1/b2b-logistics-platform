@@ -44,9 +44,7 @@ public class StockTransferController {
             @RequestHeader("X-User-Role") String role,
             @Parameter(description = "이전 출발 허브 ID") @RequestParam UUID fromHubId
     ) {
-        if (!"MASTER".equals(role)) {
-            throw new BaseException(CommonErrorCode.FORBIDDEN);
-        }
+        requireMaster(role);
         return ResponseEntity.ok(ApiResponse.success(stockTransferService.getTransferPlan(fromHubId)));
     }
 
@@ -56,9 +54,7 @@ public class StockTransferController {
             @RequestHeader("X-User-Role") String role,
             @Valid @RequestBody StockTransferCreateRequestDto request
     ) {
-        if (!"MASTER".equals(role)) {
-            throw new BaseException(CommonErrorCode.FORBIDDEN);
-        }
+        requireMaster(role);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(HttpStatus.CREATED, stockTransferService.createTransfer(request)));
     }
@@ -83,16 +79,12 @@ public class StockTransferController {
                     stockTransferService.getTransfers(status, fromHubId, toHubId, page, size)));
         }
         if ("HUB_MANAGER".equals(role)) {
-            if (hubId == null) {
-                throw new BaseException(CommonErrorCode.INVALID_INPUT);
-            }
+            requireHeader(hubId);
             return ResponseEntity.ok(ApiResponse.success(
                     stockTransferService.getTransfersByHub(status, hubId, page, size)));
         }
         if ("DELIVERY_MANAGER".equals(role)) {
-            if (userId == null) {
-                throw new BaseException(CommonErrorCode.INVALID_INPUT);
-            }
+            requireHeader(userId);
             return ResponseEntity.ok(ApiResponse.success(
                     stockTransferService.getTransfersByDeliveryManager(status, userId, page, size)));
         }
@@ -114,16 +106,12 @@ public class StockTransferController {
             return ResponseEntity.ok(ApiResponse.success(stockTransferService.getTransfer(transferId)));
         }
         if ("HUB_MANAGER".equals(role)) {
-            if (hubId == null) {
-                throw new BaseException(CommonErrorCode.INVALID_INPUT);
-            }
+            requireHeader(hubId);
             return ResponseEntity.ok(ApiResponse.success(
                     stockTransferService.getTransferByHub(transferId, hubId)));
         }
         if ("DELIVERY_MANAGER".equals(role)) {
-            if (userId == null) {
-                throw new BaseException(CommonErrorCode.INVALID_INPUT);
-            }
+            requireHeader(userId);
             return ResponseEntity.ok(ApiResponse.success(
                     stockTransferService.getTransferByDeliveryManager(transferId, userId)));
         }
@@ -137,9 +125,7 @@ public class StockTransferController {
             @RequestHeader("X-User-Hub-Id") UUID hubId,
             @PathVariable UUID transferId
     ) {
-        if (!"HUB_MANAGER".equals(role)) {
-            throw new BaseException(CommonErrorCode.FORBIDDEN);
-        }
+        requireHubManager(role);
         return ResponseEntity.ok(ApiResponse.success(
                 stockTransferService.dispatch(transferId, hubId)));
     }
@@ -157,16 +143,12 @@ public class StockTransferController {
             @Valid @RequestBody(required = false) StockTransferCompleteRequestDto request
     ) {
         if ("HUB_MANAGER".equals(role)) {
-            if (hubId == null) {
-                throw new BaseException(CommonErrorCode.INVALID_INPUT);
-            }
+            requireHeader(hubId);
             return ResponseEntity.ok(ApiResponse.success(
                     stockTransferService.complete(transferId, hubId, request)));
         }
         if ("DELIVERY_MANAGER".equals(role)) {
-            if (userId == null) {
-                throw new BaseException(CommonErrorCode.INVALID_INPUT);
-            }
+            requireHeader(userId);
             return ResponseEntity.ok(ApiResponse.success(
                     stockTransferService.completeByDeliveryManager(transferId, userId, request)));
         }
@@ -184,11 +166,27 @@ public class StockTransferController {
             return ResponseEntity.ok(ApiResponse.success(stockTransferService.cancel(transferId)));
         }
         if ("HUB_MANAGER".equals(role)) {
-            if (hubId == null) {
-                throw new BaseException(CommonErrorCode.INVALID_INPUT);
-            }
+            requireHeader(hubId);
             return ResponseEntity.ok(ApiResponse.success(stockTransferService.cancel(transferId, hubId)));
         }
         throw new BaseException(CommonErrorCode.FORBIDDEN);
+    }
+
+    private void requireMaster(String role) {
+        if (!"MASTER".equals(role)) {
+            throw new BaseException(CommonErrorCode.FORBIDDEN);
+        }
+    }
+
+    private void requireHubManager(String role) {
+        if (!"HUB_MANAGER".equals(role)) {
+            throw new BaseException(CommonErrorCode.FORBIDDEN);
+        }
+    }
+
+    private void requireHeader(Object value) {
+        if (value == null) {
+            throw new BaseException(CommonErrorCode.INVALID_INPUT);
+        }
     }
 }
