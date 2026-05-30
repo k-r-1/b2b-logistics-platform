@@ -4,8 +4,8 @@ import com.boxoffice.common.exception.BaseException;
 import com.boxoffice.common.exception.CommonErrorCode;
 import com.boxoffice.userservice.client.HubServiceClient;
 import com.boxoffice.userservice.client.KeycloakClient;
-import com.boxoffice.userservice.client.dto.HubManagerRegisterRequestDto;
-import com.boxoffice.userservice.client.dto.KeycloakUserCreateRequestDto;
+import com.boxoffice.userservice.dto.HubManagerRegisterRequestDto;
+import com.boxoffice.userservice.dto.KeycloakUserCreateRequestDto;
 import com.boxoffice.userservice.dto.*;
 
 import com.boxoffice.userservice.entity.Email;
@@ -91,8 +91,15 @@ public class UserService {
             if (request.getHubId() != null && !request.getHubId().isBlank()) {
                 try {
                     hubIdVo = UUID.fromString(request.getHubId());
+
+                    boolean isHubActive = hubServiceClient.checkHubActive(hubIdVo);
+                    if (!isHubActive) {
+                        rollbackKeycloakUser(adminAccessToken, keycloakSub, request.getEmail());
+                        throw new BaseException(CommonErrorCode.INVALID_INPUT);
+                    }
                 } catch (IllegalArgumentException e) {
                     log.error("[Signup] 올바르지 않은 UUID 형식의 hubId 요청: {}", request.getHubId());
+                    rollbackKeycloakUser(adminAccessToken, keycloakSub, request.getEmail());
                     throw new BaseException(CommonErrorCode.INVALID_INPUT);
                 }
             }
@@ -112,12 +119,22 @@ public class UserService {
                 userRepository.save(user);
                 log.info("[Signup] Keycloak 및 DB 유저 생성 완료. Email: {}", request.getEmail());
             } catch (Exception e) {
-                log.error("[CRITICAL_ALERT] DB 저장 실패로 인한 고아 데이터 발생! Keycloak 유저 수동 삭제 필요. Sub: {}, Email: {}", keycloakSub, request.getEmail(), e);
+                log.error("[Signup] DB 저장 실패. Keycloak 유저 롤백을 시도합니다. Sub: {}", keycloakSub, e);
+                rollbackKeycloakUser(adminAccessToken, keycloakSub, request.getEmail());
                 throw new BaseException(CommonErrorCode.INTERNAL_SERVER_ERROR);
             }
         } else {
             log.error("[Signup] Keycloak 유저 생성 실패. Email: {}, StatusCode: {}", request.getEmail(), response.getStatusCode());
             throw new BaseException(UserErrorCode.KEYCLOAK_USER_CREATE_FAILED);
+        }
+    }
+
+    private void rollbackKeycloakUser(String adminAccessToken, String keycloakSub, String email) {
+        try {
+            keycloakClient.deleteUser("Bearer " + adminAccessToken, realm, keycloakSub);
+            log.info("[Rollback] Keycloak 유저 롤백(삭제) 성공. Sub: {}", keycloakSub);
+        } catch (Exception rollbackEx) {
+            log.error("[CRITICAL_ALERT] 보상 트랜잭션 실패! 수동 삭제가 필요합니다. Sub: {}, Email: {}", keycloakSub, email, rollbackEx);
         }
     }
 

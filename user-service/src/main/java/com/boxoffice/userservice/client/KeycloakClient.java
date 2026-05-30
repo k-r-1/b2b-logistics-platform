@@ -1,6 +1,6 @@
 package com.boxoffice.userservice.client;
 
-import com.boxoffice.userservice.client.dto.KeycloakUserCreateRequestDto;
+import com.boxoffice.userservice.dto.KeycloakUserCreateRequestDto;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -21,5 +21,12 @@ public interface KeycloakClient {
             @RequestHeader("Authorization") String adminToken,
             @PathVariable("realm") String realm,
             @RequestBody KeycloakUserCreateRequestDto request
+    );
+
+    @DeleteMapping("/admin/realms/{realm}/users/{userId}")
+    ResponseEntity<Void> deleteUser(
+            @RequestHeader("Authorization") String adminToken,
+            @PathVariable("realm") String realm,
+            @PathVariable("userId") String userId
     );
 }

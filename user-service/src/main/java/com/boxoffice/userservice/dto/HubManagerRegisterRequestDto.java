@@ -1,4 +1,4 @@
-package com.boxoffice.userservice.client.dto;
+package com.boxoffice.userservice.dto;
 
 import java.util.UUID;
 import lombok.AllArgsConstructor;
