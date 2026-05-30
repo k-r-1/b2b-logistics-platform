@@ -7,6 +7,7 @@ import com.boxoffice.hubservice.exception.HubErrorCode;
 import com.boxoffice.hubservice.hub.dto.request.HubClosingRequestDto;
 import com.boxoffice.hubservice.hub.dto.request.HubCreateRequestDto;
 import com.boxoffice.hubservice.hub.dto.request.HubUpdateRequestDto;
+import com.boxoffice.hubservice.hub.dto.response.HubActiveResponseDto;
 import com.boxoffice.hubservice.hub.dto.response.HubCreateResponseDto;
 import com.boxoffice.hubservice.hub.dto.response.HubDeactivateResponseDto;
 import com.boxoffice.hubservice.hub.dto.response.HubGetResponseDto;
@@ -516,4 +517,112 @@ class HubServiceTest {
                         .isEqualTo(HubErrorCode.HUB_NOT_FOUND));
     }
 
+    @Test
+    @DisplayName("CENTRAL 허브 활성 확인 성공")
+    void getActiveHub_centralHub_success() {
+        // given
+        Hub hub = buildHub("경기남부 센터", HubType.CENTRAL);
+        UUID hubId = hub.getId();
+        given(hubRepository.findById(hubId)).willReturn(Optional.of(hub));
+
+        // when
+        HubActiveResponseDto response = hubService.getActiveHub(hubId);
+
+        // then
+        assertThat(response.hubId()).isEqualTo(hubId);
+        assertThat(response.isActive()).isTrue();
+    }
+
+    @Test
+    @DisplayName("REGIONAL 허브 활성 확인 성공")
+    void getActiveHub_regionalHub_success() {
+        // given
+        Hub hub = buildHub("서울특별시 센터", HubType.REGIONAL);
+        UUID hubId = hub.getId();
+        given(hubRepository.findById(hubId)).willReturn(Optional.of(hub));
+
+        // when
+        HubActiveResponseDto response = hubService.getActiveHub(hubId);
+
+        // then
+        assertThat(response.hubId()).isEqualTo(hubId);
+        assertThat(response.isActive()).isTrue();
+    }
+
+    @Test
+    @DisplayName("INACTIVE 허브 활성 확인 시 예외 발생")
+    void getActiveHub_inactiveHub_throwsException() {
+        // given
+        Hub hub = buildHub("폐쇄 센터", HubType.REGIONAL);
+        hub.startClosing("운영 종료");
+        hub.deactivate();
+        UUID hubId = hub.getId();
+        given(hubRepository.findById(hubId)).willReturn(Optional.of(hub));
+
+        // when & then
+        assertThatThrownBy(() -> hubService.getActiveHub(hubId))
+                .isInstanceOf(BaseException.class)
+                .satisfies(e -> assertThat(((BaseException) e).getErrorCode())
+                        .isEqualTo(HubErrorCode.HUB_INACTIVE));
+    }
+
+    @Test
+    @DisplayName("CLOSING 허브 활성 확인 시 예외 발생")
+    void getActiveHub_closingHub_throwsException() {
+        // given
+        Hub hub = buildHub("마감 예정 센터", HubType.REGIONAL);
+        hub.startClosing("이전 예정");
+        UUID hubId = hub.getId();
+        given(hubRepository.findById(hubId)).willReturn(Optional.of(hub));
+
+        // when & then
+        assertThatThrownBy(() -> hubService.getActiveHub(hubId))
+                .isInstanceOf(BaseException.class)
+                .satisfies(e -> assertThat(((BaseException) e).getErrorCode())
+                        .isEqualTo(HubErrorCode.HUB_CLOSING));
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 허브 활성 확인 시 예외 발생")
+    void getActiveHub_hubNotFound_throwsException() {
+        // given
+        UUID hubId = UUID.randomUUID();
+        given(hubRepository.findById(hubId)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> hubService.getActiveHub(hubId))
+                .isInstanceOf(BaseException.class)
+                .satisfies(e -> assertThat(((BaseException) e).getErrorCode())
+                        .isEqualTo(HubErrorCode.HUB_NOT_FOUND));
+    }
+
+    @Test
+    @DisplayName("허브 관리자 배정 성공")
+    void assignManager_success() {
+        // given
+        Hub hub = buildHub("경기남부 센터", HubType.CENTRAL);
+        UUID managerId = UUID.randomUUID();
+        given(hubRepository.findById(hub.getId())).willReturn(Optional.of(hub));
+
+        // when
+        HubGetResponseDto response = hubService.assignManager(hub.getId(), managerId);
+
+        // then
+        assertThat(response.managerId()).isEqualTo(managerId);
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 허브 관리자 배정 시 예외 발생")
+    void assignManager_hubNotFound_throwsException() {
+        // given
+        UUID hubId = UUID.randomUUID();
+        UUID managerId = UUID.randomUUID();
+        given(hubRepository.findById(hubId)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> hubService.assignManager(hubId, managerId))
+                .isInstanceOf(BaseException.class)
+                .satisfies(e -> assertThat(((BaseException) e).getErrorCode())
+                        .isEqualTo(HubErrorCode.HUB_NOT_FOUND));
+    }
 }

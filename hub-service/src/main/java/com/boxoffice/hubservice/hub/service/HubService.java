@@ -8,6 +8,7 @@ import com.boxoffice.hubservice.exception.HubErrorCode;
 import com.boxoffice.hubservice.hub.dto.request.HubCreateRequestDto;
 import com.boxoffice.hubservice.hub.dto.request.HubClosingRequestDto;
 import com.boxoffice.hubservice.hub.dto.request.HubUpdateRequestDto;
+import com.boxoffice.hubservice.hub.dto.response.HubActiveResponseDto;
 import com.boxoffice.hubservice.hub.dto.response.HubCreateResponseDto;
 import com.boxoffice.hubservice.hub.dto.response.HubDeactivateResponseDto;
 import com.boxoffice.hubservice.hub.dto.response.HubGetResponseDto;
@@ -159,5 +160,26 @@ public class HubService {
 
         hub.deactivate();
         return HubDeactivateResponseDto.from(hub);
+    }
+
+    public HubActiveResponseDto getActiveHub(UUID hubId) {
+        Hub hub = hubRepository.findById(hubId)
+                .orElseThrow(() -> new BaseException(HubErrorCode.HUB_NOT_FOUND));
+        if (hub.isInactive()) {
+            throw new BaseException(HubErrorCode.HUB_INACTIVE);
+        }
+        if (hub.isClosing()) {
+            throw new BaseException(HubErrorCode.HUB_CLOSING);
+        }
+        return new HubActiveResponseDto(hub.getId(), hub.isActive());
+    }
+
+    @Transactional
+    @CacheEvict(cacheNames = "hub", key = "#hubId")
+    public HubGetResponseDto assignManager(UUID hubId, UUID managerId) {
+        Hub hub = hubRepository.findById(hubId)
+                .orElseThrow(() -> new BaseException(HubErrorCode.HUB_NOT_FOUND));
+        hub.assignManager(managerId);
+        return HubGetResponseDto.from(hub);
     }
 }

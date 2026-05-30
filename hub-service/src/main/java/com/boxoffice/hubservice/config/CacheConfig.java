@@ -1,6 +1,7 @@
 package com.boxoffice.hubservice.config;
 
 import com.boxoffice.hubservice.hub.dto.response.HubGetResponseDto;
+import com.boxoffice.hubservice.hubroute.dto.response.HubRoutePathResponseDto;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
@@ -30,8 +31,19 @@ public class CacheConfig {
                 .serializeValuesWith(RedisSerializationContext.SerializationPair
                         .fromSerializer(hubSerializer));
 
+        Jackson2JsonRedisSerializer<HubRoutePathResponseDto> hubRouteSerializer =
+                new Jackson2JsonRedisSerializer<>(objectMapper, HubRoutePathResponseDto.class);
+
+        RedisCacheConfiguration hubRouteCacheConfig = RedisCacheConfiguration.defaultCacheConfig()
+                .entryTtl(Duration.ofDays(1))
+                .serializeKeysWith(RedisSerializationContext.SerializationPair
+                        .fromSerializer(new StringRedisSerializer()))
+                .serializeValuesWith(RedisSerializationContext.SerializationPair
+                        .fromSerializer(hubRouteSerializer));
+
         return RedisCacheManager.builder(connectionFactory)
                 .withCacheConfiguration("hub", hubCacheConfig)
+                .withCacheConfiguration("hub-routes", hubRouteCacheConfig)
                 .build();
     }
 }

@@ -82,6 +82,10 @@ public class Hub extends BaseEntity {
         return this.hubType == HubType.CLOSING;
     }
 
+    public boolean isActive() {
+        return this.hubType == HubType.CENTRAL || this.hubType == HubType.REGIONAL;
+    }
+
     // p_hub_routes는 여기서 삭제하지 않음. 진행 중 배송 완료 후 DELETE 2단계에서 처리
     public void deactivate() {
         this.hubType = HubType.INACTIVE;
