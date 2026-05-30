@@ -6,12 +6,16 @@ import boxoffice.orderservice.application.service.dto.OrderResultDto;
 import boxoffice.orderservice.domain.entity.Order;
 import boxoffice.orderservice.domain.entity.OrderProduct;
 import boxoffice.orderservice.domain.repository.OrderRepository;
+import boxoffice.orderservice.infra.config.CacheConfig;
 import boxoffice.orderservice.infra.event.OrderCreatedEvent;
+import boxoffice.orderservice.infra.exception.OrderErrorCode;
 import com.boxoffice.common.entity.AddressVO;
+import com.boxoffice.common.exception.BaseException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -70,4 +74,15 @@ public class OrderCommandService {
             LocalDateTime.now()
         );
     }
+
+  @CacheEvict(value = CacheConfig.ORDER_CACHE, key = "#orderId")
+  @Transactional
+  public Order updateOrder(UUID orderId, String request) {
+    Order order = orderRepository.findByIdWithProducts(orderId)
+        .orElseThrow(() -> new BaseException(OrderErrorCode.ORDER_NOT_FOUND));
+    if (request != null) {
+      order.updateOrderRequest(request);
+    }
+    return order;
+  }
 }

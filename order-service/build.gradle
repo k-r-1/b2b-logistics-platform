@@ -25,4 +25,8 @@ dependencies {
     implementation 'io.micrometer:micrometer-registry-prometheus'
 
     testImplementation 'com.h2database:h2'
+
+    // JMH 벤치마크
+    testImplementation 'org.openjdk.jmh:jmh-core:1.37'
+    testAnnotationProcessor 'org.openjdk.jmh:jmh-generator-annprocess:1.37'
 }

@@ -2,9 +2,11 @@ package boxoffice.orderservice.presentation.controller;
 
 import boxoffice.orderservice.application.service.GetOrderService;
 import boxoffice.orderservice.application.service.OrderCreateService;
+import boxoffice.orderservice.application.service.UpdateOrderService;
 import boxoffice.orderservice.application.service.dto.CreateOrderCommand;
 import boxoffice.orderservice.application.service.dto.OrderResultDto;
 import boxoffice.orderservice.presentation.dto.request.CreateOrderRequestDto;
+import boxoffice.orderservice.presentation.dto.request.UpdateOrderRequest;
 import boxoffice.orderservice.presentation.dto.response.CreateOrderResponseDto;
 import boxoffice.orderservice.presentation.dto.response.GetOrderResponseDto;
 import com.boxoffice.common.response.ApiResponse;
@@ -14,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -28,6 +31,7 @@ public class OrderController {
 
     private final OrderCreateService orderCreateService;
     private final GetOrderService getOrderService;
+  private final UpdateOrderService updateOrderService;
 
     @PostMapping
     public ResponseEntity<ApiResponse<CreateOrderResponseDto>> createOrder(
@@ -48,6 +52,16 @@ public class OrderController {
         OrderResultDto result = getOrderService.getOrder(orderId, keycloakId);
         return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK, GetOrderResponseDto.from(result)));
     }
+
+  @PatchMapping("/{orderId}")
+  public ResponseEntity<ApiResponse<CreateOrderResponseDto>> updateOrder(
+      @RequestHeader("X-User-Id") String keycloakId,
+      @PathVariable UUID orderId,
+      @RequestBody UpdateOrderRequest request
+  ) {
+    CreateOrderResponseDto response = updateOrderService.updateOrder(orderId, request, keycloakId);
+    return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK, response));
+  }
 
     private CreateOrderCommand toCommand(CreateOrderRequestDto dto) {
         return new CreateOrderCommand(
