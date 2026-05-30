@@ -115,8 +115,8 @@ class ProductServiceTest {
     }
 
     @Test
-    @DisplayName("실패 - 존재하지 않는 상품은 수정할 수 없다")
-    void updateProductWithUnknownProductThrowsNotFound() {
+    @DisplayName("실패 - 조회 조건에 맞는 상품이 없으면 수정할 수 없다")
+    void updateProductWhenProductNotFoundThrowsNotFound() {
         // given
         UUID companyId = UUID.randomUUID();
         UUID productId = UUID.randomUUID();
@@ -130,44 +130,6 @@ class ProductServiceTest {
         // then
         assertProductNotFound(throwable);
         verify(productRepository).findProduct(companyId, productId);
-        verifyNoMoreInteractions(productRepository);
-    }
-
-    @Test
-    @DisplayName("실패 - 삭제된 상품은 수정할 수 없다")
-    void updateDeletedProductThrowsNotFound() {
-        // given
-        UUID companyId = UUID.randomUUID();
-        UUID productId = UUID.randomUUID();
-        ProductUpdateRequestDto request = createUpdateRequest("수정 상품", 15000, 30);
-
-        when(productRepository.findProduct(companyId, productId)).thenReturn(Optional.empty());
-
-        // when
-        Throwable throwable = catchThrowable(() -> productService.updateProduct(companyId, productId, request));
-
-        // then
-        assertProductNotFound(throwable);
-        verify(productRepository).findProduct(companyId, productId);
-        verifyNoMoreInteractions(productRepository);
-    }
-
-    @Test
-    @DisplayName("실패 - 다른 업체 상품은 수정할 수 없다")
-    void updateProductWithDifferentCompanyThrowsNotFound() {
-        // given
-        UUID pathCompanyId = UUID.randomUUID();
-        UUID productId = UUID.randomUUID();
-        ProductUpdateRequestDto request = createUpdateRequest("수정 상품", 15000, 30);
-
-        when(productRepository.findProduct(pathCompanyId, productId)).thenReturn(Optional.empty());
-
-        // when
-        Throwable throwable = catchThrowable(() -> productService.updateProduct(pathCompanyId, productId, request));
-
-        // then
-        assertProductNotFound(throwable);
-        verify(productRepository).findProduct(pathCompanyId, productId);
         verifyNoMoreInteractions(productRepository);
     }
 
@@ -195,8 +157,8 @@ class ProductServiceTest {
     }
 
     @Test
-    @DisplayName("실패 - 존재하지 않는 상품은 삭제할 수 없다")
-    void deleteProductWithUnknownProductThrowsNotFound() {
+    @DisplayName("실패 - 조회 조건에 맞는 상품이 없으면 삭제할 수 없다")
+    void deleteProductWhenProductNotFoundThrowsNotFound() {
         // given
         UUID companyId = UUID.randomUUID();
         UUID productId = UUID.randomUUID();
@@ -210,44 +172,6 @@ class ProductServiceTest {
         // then
         assertProductNotFound(throwable);
         verify(productRepository).findProduct(companyId, productId);
-        verifyNoMoreInteractions(productRepository);
-    }
-
-    @Test
-    @DisplayName("실패 - 삭제된 상품은 삭제할 수 없다")
-    void deleteDeletedProductThrowsNotFound() {
-        // given
-        UUID companyId = UUID.randomUUID();
-        UUID productId = UUID.randomUUID();
-        UUID deletedBy = UUID.randomUUID();
-
-        when(productRepository.findProduct(companyId, productId)).thenReturn(Optional.empty());
-
-        // when
-        Throwable throwable = catchThrowable(() -> productService.deleteProduct(companyId, productId, deletedBy));
-
-        // then
-        assertProductNotFound(throwable);
-        verify(productRepository).findProduct(companyId, productId);
-        verifyNoMoreInteractions(productRepository);
-    }
-
-    @Test
-    @DisplayName("실패 - 다른 업체 상품은 삭제할 수 없다")
-    void deleteProductWithDifferentCompanyThrowsNotFound() {
-        // given
-        UUID pathCompanyId = UUID.randomUUID();
-        UUID productId = UUID.randomUUID();
-        UUID deletedBy = UUID.randomUUID();
-
-        when(productRepository.findProduct(pathCompanyId, productId)).thenReturn(Optional.empty());
-
-        // when
-        Throwable throwable = catchThrowable(() -> productService.deleteProduct(pathCompanyId, productId, deletedBy));
-
-        // then
-        assertProductNotFound(throwable);
-        verify(productRepository).findProduct(pathCompanyId, productId);
         verifyNoMoreInteractions(productRepository);
     }
 
