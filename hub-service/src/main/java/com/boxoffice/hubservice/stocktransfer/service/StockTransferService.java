@@ -9,7 +9,7 @@ import com.boxoffice.hubservice.client.BulkHubTransferRequestDto;
 import com.boxoffice.hubservice.client.BulkStockCountRequestDto;
 import com.boxoffice.hubservice.client.BulkStockCountResponseDto;
 import com.boxoffice.hubservice.client.CompanyDetailResponseDto;
-import com.boxoffice.hubservice.client.ProductFeignClient;
+import com.boxoffice.hubservice.client.CompanyFeignClient;
 import com.boxoffice.hubservice.exception.HubErrorCode;
 import com.boxoffice.hubservice.hub.entity.Hub;
 import com.boxoffice.hubservice.hub.repository.HubRepository;
@@ -52,7 +52,7 @@ public class StockTransferService {
     private final StockTransferRepository stockTransferRepository;
     private final HubRepository hubRepository;
     private final HubRouteRepository hubRouteRepository;
-    private final ProductFeignClient productFeignClient;
+    private final CompanyFeignClient companyFeignClient;
     private final ApplicationEventPublisher eventPublisher;
 
     private record Candidate(Hub hub, BigDecimal distanceKm, int availableCapacity) {
@@ -240,7 +240,7 @@ public class StockTransferService {
             throw new BaseException(HubErrorCode.TRANSFER_INVALID_STATUS);
         }
         transfer.complete(request != null ? request.note() : null);
-        productFeignClient.bulkHubTransfer(
+        companyFeignClient.bulkHubTransfer(
                 new BulkHubTransferRequestDto(transfer.getCompanyIds(), transfer.getToHubId()));
     }
 
@@ -332,7 +332,7 @@ public class StockTransferService {
     }
 
     private List<CompanyDetailResponseDto> fetchCompanies(UUID hubId) {
-        ApiResponse<List<CompanyDetailResponseDto>> response = productFeignClient.getCompaniesByHubId(hubId);
+        ApiResponse<List<CompanyDetailResponseDto>> response = companyFeignClient.getCompaniesByHubId(hubId);
         if (response == null || response.getData() == null) {
             return List.of();
         }
@@ -344,7 +344,7 @@ public class StockTransferService {
             return Map.of();
         }
         ApiResponse<List<BulkStockCountResponseDto>> response =
-                productFeignClient.getBulkStockCount(new BulkStockCountRequestDto(hubIds));
+                companyFeignClient.getBulkStockCount(new BulkStockCountRequestDto(hubIds));
         if (response == null || response.getData() == null) {
             return Map.of();
         }
