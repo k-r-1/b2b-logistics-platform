@@ -1,5 +1,5 @@
 server:
-  port: 8082
+  port: 8083
 
 spring:
   application:
@@ -12,7 +12,6 @@ spring:
   jpa:
     hibernate:
       ddl-auto: validate
-#      ddl-auto: update
     properties:
        hibernate:
          default_schema: public
