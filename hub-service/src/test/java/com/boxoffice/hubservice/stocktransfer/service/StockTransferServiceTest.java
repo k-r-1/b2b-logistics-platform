@@ -7,7 +7,7 @@ import com.boxoffice.common.response.ApiResponse;
 import com.boxoffice.common.response.PageResponse;
 import com.boxoffice.hubservice.client.BulkStockCountResponseDto;
 import com.boxoffice.hubservice.client.CompanyDetailResponseDto;
-import com.boxoffice.hubservice.client.ProductFeignClient;
+import com.boxoffice.hubservice.client.CompanyFeignClient;
 import com.boxoffice.hubservice.exception.HubErrorCode;
 import com.boxoffice.hubservice.hub.entity.CoordinateVO;
 import com.boxoffice.hubservice.hub.entity.Hub;
@@ -21,7 +21,8 @@ import com.boxoffice.hubservice.stocktransfer.dto.response.StockTransferResponse
 import com.boxoffice.hubservice.stocktransfer.dto.response.TransferPlanResponseDto;
 import com.boxoffice.hubservice.stocktransfer.entity.StockTransfer;
 import com.boxoffice.hubservice.stocktransfer.entity.TransferStatus;
-import com.boxoffice.hubservice.stocktransfer.kafka.StockTransferKafkaProducer;
+import com.boxoffice.hubservice.stocktransfer.event.TransferDispatchedEvent;
+import org.springframework.context.ApplicationEventPublisher;
 import com.boxoffice.hubservice.stocktransfer.repository.StockTransferRepository;
 import com.querydsl.core.types.Predicate;
 import org.junit.jupiter.api.DisplayName;
@@ -63,10 +64,10 @@ class StockTransferServiceTest {
     private HubRouteRepository hubRouteRepository;
 
     @Mock
-    private ProductFeignClient productFeignClient;
+    private CompanyFeignClient companyFeignClient;
 
     @Mock
-    private StockTransferKafkaProducer kafkaProducer;
+    private ApplicationEventPublisher eventPublisher;
 
     private Hub buildHub(UUID id, HubType hubType, Integer capacity) {
         Hub hub = Hub.builder()
@@ -126,7 +127,7 @@ class StockTransferServiceTest {
         HubRoute route = buildRoute(fromHubId, toHub.getId(), BigDecimal.valueOf(400));
         given(hubRouteRepository.findAllByOriginHubId(fromHubId)).willReturn(List.of(route));
         given(hubRepository.findAllById(any(Collection.class))).willReturn(List.of(toHub));
-        given(productFeignClient.getBulkStockCount(any()))
+        given(companyFeignClient.getBulkStockCount(any()))
                 .willReturn(ApiResponse.success(List.of(new BulkStockCountResponseDto(toHub.getId(), existingStock))));
     }
 
@@ -139,7 +140,7 @@ class StockTransferServiceTest {
         CompanyDetailResponseDto company = new CompanyDetailResponseDto(UUID.randomUUID(), "테스트 업체", 30);
 
         given(hubRepository.findById(fromHubId)).willReturn(Optional.of(fromHub));
-        given(productFeignClient.getCompaniesByHubId(fromHubId))
+        given(companyFeignClient.getCompaniesByHubId(fromHubId))
                 .willReturn(ApiResponse.success(List.of(company)));
         givenCandidates(fromHubId, toHub, 0);
 
@@ -185,7 +186,7 @@ class StockTransferServiceTest {
         Hub fromHub = buildHub(fromHubId, HubType.INACTIVE, null);
 
         given(hubRepository.findById(fromHubId)).willReturn(Optional.of(fromHub));
-        given(productFeignClient.getCompaniesByHubId(fromHubId))
+        given(companyFeignClient.getCompaniesByHubId(fromHubId))
                 .willReturn(ApiResponse.success(List.of()));
 
         assertThatThrownBy(() -> stockTransferService.getTransferPlan(fromHubId))
@@ -202,7 +203,7 @@ class StockTransferServiceTest {
         CompanyDetailResponseDto company = new CompanyDetailResponseDto(UUID.randomUUID(), "테스트 업체", 30);
 
         given(hubRepository.findById(fromHubId)).willReturn(Optional.of(fromHub));
-        given(productFeignClient.getCompaniesByHubId(fromHubId))
+        given(companyFeignClient.getCompaniesByHubId(fromHubId))
                 .willReturn(ApiResponse.success(List.of(company)));
         given(hubRouteRepository.findAllByOriginHubId(fromHubId)).willReturn(List.of());
 
@@ -221,7 +222,7 @@ class StockTransferServiceTest {
         CompanyDetailResponseDto company = new CompanyDetailResponseDto(UUID.randomUUID(), "테스트 업체", 100);
 
         given(hubRepository.findById(fromHubId)).willReturn(Optional.of(fromHub));
-        given(productFeignClient.getCompaniesByHubId(fromHubId))
+        given(companyFeignClient.getCompaniesByHubId(fromHubId))
                 .willReturn(ApiResponse.success(List.of(company)));
         givenCandidates(fromHubId, toHub, 5); // available = 10 - 5 = 5 < 100
 
@@ -241,7 +242,7 @@ class StockTransferServiceTest {
 
         given(hubRepository.findById(fromHubId)).willReturn(Optional.of(fromHub));
         given(stockTransferRepository.existsByFromHubIdAndStatusIn(any(), any())).willReturn(false);
-        given(productFeignClient.getCompaniesByHubId(fromHubId))
+        given(companyFeignClient.getCompaniesByHubId(fromHubId))
                 .willReturn(ApiResponse.success(List.of(company)));
         givenCandidates(fromHubId, toHub, 0);
         given(stockTransferRepository.save(any(StockTransfer.class)))
@@ -313,7 +314,7 @@ class StockTransferServiceTest {
 
         given(hubRepository.findById(fromHubId)).willReturn(Optional.of(fromHub));
         given(stockTransferRepository.existsByFromHubIdAndStatusIn(any(), any())).willReturn(false);
-        given(productFeignClient.getCompaniesByHubId(fromHubId))
+        given(companyFeignClient.getCompaniesByHubId(fromHubId))
                 .willReturn(ApiResponse.success(List.of()));
 
         assertThatThrownBy(() ->
@@ -333,7 +334,7 @@ class StockTransferServiceTest {
 
         given(hubRepository.findById(fromHubId)).willReturn(Optional.of(fromHub));
         given(stockTransferRepository.existsByFromHubIdAndStatusIn(any(), any())).willReturn(false);
-        given(productFeignClient.getCompaniesByHubId(fromHubId))
+        given(companyFeignClient.getCompaniesByHubId(fromHubId))
                 .willReturn(ApiResponse.success(List.of(company)));
         givenCandidates(fromHubId, toHub, 5);
 
@@ -500,7 +501,7 @@ class StockTransferServiceTest {
         StockTransferResponseDto result = stockTransferService.dispatch(transfer.getId(), hubId);
 
         assertThat(result.status()).isEqualTo(TransferStatus.IN_PROGRESS);
-        verify(kafkaProducer).sendDispatched(transfer.getId(), hubId, transfer.getToHubId());
+        verify(eventPublisher).publishEvent(any(TransferDispatchedEvent.class));
     }
 
     @Test
@@ -566,14 +567,14 @@ class StockTransferServiceTest {
         ReflectionTestUtils.setField(transfer, "deliveryManagerId", deliveryManagerId);
 
         given(stockTransferRepository.findById(transfer.getId())).willReturn(Optional.of(transfer));
-        given(productFeignClient.bulkHubTransfer(any())).willReturn(ApiResponse.success());
+        given(companyFeignClient.bulkHubTransfer(any())).willReturn(ApiResponse.success());
 
         StockTransferResponseDto result = stockTransferService.completeByDeliveryManager(
                 transfer.getId(), deliveryManagerId, new StockTransferCompleteRequestDto("완료 메모"));
 
         assertThat(result.status()).isEqualTo(TransferStatus.COMPLETED);
         assertThat(result.note()).isEqualTo("완료 메모");
-        verify(productFeignClient).bulkHubTransfer(any());
+        verify(companyFeignClient).bulkHubTransfer(any());
     }
 
     @Test
@@ -659,14 +660,14 @@ class StockTransferServiceTest {
         StockTransfer transfer = buildTransfer(UUID.randomUUID(), hubId, TransferStatus.IN_PROGRESS);
 
         given(stockTransferRepository.findById(transfer.getId())).willReturn(Optional.of(transfer));
-        given(productFeignClient.bulkHubTransfer(any())).willReturn(ApiResponse.success());
+        given(companyFeignClient.bulkHubTransfer(any())).willReturn(ApiResponse.success());
 
         StockTransferResponseDto result = stockTransferService.complete(
                 transfer.getId(), hubId, new StockTransferCompleteRequestDto("입고 완료"));
 
         assertThat(result.status()).isEqualTo(TransferStatus.COMPLETED);
         assertThat(result.note()).isEqualTo("입고 완료");
-        verify(productFeignClient).bulkHubTransfer(any());
+        verify(companyFeignClient).bulkHubTransfer(any());
     }
 
     @Test
