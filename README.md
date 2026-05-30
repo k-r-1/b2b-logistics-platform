@@ -6,7 +6,7 @@
 
 ## 👥 팀원 역할분담
 | **이름** | **GitHub** | **역할 (Domain)** | **주요 업무 및 성과** |
-| --- | --- | --- | --- |
+| ----- | --- | --- | --- |
 | **손형호 (리더)** | <a href="https://github.com/GolemOnce"><img src="https://img.shields.io/badge/GitHub-GolemOnce-181717?style=flat-square&logo=github&logoColor=white"/></a> | Delivery Domain | 프로젝트 총괄 및 일정 관리, 배송 도메인 API 구현 |
 | **권효승** | <a href="https://github.com/hy-ogu"><img src="https://img.shields.io/badge/GitHub-hy--ogu-181717?style=flat-square&logo=github&logoColor=white"/></a> | Notification / Slack Domain, AI Domain | 알림 및 Slack 연동 기능 구현, AI 도메인 API 구현 |
 | **박주원** | <a href="https://github.com/k-r-1"><img src="https://img.shields.io/badge/GitHub-k--r--1-181717?style=flat-square&logo=github&logoColor=white"/></a> | Company & Product Domain | 업체 및 상품 도메인 API 구현 |
