@@ -11,7 +11,6 @@ CREATE TABLE p_hubs
     manager_id     UUID,
     capacity       INTEGER,
     closing_reason VARCHAR(500),
-    capacity       INTEGER,
     created_at     TIMESTAMP      NOT NULL,
     created_by     UUID,
     updated_at     TIMESTAMP      NOT NULL,

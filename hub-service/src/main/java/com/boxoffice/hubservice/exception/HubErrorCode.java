@@ -32,13 +32,12 @@ public enum HubErrorCode implements ErrorCode {
     HUB_NOT_CLOSING(HttpStatus.BAD_REQUEST, "HUB-021", "CLOSING 상태의 허브만 운영중단할 수 있습니다."),
     CENTRAL_HUB_CANNOT_CLOSE(HttpStatus.BAD_REQUEST, "HUB-022", "CENTRAL 허브는 마감 예정 상태로 전환할 수 없습니다."),
     HUB_CLOSING(HttpStatus.BAD_REQUEST, "HUB-023", "CLOSING 상태의 허브에서는 허용되지 않는 작업입니다."),
-    TRANSFER_EXCEEDS_STOCK(HttpStatus.BAD_REQUEST, "HUB-024", "이전 요청 수량이 실제 재고를 초과합니다."),
-    TRANSFER_EXCEEDS_CAPACITY(HttpStatus.BAD_REQUEST, "HUB-025", "도착 허브의 가용 용량을 초과합니다."),
-    HUB_NOT_INACTIVE_FOR_TRANSFER(HttpStatus.BAD_REQUEST, "HUB-026", "재고 이전은 INACTIVE 상태의 허브에서만 가능합니다."),
-    TRANSFER_ALREADY_EXISTS(HttpStatus.CONFLICT, "HUB-027", "이미 진행 중인 재고 이전이 있습니다."),
-    TRANSFER_ALREADY_IN_PROGRESS(HttpStatus.CONFLICT, "HUB-028", "이미 출발 처리된 재고 이전이 있습니다."),
-    NO_COMPANIES_TO_TRANSFER(HttpStatus.BAD_REQUEST, "HUB-029", "이전할 업체가 없습니다."),
-    NO_FIELDS_TO_UPDATE(HttpStatus.BAD_REQUEST, "HUB-030", "수정할 항목이 없습니다.");
+    TRANSFER_EXCEEDS_CAPACITY(HttpStatus.BAD_REQUEST, "HUB-024", "도착 허브의 가용 용량을 초과합니다."),
+    HUB_NOT_INACTIVE_FOR_TRANSFER(HttpStatus.BAD_REQUEST, "HUB-025", "재고 이전은 INACTIVE 상태의 허브에서만 가능합니다."),
+    TRANSFER_ALREADY_EXISTS(HttpStatus.CONFLICT, "HUB-026", "이미 진행 중인 재고 이전이 있습니다."),
+    TRANSFER_ALREADY_IN_PROGRESS(HttpStatus.CONFLICT, "HUB-027", "이미 출발 처리된 재고 이전이 있습니다."),
+    NO_COMPANIES_TO_TRANSFER(HttpStatus.BAD_REQUEST, "HUB-028", "이전할 업체가 없습니다."),
+    NO_FIELDS_TO_UPDATE(HttpStatus.BAD_REQUEST, "HUB-029", "수정할 항목이 없습니다.");
 
     private final HttpStatus httpStatus;
     private final String code;
