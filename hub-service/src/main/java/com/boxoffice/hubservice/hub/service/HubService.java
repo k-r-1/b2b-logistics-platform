@@ -5,7 +5,14 @@ import com.boxoffice.common.exception.BaseException;
 import com.boxoffice.common.response.ApiResponse;
 import com.boxoffice.common.response.PageResponse;
 import com.boxoffice.common.util.PageableUtils;
-import com.boxoffice.hubservice.client.*;
+import com.boxoffice.hubservice.client.BulkHubTransferRequestDto;
+import com.boxoffice.hubservice.client.BulkStockCountRequestDto;
+import com.boxoffice.hubservice.client.BulkStockCountResponseDto;
+import com.boxoffice.hubservice.client.CompanyDetailResponseDto;
+import com.boxoffice.hubservice.client.CompanyFeignClient;
+import com.boxoffice.hubservice.client.DeliveryFeignClient;
+import com.boxoffice.hubservice.client.DeliveryManagerFeignClient;
+import com.boxoffice.hubservice.client.UserFeignClient;
 import com.boxoffice.hubservice.exception.HubErrorCode;
 import com.boxoffice.hubservice.hub.dto.request.HubClosingRequestDto;
 import com.boxoffice.hubservice.hub.dto.request.HubCreateRequestDto;
@@ -42,9 +49,9 @@ public class HubService {
     private final HubRepository hubRepository;
     private final HubRouteRepository hubRouteRepository;
     private final AuditorAware<UUID> auditorAware;
+    private final CompanyFeignClient companyFeignClient;
     private final DeliveryManagerFeignClient deliveryManagerFeignClient;
     private final UserFeignClient userFeignClient;
-    private final ProductFeignClient productFeignClient;
     private final DeliveryFeignClient deliveryFeignClient;
 
     @Transactional
@@ -222,7 +229,7 @@ public class HubService {
             throw new BaseException(HubErrorCode.HUB_NOT_INACTIVE);
         }
 
-        ApiResponse<List<CompanyDetailResponseDto>> res = productFeignClient.getCompaniesByHubId(hubId);
+        ApiResponse<List<CompanyDetailResponseDto>> res = companyFeignClient.getCompaniesByHubId(hubId);
         List<CompanyDetailResponseDto> companies = res != null ? res.getData() : null;
         if (companies != null && !companies.isEmpty()) {
             throw new BaseException(HubErrorCode.HUB_HAS_COMPANIES);
