@@ -251,16 +251,25 @@ public class ProductService {
     private void markStockOperationDoneAfterCommit(UUID orderId, ProductStockOperationType operationType) {
         String key = doneKey(orderId, operationType);
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            redisTemplate.opsForValue().set(key, "1", STOCK_OPERATION_DONE_TTL);
+            saveStockOperationDoneKey(orderId, operationType, key);
             return;
         }
 
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
-                redisTemplate.opsForValue().set(key, "1", STOCK_OPERATION_DONE_TTL);
+                saveStockOperationDoneKey(orderId, operationType, key);
             }
         });
+    }
+
+    private void saveStockOperationDoneKey(UUID orderId, ProductStockOperationType operationType, String key) {
+        try {
+            redisTemplate.opsForValue().set(key, "1", STOCK_OPERATION_DONE_TTL);
+        } catch (RuntimeException e) {
+            log.error("Failed to save stock operation done key. orderId={}, operationType={}, key={}",
+                    orderId, operationType, key, e);
+        }
     }
 
     private void deleteLockAfterCompletion(UUID orderId, ProductStockOperationType operationType) {
