@@ -6,7 +6,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 
 import java.util.UUID;
 
-@FeignClient(name = "user-service")
+@FeignClient(name = "user-service", fallbackFactory = UserFeignClientFallbackFactory.class)
 public interface UserFeignClient {
 
     @PatchMapping("/internal/v1/users/clear-hub/{hubId}")
