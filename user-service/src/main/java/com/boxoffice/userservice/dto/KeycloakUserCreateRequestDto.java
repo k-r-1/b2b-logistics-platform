@@ -27,6 +27,6 @@ public class KeycloakUserCreateRequestDto {
     public static class Credential {
         private final String type = "password";
         private final String value;
-        private final boolean temporary = false; // 🌟 아까 짚었던 임시비밀번호 OFF 설정 자동화!
+        private final boolean temporary = false;
     }
 }
