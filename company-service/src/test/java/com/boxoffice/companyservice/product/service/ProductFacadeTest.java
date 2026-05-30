@@ -12,6 +12,8 @@ import com.boxoffice.companyservice.company.service.CompanyService;
 import com.boxoffice.companyservice.company.validator.HubValidator;
 import com.boxoffice.companyservice.product.dto.request.ProductCreateRequestDto;
 import com.boxoffice.companyservice.product.dto.response.ProductCreateResponseDto;
+import com.boxoffice.companyservice.product.dto.response.ProductResponseDto;
+import com.boxoffice.companyservice.product.dto.search.ProductSearchCondition;
 import feign.FeignException;
 import feign.Request;
 import org.junit.jupiter.api.DisplayName;
@@ -22,6 +24,9 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.nio.charset.StandardCharsets;
@@ -373,6 +378,260 @@ class ProductFacadeTest {
         verify(companyService).getCompanyEntity(companyId);
         verifyNoMoreInteractions(companyService);
         verifyNoInteractions(userClient, productService, hubValidator);
+    }
+
+    @Test
+    @DisplayName("성공 - MASTER는 상품 상세를 조회할 수 있다")
+    void getProductWithMasterRole() {
+        // given
+        UUID companyId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+        Company company = createCompany(companyId, UUID.randomUUID());
+        ProductResponseDto expectedResponse = mock(ProductResponseDto.class);
+
+        when(companyService.getCompanyEntity(companyId)).thenReturn(company);
+        when(productService.getProduct(companyId, productId)).thenReturn(expectedResponse);
+
+        // when
+        ProductResponseDto response = productFacade.getProduct(companyId, productId, "MASTER", null, null);
+
+        // then
+        assertThat(response).isSameAs(expectedResponse);
+        verify(companyService).getCompanyEntity(companyId);
+        verify(productService).getProduct(companyId, productId);
+        verifyNoMoreInteractions(companyService, productService);
+        verifyNoInteractions(userClient, hubValidator);
+    }
+
+    @Test
+    @DisplayName("성공 - SUPPLIER_MANAGER는 본인 업체 상품을 조회할 수 있다")
+    void getProductWithSupplierManagerRoleAndOwnCompany() {
+        // given
+        UUID companyId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+        String keycloakSub = UUID.randomUUID().toString();
+        Company company = createCompany(companyId, UUID.randomUUID());
+        ProductResponseDto expectedResponse = mock(ProductResponseDto.class);
+
+        when(companyService.getCompanyEntity(companyId)).thenReturn(company);
+        when(userClient.getUserByKeycloakSub(keycloakSub)).thenReturn(createUserResponse(companyId));
+        when(productService.getProduct(companyId, productId)).thenReturn(expectedResponse);
+
+        // when
+        ProductResponseDto response = productFacade.getProduct(
+                companyId,
+                productId,
+                "SUPPLIER_MANAGER",
+                null,
+                keycloakSub
+        );
+
+        // then
+        assertThat(response).isSameAs(expectedResponse);
+        verify(companyService).getCompanyEntity(companyId);
+        verify(userClient).getUserByKeycloakSub(keycloakSub);
+        verify(productService).getProduct(companyId, productId);
+        verifyNoMoreInteractions(userClient, companyService, productService);
+        verifyNoInteractions(hubValidator);
+    }
+
+    @Test
+    @DisplayName("실패 - HUB_MANAGER는 담당 허브가 아닌 업체의 상품을 조회할 수 없다")
+    void getProductWithHubManagerRoleAndDifferentHub() {
+        // given
+        UUID companyId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+        Company company = createCompany(companyId, UUID.randomUUID());
+
+        when(companyService.getCompanyEntity(companyId)).thenReturn(company);
+
+        // when
+        Throwable throwable = catchThrowable(() ->
+                productFacade.getProduct(companyId, productId, "HUB_MANAGER", UUID.randomUUID(), null)
+        );
+
+        // then
+        assertForbidden(throwable);
+        verify(companyService).getCompanyEntity(companyId);
+        verifyNoMoreInteractions(companyService);
+        verifyNoInteractions(userClient, productService, hubValidator);
+    }
+
+    @Test
+    @DisplayName("실패 - SUPPLIER_MANAGER는 다른 업체 상품을 조회할 수 없다")
+    void getProductWithSupplierManagerRoleAndDifferentCompany() {
+        // given
+        UUID companyId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+        String keycloakSub = UUID.randomUUID().toString();
+        Company company = createCompany(companyId, UUID.randomUUID());
+
+        when(companyService.getCompanyEntity(companyId)).thenReturn(company);
+        when(userClient.getUserByKeycloakSub(keycloakSub)).thenReturn(createUserResponse(UUID.randomUUID()));
+
+        // when
+        Throwable throwable = catchThrowable(() ->
+                productFacade.getProduct(companyId, productId, "SUPPLIER_MANAGER", null, keycloakSub)
+        );
+
+        // then
+        assertForbidden(throwable);
+        verify(companyService).getCompanyEntity(companyId);
+        verify(userClient).getUserByKeycloakSub(keycloakSub);
+        verifyNoMoreInteractions(userClient, companyService);
+        verifyNoInteractions(productService, hubValidator);
+    }
+
+    @Test
+    @DisplayName("성공 - 상품 목록을 검색할 수 있다")
+    void searchProductsWithReadableRole() {
+        // given
+        UUID companyId = UUID.randomUUID();
+        UUID hubId = UUID.randomUUID();
+        Company company = createCompany(companyId, hubId);
+        ProductSearchCondition condition = new ProductSearchCondition();
+        Pageable pageable = PageRequest.of(0, 10);
+        Page<ProductResponseDto> expectedResponse = Page.empty(pageable);
+
+        when(companyService.getCompanyEntity(companyId)).thenReturn(company);
+        when(productService.searchProducts(companyId, condition, pageable)).thenReturn(expectedResponse);
+
+        // when
+        Page<ProductResponseDto> response = productFacade.searchProducts(
+                companyId,
+                condition,
+                pageable,
+                "HUB_MANAGER",
+                hubId,
+                null
+        );
+
+        // then
+        assertThat(response).isSameAs(expectedResponse);
+        verify(companyService).getCompanyEntity(companyId);
+        verify(productService).searchProducts(companyId, condition, pageable);
+        verifyNoMoreInteractions(companyService, productService);
+        verifyNoInteractions(userClient, hubValidator);
+    }
+
+    @Test
+    @DisplayName("성공 - HUB_MANAGER 전체 상품 검색은 담당 허브 조건으로 제한된다")
+    void searchAllProductsWithHubManagerRoleAppliesHubScope() {
+        // given
+        UUID hubId = UUID.randomUUID();
+        ProductSearchCondition condition = new ProductSearchCondition();
+        Pageable pageable = PageRequest.of(0, 10);
+        Page<ProductResponseDto> expectedResponse = Page.empty(pageable);
+
+        when(productService.searchProducts(condition, pageable)).thenReturn(expectedResponse);
+
+        // when
+        Page<ProductResponseDto> response = productFacade.searchProducts(
+                condition,
+                pageable,
+                "HUB_MANAGER",
+                hubId,
+                null
+        );
+
+        // then
+        assertThat(response).isSameAs(expectedResponse);
+        assertThat(condition.getHubId()).isEqualTo(hubId);
+        verify(productService).searchProducts(condition, pageable);
+        verifyNoMoreInteractions(productService);
+        verifyNoInteractions(userClient, companyService, hubValidator);
+    }
+
+    @Test
+    @DisplayName("성공 - SUPPLIER_MANAGER 전체 상품 검색은 본인 업체 조건으로 제한된다")
+    void searchAllProductsWithSupplierManagerRoleAppliesCompanyScope() {
+        // given
+        UUID companyId = UUID.randomUUID();
+        String keycloakSub = UUID.randomUUID().toString();
+        ProductSearchCondition condition = new ProductSearchCondition();
+        Pageable pageable = PageRequest.of(0, 10);
+        Page<ProductResponseDto> expectedResponse = Page.empty(pageable);
+
+        when(userClient.getUserByKeycloakSub(keycloakSub)).thenReturn(createUserResponse(companyId));
+        when(productService.searchProducts(condition, pageable)).thenReturn(expectedResponse);
+
+        // when
+        Page<ProductResponseDto> response = productFacade.searchProducts(
+                condition,
+                pageable,
+                "SUPPLIER_MANAGER",
+                null,
+                keycloakSub
+        );
+
+        // then
+        assertThat(response).isSameAs(expectedResponse);
+        assertThat(condition.getCompanyId()).isEqualTo(companyId);
+        verify(userClient).getUserByKeycloakSub(keycloakSub);
+        verify(productService).searchProducts(condition, pageable);
+        verifyNoMoreInteractions(userClient, productService);
+        verifyNoInteractions(companyService, hubValidator);
+    }
+
+    @Test
+    @DisplayName("실패 - HUB_MANAGER는 다른 허브 조건으로 전체 상품을 검색할 수 없다")
+    void searchAllProductsWithHubManagerRoleAndDifferentHubCondition() {
+        // given
+        ProductSearchCondition condition = ProductSearchCondition.builder()
+                .hubId(UUID.randomUUID())
+                .build();
+
+        // when
+        Throwable throwable = catchThrowable(() ->
+                productFacade.searchProducts(condition, PageRequest.of(0, 10), "HUB_MANAGER", UUID.randomUUID(), null)
+        );
+
+        // then
+        assertForbidden(throwable);
+        verifyNoInteractions(userClient, companyService, productService, hubValidator);
+    }
+
+    @Test
+    @DisplayName("실패 - SUPPLIER_MANAGER는 다른 업체 조건으로 전체 상품을 검색할 수 없다")
+    void searchAllProductsWithSupplierManagerRoleAndDifferentCompanyCondition() {
+        // given
+        UUID companyId = UUID.randomUUID();
+        String keycloakSub = UUID.randomUUID().toString();
+        ProductSearchCondition condition = ProductSearchCondition.builder()
+                .companyId(UUID.randomUUID())
+                .build();
+
+        when(userClient.getUserByKeycloakSub(keycloakSub)).thenReturn(createUserResponse(companyId));
+
+        // when
+        Throwable throwable = catchThrowable(() ->
+                productFacade.searchProducts(condition, PageRequest.of(0, 10), "SUPPLIER_MANAGER", null, keycloakSub)
+        );
+
+        // then
+        assertForbidden(throwable);
+        verify(userClient).getUserByKeycloakSub(keycloakSub);
+        verifyNoMoreInteractions(userClient);
+        verifyNoInteractions(companyService, productService, hubValidator);
+    }
+
+    @Test
+    @DisplayName("실패 - 상품 검색 범위 조건이 잘못되면 입력값 오류로 처리한다")
+    void searchProductsWithInvalidRange() {
+        // given
+        ProductSearchCondition condition = ProductSearchCondition.builder()
+                .minPrice(20000)
+                .maxPrice(10000)
+                .build();
+
+        // when
+        Throwable throwable = catchThrowable(() ->
+                productFacade.searchProducts(UUID.randomUUID(), condition, PageRequest.of(0, 10), "MASTER", null, null)
+        );
+
+        // then
+        assertInvalidInput(throwable);
+        verifyNoInteractions(userClient, companyService, productService, hubValidator);
     }
 
     private void assertInvalidInput(Throwable throwable) {
