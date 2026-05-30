@@ -8,4 +8,4 @@ public record TransferPlanResponseDto(
         String fromHubName,
         Integer totalStock,
         List<SuggestedTransferResponseDto> suggestedTransfers
-) {}
+) { }

@@ -17,7 +17,15 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.UUID;
@@ -36,7 +44,9 @@ public class StockTransferController {
             @RequestHeader("X-User-Role") String role,
             @Parameter(description = "이전 출발 허브 ID") @RequestParam UUID fromHubId
     ) {
-        if (!"MASTER".equals(role)) throw new BaseException(CommonErrorCode.FORBIDDEN);
+        if (!"MASTER".equals(role)) {
+            throw new BaseException(CommonErrorCode.FORBIDDEN);
+        }
         return ResponseEntity.ok(ApiResponse.success(stockTransferService.getTransferPlan(fromHubId)));
     }
 
@@ -46,12 +56,17 @@ public class StockTransferController {
             @RequestHeader("X-User-Role") String role,
             @Valid @RequestBody StockTransferCreateRequestDto request
     ) {
-        if (!"MASTER".equals(role)) throw new BaseException(CommonErrorCode.FORBIDDEN);
+        if (!"MASTER".equals(role)) {
+            throw new BaseException(CommonErrorCode.FORBIDDEN);
+        }
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(HttpStatus.CREATED, stockTransferService.createTransfer(request)));
     }
 
-    @Operation(summary = "재고 이전 목록 조회", description = "재고 이전 목록을 조회합니다. MASTER는 전체, HUB_MANAGER는 담당 허브, DELIVERY_MANAGER는 본인 배정 건만 조회합니다.")
+    @Operation(
+            summary = "재고 이전 목록 조회",
+            description = "재고 이전 목록을 조회합니다. MASTER는 전체, HUB_MANAGER는 담당 허브, DELIVERY_MANAGER는 본인 배정 건만 조회합니다."
+    )
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<StockTransferResponseDto>>> getTransfers(
             @RequestHeader("X-User-Role") String role,
@@ -88,9 +103,12 @@ public class StockTransferController {
         throw new BaseException(CommonErrorCode.FORBIDDEN);
     }
 
-    @Operation(summary = "재고 이전 단건 조회", description = "재고 이전 단건을 조회합니다. MASTER는 전체, HUB_MANAGER는 담당 허브, DELIVERY_MANAGER는 본인 배정 건만 조회 가능합니다.")
+    @Operation(
+            summary = "재고 이전 단건 조회",
+            description = "재고 이전 단건을 조회합니다. MASTER는 전체, HUB_MANAGER는 담당 허브, DELIVERY_MANAGER는 본인 배정 건만 조회 가능합니다."
+    )
     @GetMapping("/{transferId}")
-    public ResponseEntity<?> getTransfer(
+    public ResponseEntity<ApiResponse<StockTransferResponseDto>> getTransfer(
             @RequestHeader("X-User-Role") String role,
             @RequestHeader(value = "X-User-Hub-Id", required = false) String hubIdStr,
             @RequestHeader(value = "X-User-Id", required = false) String userIdStr,
@@ -128,7 +146,9 @@ public class StockTransferController {
             @PathVariable UUID transferId
     ) {
         UUID hubId;
-        if (!"HUB_MANAGER".equals(role)) throw new BaseException(CommonErrorCode.FORBIDDEN);
+        if (!"HUB_MANAGER".equals(role)) {
+            throw new BaseException(CommonErrorCode.FORBIDDEN);
+        }
         try {
             hubId = UUID.fromString(hubIdStr);
         } catch (IllegalArgumentException e) {
@@ -138,7 +158,10 @@ public class StockTransferController {
                 stockTransferService.dispatch(transferId, hubId)));
     }
 
-    @Operation(summary = "재고 이전 완료 처리", description = "IN_PROGRESS 상태의 재고 이전을 COMPLETED로 변경합니다. HUB_MANAGER 또는 DELIVERY_MANAGER 권한 필요.")
+    @Operation(
+            summary = "재고 이전 완료 처리",
+            description = "IN_PROGRESS 상태의 재고 이전을 COMPLETED로 변경합니다. HUB_MANAGER 또는 DELIVERY_MANAGER 권한 필요."
+    )
     @PatchMapping("/{transferId}/complete")
     public ResponseEntity<ApiResponse<StockTransferResponseDto>> complete(
             @RequestHeader("X-User-Role") String role,

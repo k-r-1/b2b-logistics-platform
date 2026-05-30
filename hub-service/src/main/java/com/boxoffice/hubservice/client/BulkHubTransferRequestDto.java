@@ -6,4 +6,4 @@ import java.util.UUID;
 public record BulkHubTransferRequestDto(
         List<UUID> companyIds,
         UUID toHubId
-) {}
+) { }

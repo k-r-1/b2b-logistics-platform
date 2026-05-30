@@ -11,4 +11,4 @@ public record SuggestedTransferResponseDto(
         Integer availableCapacity,
         Integer suggestedCount,
         List<AssignedCompanyResponseDto> companies
-) {}
+) { }
