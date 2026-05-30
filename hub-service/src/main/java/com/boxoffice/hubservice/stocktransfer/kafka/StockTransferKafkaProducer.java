@@ -15,6 +15,6 @@ public class StockTransferKafkaProducer {
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void sendDispatched(TransferDispatchedEvent event) {
-        kafkaTemplate.send("hub.transfer.dispatched", event);
+        kafkaTemplate.send("hub-transfer-dispatched", event);
     }
 }

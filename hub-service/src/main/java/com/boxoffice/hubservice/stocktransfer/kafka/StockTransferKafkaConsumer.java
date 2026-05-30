@@ -17,7 +17,7 @@ public class StockTransferKafkaConsumer {
 
     private final StockTransferRepository stockTransferRepository;
 
-    @KafkaListener(topics = "delivery-manager.assignment.succeeded", groupId = "hub-service")
+    @KafkaListener(topics = "transfer-assign-success", groupId = "hub-service")
     @Transactional
     public void onAssigned(AssignmentSucceededEvent event) {
         StockTransfer transfer = stockTransferRepository.findById(event.transferId())
@@ -25,7 +25,7 @@ public class StockTransferKafkaConsumer {
         transfer.assignDeliveryManager(event.deliveryManagerId());
     }
 
-    @KafkaListener(topics = "delivery-manager.assignment.failed", groupId = "hub-service")
+    @KafkaListener(topics = "transfer-assign-failed", groupId = "hub-service")
     @Transactional
     public void onFailed(AssignmentFailedEvent event) {
         StockTransfer transfer = stockTransferRepository.findById(event.transferId())
