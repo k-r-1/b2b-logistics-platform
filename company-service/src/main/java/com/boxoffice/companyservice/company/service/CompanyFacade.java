@@ -16,6 +16,7 @@ import com.boxoffice.companyservice.company.entity.CompanyType;
 import com.boxoffice.companyservice.company.validator.HubValidator;
 import feign.FeignException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.AuditorAware;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -29,6 +30,7 @@ public class CompanyFacade {
     private final HubValidator hubValidator;
     private final UserClient userClient;
     private final CompanyService companyService;
+    private final AuditorAware<UUID> auditorAware;
 
     public CompanyCreateResponseDto createCompany(CompanyCreateRequestDto request, String userRoleStr, UUID userHubId) {
         validateCreateRequest(request);
@@ -76,7 +78,8 @@ public class CompanyFacade {
 
         validateCompanyDeleteScope(company, role, userHubId);
 
-        UUID deletedBy = resolveCurrentUserId(keycloakSub);
+        UUID deletedBy = auditorAware.getCurrentAuditor()
+                .orElseThrow(() -> new BaseException(CommonErrorCode.UNAUTHORIZED));
         companyService.deleteCompany(companyId, deletedBy);
     }
 
@@ -225,14 +228,6 @@ public class CompanyFacade {
         if (!companyId.equals(response.getData().getCompanyId())) {
             throw new BaseException(CommonErrorCode.FORBIDDEN);
         }
-    }
-
-    private UUID resolveCurrentUserId(String keycloakSub) {
-        ApiResponse<UserResponseDto> response = getUserByKeycloakSub(keycloakSub);
-        if (response == null || response.getData() == null || response.getData().getId() == null) {
-            throw new BaseException(CommonErrorCode.UNAUTHORIZED);
-        }
-        return response.getData().getId();
     }
 
     private ApiResponse<UserResponseDto> getUserByKeycloakSub(String keycloakSub) {

@@ -24,8 +24,10 @@ import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.AuditorAware;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.util.Optional;
 import java.util.UUID;
 
 import com.boxoffice.companyservice.company.dto.search.CompanySearchCondition;
@@ -61,6 +63,9 @@ class CompanyFacadeTest {
 
     @Mock
     private CompanyService companyService;
+
+    @Mock
+    private AuditorAware<UUID> auditorAware;
 
     @Test
     @DisplayName("실패 - 생성 요청이 없으면 입력값 오류로 처리하고 Hub 검증과 저장을 호출하지 않는다")
@@ -503,22 +508,22 @@ class CompanyFacadeTest {
     void deleteCompanyWithMasterRole() {
         // given
         UUID companyId = UUID.randomUUID();
-        UUID deletedBy = UUID.randomUUID();
         String keycloakSub = UUID.randomUUID().toString();
+        UUID deletedBy = UUID.fromString(keycloakSub);
         Company company = createCompany(companyId, UUID.randomUUID());
-        ApiResponse<UserResponseDto> userResponse = createUserResponseWithId(deletedBy);
 
         when(companyService.getCompanyEntity(companyId)).thenReturn(company);
-        when(userClient.getUserByKeycloakSub(keycloakSub)).thenReturn(userResponse);
+        when(auditorAware.getCurrentAuditor()).thenReturn(Optional.of(deletedBy));
 
         // when
         companyFacade.deleteCompany(companyId, "MASTER", null, keycloakSub);
 
         // then
         verify(companyService).getCompanyEntity(companyId);
-        verify(userClient).getUserByKeycloakSub(keycloakSub);
+        verify(auditorAware).getCurrentAuditor();
         verify(companyService).deleteCompany(companyId, deletedBy);
-        verifyNoMoreInteractions(userClient, companyService);
+        verifyNoMoreInteractions(companyService, auditorAware);
+        verifyNoInteractions(userClient);
         verifyNoInteractions(hubValidator);
     }
 
@@ -528,22 +533,22 @@ class CompanyFacadeTest {
         // given
         UUID companyId = UUID.randomUUID();
         UUID hubId = UUID.randomUUID();
-        UUID deletedBy = UUID.randomUUID();
         String keycloakSub = UUID.randomUUID().toString();
+        UUID deletedBy = UUID.fromString(keycloakSub);
         Company company = createCompany(companyId, hubId);
-        ApiResponse<UserResponseDto> userResponse = createUserResponseWithId(deletedBy);
 
         when(companyService.getCompanyEntity(companyId)).thenReturn(company);
-        when(userClient.getUserByKeycloakSub(keycloakSub)).thenReturn(userResponse);
+        when(auditorAware.getCurrentAuditor()).thenReturn(Optional.of(deletedBy));
 
         // when
         companyFacade.deleteCompany(companyId, "HUB_MANAGER", hubId, keycloakSub);
 
         // then
         verify(companyService).getCompanyEntity(companyId);
-        verify(userClient).getUserByKeycloakSub(keycloakSub);
+        verify(auditorAware).getCurrentAuditor();
         verify(companyService).deleteCompany(companyId, deletedBy);
-        verifyNoMoreInteractions(userClient, companyService);
+        verifyNoMoreInteractions(companyService, auditorAware);
+        verifyNoInteractions(userClient);
         verifyNoInteractions(hubValidator);
     }
 
@@ -606,10 +611,9 @@ class CompanyFacadeTest {
         UUID companyId = UUID.randomUUID();
         String keycloakSub = UUID.randomUUID().toString();
         Company company = createCompany(companyId, UUID.randomUUID());
-        ApiResponse<UserResponseDto> userResponse = ApiResponse.success(null);
 
         when(companyService.getCompanyEntity(companyId)).thenReturn(company);
-        when(userClient.getUserByKeycloakSub(keycloakSub)).thenReturn(userResponse);
+        when(auditorAware.getCurrentAuditor()).thenReturn(Optional.empty());
 
         // when
         Throwable throwable = catchThrowable(() ->
@@ -619,9 +623,9 @@ class CompanyFacadeTest {
         // then
         assertUnauthorized(throwable);
         verify(companyService).getCompanyEntity(companyId);
-        verify(userClient).getUserByKeycloakSub(keycloakSub);
-        verifyNoMoreInteractions(userClient, companyService);
-        verifyNoInteractions(hubValidator);
+        verify(auditorAware).getCurrentAuditor();
+        verifyNoMoreInteractions(companyService, auditorAware);
+        verifyNoInteractions(hubValidator, userClient);
     }
 
     @Test
@@ -631,10 +635,9 @@ class CompanyFacadeTest {
         UUID companyId = UUID.randomUUID();
         String keycloakSub = UUID.randomUUID().toString();
         Company company = createCompany(companyId, UUID.randomUUID());
-        ApiResponse<UserResponseDto> userResponse = createUserResponseWithId(null);
 
         when(companyService.getCompanyEntity(companyId)).thenReturn(company);
-        when(userClient.getUserByKeycloakSub(keycloakSub)).thenReturn(userResponse);
+        when(auditorAware.getCurrentAuditor()).thenReturn(Optional.empty());
 
         // when
         Throwable throwable = catchThrowable(() ->
@@ -644,9 +647,9 @@ class CompanyFacadeTest {
         // then
         assertUnauthorized(throwable);
         verify(companyService).getCompanyEntity(companyId);
-        verify(userClient).getUserByKeycloakSub(keycloakSub);
-        verifyNoMoreInteractions(userClient, companyService);
-        verifyNoInteractions(hubValidator);
+        verify(auditorAware).getCurrentAuditor();
+        verifyNoMoreInteractions(companyService, auditorAware);
+        verifyNoInteractions(hubValidator, userClient);
     }
 
     @Test
@@ -658,7 +661,7 @@ class CompanyFacadeTest {
         Company company = createCompany(companyId, UUID.randomUUID());
 
         when(companyService.getCompanyEntity(companyId)).thenReturn(company);
-        when(userClient.getUserByKeycloakSub(keycloakSub)).thenThrow(createFeignException(500));
+        when(auditorAware.getCurrentAuditor()).thenReturn(Optional.empty());
 
         // when
         Throwable throwable = catchThrowable(() ->
@@ -666,13 +669,11 @@ class CompanyFacadeTest {
         );
 
         // then
-        assertThat(throwable)
-                .isInstanceOfSatisfying(BaseException.class,
-                        exception -> assertThat(exception.getErrorCode()).isEqualTo(CommonErrorCode.FEIGN_CLIENT_ERROR));
+        assertUnauthorized(throwable);
         verify(companyService).getCompanyEntity(companyId);
-        verify(userClient).getUserByKeycloakSub(keycloakSub);
-        verifyNoMoreInteractions(userClient, companyService);
-        verifyNoInteractions(hubValidator);
+        verify(auditorAware).getCurrentAuditor();
+        verifyNoMoreInteractions(companyService, auditorAware);
+        verifyNoInteractions(hubValidator, userClient);
     }
 
     @Test

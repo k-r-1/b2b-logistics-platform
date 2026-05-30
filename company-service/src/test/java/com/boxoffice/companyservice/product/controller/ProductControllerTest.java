@@ -4,6 +4,7 @@ import com.boxoffice.common.exception.BaseException;
 import com.boxoffice.common.exception.CommonErrorCode;
 import com.boxoffice.common.exception.GlobalExceptionHandler;
 import com.boxoffice.companyservice.product.dto.request.ProductCreateRequestDto;
+import com.boxoffice.companyservice.product.dto.request.ProductUpdateRequestDto;
 import com.boxoffice.companyservice.product.dto.response.ProductCreateResponseDto;
 import com.boxoffice.companyservice.product.dto.response.ProductResponseDto;
 import com.boxoffice.companyservice.product.dto.search.ProductSearchCondition;
@@ -38,6 +39,8 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -185,6 +188,85 @@ class ProductControllerTest {
         assertThat(request.getName()).isEqualTo("테스트 상품");
         assertThat(request.getPrice()).isEqualTo(10000);
         assertThat(request.getStockQuantity()).isEqualTo(50);
+    }
+
+    @Test
+    @DisplayName("성공 - PATCH /api/v1/companies/{companyId}/products/{productId} 요청 시 204를 반환한다")
+    void updateProductReturnsNoContent() throws Exception {
+        // given
+        UUID companyId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+        UUID userHubId = UUID.randomUUID();
+        String keycloakSub = UUID.randomUUID().toString();
+
+        // when & then
+        mockMvc.perform(patch("/api/v1/companies/{companyId}/products/{productId}", companyId, productId)
+                        .header("X-User-Role", "MASTER")
+                        .header("X-User-Hub-Id", userHubId.toString())
+                        .header("X-User-Id", keycloakSub)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(createUpdateRequestBody()))
+                .andExpect(status().isNoContent());
+
+        ArgumentCaptor<ProductUpdateRequestDto> requestCaptor = ArgumentCaptor.forClass(ProductUpdateRequestDto.class);
+        verify(productFacade).updateProduct(
+                eq(companyId),
+                eq(productId),
+                requestCaptor.capture(),
+                eq("MASTER"),
+                eq(userHubId),
+                eq(keycloakSub)
+        );
+        verifyNoMoreInteractions(productFacade);
+
+        ProductUpdateRequestDto request = requestCaptor.getValue();
+        assertThat(request.getName()).isEqualTo("수정 상품");
+        assertThat(request.getPrice()).isEqualTo(15000);
+        assertThat(request.getStockQuantity()).isEqualTo(30);
+    }
+
+    @Test
+    @DisplayName("실패 - PATCH 요청의 음수 가격은 400 검증 실패를 반환한다")
+    void updateProductWithNegativePriceReturnsValidationError() throws Exception {
+        // given
+        UUID companyId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+        String requestBody = """
+                {
+                  "price": -1
+                }
+                """;
+
+        // when & then
+        mockMvc.perform(patch("/api/v1/companies/{companyId}/products/{productId}", companyId, productId)
+                        .header("X-User-Role", "MASTER")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status", is(400)))
+                .andExpect(jsonPath("$.message", is("VALIDATION_ERROR")));
+
+        verifyNoInteractions(productFacade);
+    }
+
+    @Test
+    @DisplayName("성공 - DELETE /api/v1/companies/{companyId}/products/{productId} 요청 시 204를 반환한다")
+    void deleteProductReturnsNoContent() throws Exception {
+        // given
+        UUID companyId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+        UUID userHubId = UUID.randomUUID();
+        String keycloakSub = UUID.randomUUID().toString();
+
+        // when & then
+        mockMvc.perform(delete("/api/v1/companies/{companyId}/products/{productId}", companyId, productId)
+                        .header("X-User-Role", "MASTER")
+                        .header("X-User-Hub-Id", userHubId.toString())
+                        .header("X-User-Id", keycloakSub))
+                .andExpect(status().isNoContent());
+
+        verify(productFacade).deleteProduct(companyId, productId, "MASTER", userHubId, keycloakSub);
+        verifyNoMoreInteractions(productFacade);
     }
 
     @Test
@@ -354,6 +436,16 @@ class ProductControllerTest {
                   "name": "테스트 상품",
                   "price": 10000,
                   "stockQuantity": 50
+                }
+                """;
+    }
+
+    private String createUpdateRequestBody() {
+        return """
+                {
+                  "name": "수정 상품",
+                  "price": 15000,
+                  "stockQuantity": 30
                 }
                 """;
     }
