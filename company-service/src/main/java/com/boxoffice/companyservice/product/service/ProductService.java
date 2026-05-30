@@ -7,6 +7,7 @@ import com.boxoffice.companyservice.product.domain.PriceVO;
 import com.boxoffice.companyservice.product.dto.request.ProductCreateRequestDto;
 import com.boxoffice.companyservice.product.dto.request.ProductUpdateRequestDto;
 import com.boxoffice.companyservice.product.dto.response.ProductCreateResponseDto;
+import com.boxoffice.companyservice.product.dto.response.HubStockCountResponseDto;
 import com.boxoffice.companyservice.product.dto.response.ProductResponseDto;
 import com.boxoffice.companyservice.product.dto.search.ProductSearchCondition;
 import com.boxoffice.companyservice.product.entity.Product;
@@ -20,6 +21,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -68,6 +71,20 @@ public class ProductService {
         product.softDelete(deletedBy);
         log.info("Product deleted. productId={}, companyId={}, deletedBy={}",
                 product.getId(), product.getCompany().getId(), deletedBy);
+    }
+
+    @Transactional(readOnly = true)
+    public List<HubStockCountResponseDto> getHubStockCounts(List<UUID> hubIds) {
+        Map<UUID, Long> stockCountByHubId = productRepository.sumStockQuantityByHubIds(hubIds);
+
+        return hubIds.stream()
+                .map(hubId -> new HubStockCountResponseDto(hubId, stockCountByHubId.getOrDefault(hubId, 0L)))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public Map<UUID, Long> getCompanyStockCountMap(List<UUID> companyIds) {
+        return productRepository.sumStockQuantityByCompanyIds(companyIds);
     }
 
     @Transactional(readOnly = true)

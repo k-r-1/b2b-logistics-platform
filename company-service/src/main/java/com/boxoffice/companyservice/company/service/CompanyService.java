@@ -2,6 +2,7 @@ package com.boxoffice.companyservice.company.service;
 
 import com.boxoffice.common.entity.AddressVO;
 import com.boxoffice.common.exception.BaseException;
+import com.boxoffice.common.exception.CommonErrorCode;
 import com.boxoffice.companyservice.company.client.UserClient;
 import com.boxoffice.companyservice.company.client.dto.UserCompanyUpdateRequestDto;
 import com.boxoffice.companyservice.company.dto.request.CompanyCreateRequestDto;
@@ -20,6 +21,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -86,6 +89,25 @@ public class CompanyService {
                 .orElseThrow(() -> new BaseException(CompanyErrorCode.COMPANY_NOT_FOUND));
         company.softDelete(deletedBy);
         log.info("Company deleted. companyId={}, deletedBy={}", company.getId(), deletedBy);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Company> getCompaniesByHubId(UUID hubId) {
+        return companyRepository.findActiveCompaniesByHubId(hubId);
+    }
+
+    @Transactional
+    public void transferCompaniesHub(List<UUID> companyIds, UUID toHubId) {
+        if (companyIds == null || companyIds.isEmpty() || toHubId == null) {
+            throw new BaseException(CommonErrorCode.INVALID_INPUT);
+        }
+
+        List<UUID> distinctCompanyIds = new LinkedHashSet<>(companyIds).stream().toList();
+        long updatedCount = companyRepository.bulkUpdateHubId(distinctCompanyIds, toHubId);
+
+        if (updatedCount != distinctCompanyIds.size()) {
+            throw new BaseException(CommonErrorCode.INVALID_INPUT);
+        }
     }
 
     @Transactional(readOnly = true)

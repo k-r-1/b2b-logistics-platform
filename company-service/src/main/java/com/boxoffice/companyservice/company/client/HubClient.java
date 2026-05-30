@@ -1,6 +1,7 @@
 package com.boxoffice.companyservice.company.client;
 
 import com.boxoffice.common.response.ApiResponse;
+import com.boxoffice.companyservice.company.client.fallback.HubClientFallbackFactory;
 import com.boxoffice.companyservice.company.client.dto.HubActiveResponseDto;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -8,7 +9,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 
 import java.util.UUID;
 
-@FeignClient(name = "hub-service", path = "/internal/v1/hubs")
+@FeignClient(name = "hub-service", path = "/internal/v1/hubs", fallbackFactory = HubClientFallbackFactory.class)
 public interface HubClient {
 
     @GetMapping("/{hubId}/active")

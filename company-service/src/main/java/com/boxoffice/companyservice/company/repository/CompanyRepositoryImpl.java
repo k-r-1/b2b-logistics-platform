@@ -16,6 +16,8 @@ import org.springframework.data.support.PageableExecutionUtils;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -94,6 +96,39 @@ public class CompanyRepositoryImpl implements CompanyRepositoryCustom {
         );
     }
 
+    @Override
+    public List<Company> findActiveCompaniesByHubId(UUID hubId) {
+        if (hubId == null) {
+            return List.of();
+        }
+
+        return queryFactory
+                .selectFrom(company)
+                .where(
+                        eqHubId(hubId),
+                        activeCompany()
+                )
+                .orderBy(company.name.asc())
+                .fetch();
+    }
+
+    @Override
+    public long bulkUpdateHubId(List<UUID> companyIds, UUID toHubId) {
+        if (companyIds == null || companyIds.isEmpty() || toHubId == null) {
+            return 0L;
+        }
+
+        return queryFactory
+                .update(company)
+                .set(company.hubId, toHubId)
+                .set(company.updatedAt, LocalDateTime.now())
+                .where(
+                        company.id.in(companyIds),
+                        activeCompany()
+                )
+                .execute();
+    }
+
     private BooleanExpression containsName(String name) {
         if (!StringUtils.hasText(name)) {
             return null;
@@ -113,5 +148,9 @@ public class CompanyRepositoryImpl implements CompanyRepositoryCustom {
             return null;
         }
         return company.hubId.eq(hubId);
+    }
+
+    private BooleanExpression activeCompany() {
+        return company.deletedAt.isNull();
     }
 }

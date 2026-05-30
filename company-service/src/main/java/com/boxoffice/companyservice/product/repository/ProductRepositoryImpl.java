@@ -6,6 +6,7 @@ import com.querydsl.core.types.Order;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.Predicate;
 import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
@@ -16,8 +17,11 @@ import org.springframework.data.support.PageableExecutionUtils;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static com.boxoffice.companyservice.company.entity.QCompany.company;
 import static com.boxoffice.companyservice.product.entity.QProduct.product;
@@ -97,6 +101,59 @@ public class ProductRepositoryImpl implements ProductRepositoryCustom {
                 pageable,
                 () -> Optional.ofNullable(countQuery.fetchOne()).orElse(0L)
         );
+    }
+
+    @Override
+    public Map<UUID, Long> sumStockQuantityByHubIds(List<UUID> hubIds) {
+        if (hubIds == null || hubIds.isEmpty()) {
+            return Map.of();
+        }
+
+        // Hub 폐쇄 계획에서 여러 허브 재고를 한 번에 보도록 group by 집계로 N+1 호출을 피한다.
+        NumberExpression<Long> stockSum = product.stockQuantity.sum().longValue();
+
+        return queryFactory
+                .select(company.hubId, stockSum)
+                .from(product)
+                .join(product.company, company)
+                .where(
+                        company.hubId.in(hubIds),
+                        activeProduct(),
+                        activeCompany()
+                )
+                .groupBy(company.hubId)
+                .fetch()
+                .stream()
+                .collect(Collectors.toMap(
+                        tuple -> tuple.get(company.hubId),
+                        tuple -> Optional.ofNullable(tuple.get(stockSum)).orElse(0L)
+                ));
+    }
+
+    @Override
+    public Map<UUID, Long> sumStockQuantityByCompanyIds(List<UUID> companyIds) {
+        if (companyIds == null || companyIds.isEmpty()) {
+            return Map.of();
+        }
+
+        NumberExpression<Long> stockSum = product.stockQuantity.sum().longValue();
+
+        return queryFactory
+                .select(company.id, stockSum)
+                .from(product)
+                .join(product.company, company)
+                .where(
+                        company.id.in(companyIds),
+                        activeProduct(),
+                        activeCompany()
+                )
+                .groupBy(company.id)
+                .fetch()
+                .stream()
+                .collect(Collectors.toMap(
+                        tuple -> tuple.get(company.id),
+                        tuple -> Optional.ofNullable(tuple.get(stockSum)).orElse(0L)
+                ));
     }
 
     private void applySort(JPAQuery<Product> contentQuery, Pageable pageable) {
