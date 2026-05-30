@@ -21,6 +21,7 @@ public class DeliveryNotificationProducer {
             log.info("[Kafka Produce] DeliveryAssigned 이벤트 발행 완료. EventId: {}, DeliveryId: {}", event.getEventId(), event.getDeliveryId());
         } catch (Exception e) {
             log.error("[Kafka Produce Error] 이벤트 발행 실패. EventId: {}", event.getEventId(), e);
+            // TODO: 향후 프로덕션 환경 도입 시 Spring Retry 또는 DLQ(Dead Letter Queue)를 활용한 재시도 로직 추가 필요
         }
     }
 }
