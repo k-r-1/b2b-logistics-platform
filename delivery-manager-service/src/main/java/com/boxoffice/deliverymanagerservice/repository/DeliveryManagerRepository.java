@@ -29,4 +29,15 @@ public interface DeliveryManagerRepository extends JpaRepository<DeliveryManager
     @Modifying(clearAutomatically = true)
     @Query("UPDATE DeliveryManager dm SET dm.hubId = null, dm.status = :status WHERE dm.hubId = :hubId")
     void clearHubIdAndChangeStatusByHubId(@Param("hubId") UUID hubId, @Param("status") ManagerStatus status);
+
+    @Query("SELECT dm FROM DeliveryManager dm WHERE " +
+            "(:hubId IS NULL OR dm.hubId = :hubId) AND " +
+            "(:type IS NULL OR dm.type = :type) AND " +
+            "(:status IS NULL OR dm.status = :status) AND " +
+            "dm.deletedAt IS NULL")
+    Page<DeliveryManager> searchManagers(@Param("hubId") UUID hubId,
+                                         @Param("type") DeliveryType type,
+                                         @Param("status") ManagerStatus status,
+                                         Pageable pageable);
+
 }

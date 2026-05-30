@@ -9,8 +9,10 @@ import com.boxoffice.deliverymanagerservice.exception.DeliveryManagerErrorCode;
 import com.boxoffice.deliverymanagerservice.repository.DeliveryManagerRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Pageable;
 
 import java.util.UUID;
 
@@ -119,5 +121,32 @@ public class DeliveryManagerService {
         deliveryManagerRepository.clearHubIdAndChangeStatusByHubId(hubId, ManagerStatus.WAITING);
 
         log.info("[DeliveryManagerHubClear] 기사님 일괄 초기화 완료. TargetHubId: {}", hubId);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<DeliveryManagerResponseDto> getDeliveryManagerList(
+            DeliveryManagerSearchDto searchDto,
+            Pageable pageable,
+            String role,
+            String requesterHubId) {
+
+        checkAdminRole(role);
+
+        if ("HUB_MANAGER".equals(role)) {
+            if (requesterHubId == null || requesterHubId.isBlank()) {
+                log.error("[DeliveryManagerSearch] HUB_MANAGER의 요청에 hubId 헤더가 누락되었습니다.");
+                throw new BaseException(DeliveryManagerErrorCode.FORBIDDEN_ACCESS);
+            }
+            searchDto.setHubId(UUID.fromString(requesterHubId));
+        }
+
+        Page<DeliveryManager> managerPage = deliveryManagerRepository.searchManagers(
+                searchDto.getHubId(),
+                searchDto.getType(),
+                searchDto.getStatus(),
+                pageable
+        );
+
+        return managerPage.map(DeliveryManagerResponseDto::from);
     }
 }
