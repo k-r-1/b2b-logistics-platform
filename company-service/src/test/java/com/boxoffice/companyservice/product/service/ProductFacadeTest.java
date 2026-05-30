@@ -11,6 +11,7 @@ import com.boxoffice.companyservice.company.exception.CompanyErrorCode;
 import com.boxoffice.companyservice.company.service.CompanyService;
 import com.boxoffice.companyservice.company.validator.HubValidator;
 import com.boxoffice.companyservice.product.dto.request.ProductCreateRequestDto;
+import com.boxoffice.companyservice.product.dto.request.ProductUpdateRequestDto;
 import com.boxoffice.companyservice.product.dto.response.ProductCreateResponseDto;
 import com.boxoffice.companyservice.product.dto.response.ProductResponseDto;
 import com.boxoffice.companyservice.product.dto.search.ProductSearchCondition;
@@ -361,6 +362,269 @@ class ProductFacadeTest {
     }
 
     @Test
+    @DisplayName("성공 - MASTER는 상품을 수정할 수 있다")
+    void updateProductWithMasterRole() {
+        // given
+        UUID companyId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+        Company company = createCompany(companyId, UUID.randomUUID());
+        ProductUpdateRequestDto request = createUpdateRequest();
+
+        when(companyService.getCompanyEntity(companyId)).thenReturn(company);
+
+        // when
+        productFacade.updateProduct(companyId, productId, request, "MASTER", null, null);
+
+        // then
+        verify(companyService).getCompanyEntity(companyId);
+        verify(hubValidator).validateHubActive(company.getHubId());
+        verify(productService).updateProduct(companyId, productId, request);
+        verifyNoMoreInteractions(companyService, productService, hubValidator);
+        verifyNoInteractions(userClient);
+    }
+
+    @Test
+    @DisplayName("성공 - HUB_MANAGER는 담당 허브 업체 상품을 수정할 수 있다")
+    void updateProductWithHubManagerRoleAndSameHub() {
+        // given
+        UUID companyId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+        UUID hubId = UUID.randomUUID();
+        Company company = createCompany(companyId, hubId);
+        ProductUpdateRequestDto request = createUpdateRequest();
+
+        when(companyService.getCompanyEntity(companyId)).thenReturn(company);
+
+        // when
+        productFacade.updateProduct(companyId, productId, request, "HUB_MANAGER", hubId, null);
+
+        // then
+        verify(companyService).getCompanyEntity(companyId);
+        verify(hubValidator).validateHubActive(company.getHubId());
+        verify(productService).updateProduct(companyId, productId, request);
+        verifyNoMoreInteractions(companyService, productService, hubValidator);
+        verifyNoInteractions(userClient);
+    }
+
+    @Test
+    @DisplayName("성공 - SUPPLIER_MANAGER는 본인 업체 상품을 수정할 수 있다")
+    void updateProductWithSupplierManagerRoleAndOwnCompany() {
+        // given
+        UUID companyId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+        String keycloakSub = UUID.randomUUID().toString();
+        Company company = createCompany(companyId, UUID.randomUUID());
+        ProductUpdateRequestDto request = createUpdateRequest();
+
+        when(companyService.getCompanyEntity(companyId)).thenReturn(company);
+        when(userClient.getUserByKeycloakSub(keycloakSub)).thenReturn(createUserResponse(companyId));
+
+        // when
+        productFacade.updateProduct(companyId, productId, request, "SUPPLIER_MANAGER", null, keycloakSub);
+
+        // then
+        verify(companyService).getCompanyEntity(companyId);
+        verify(userClient).getUserByKeycloakSub(keycloakSub);
+        verify(hubValidator).validateHubActive(company.getHubId());
+        verify(productService).updateProduct(companyId, productId, request);
+        verifyNoMoreInteractions(userClient, companyService, productService, hubValidator);
+    }
+
+    @Test
+    @DisplayName("실패 - 빈 PATCH 요청은 입력값 오류로 처리한다")
+    void updateProductWithEmptyRequest() {
+        // given
+        ProductUpdateRequestDto request = new ProductUpdateRequestDto();
+
+        // when
+        Throwable throwable = catchThrowable(() ->
+                productFacade.updateProduct(UUID.randomUUID(), UUID.randomUUID(), request, "MASTER", null, null)
+        );
+
+        // then
+        assertInvalidInput(throwable);
+        verifyNoInteractions(userClient, companyService, productService, hubValidator);
+    }
+
+    @Test
+    @DisplayName("실패 - HUB_MANAGER는 다른 허브 업체 상품을 수정할 수 없다")
+    void updateProductWithHubManagerRoleAndDifferentHub() {
+        // given
+        UUID companyId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+        Company company = createCompany(companyId, UUID.randomUUID());
+
+        when(companyService.getCompanyEntity(companyId)).thenReturn(company);
+
+        // when
+        Throwable throwable = catchThrowable(() ->
+                productFacade.updateProduct(companyId, productId, createUpdateRequest(), "HUB_MANAGER", UUID.randomUUID(), null)
+        );
+
+        // then
+        assertForbidden(throwable);
+        verify(companyService).getCompanyEntity(companyId);
+        verifyNoMoreInteractions(companyService);
+        verifyNoInteractions(userClient, productService, hubValidator);
+    }
+
+    @Test
+    @DisplayName("실패 - SUPPLIER_MANAGER는 다른 업체 상품을 수정할 수 없다")
+    void updateProductWithSupplierManagerRoleAndDifferentCompany() {
+        // given
+        UUID companyId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+        String keycloakSub = UUID.randomUUID().toString();
+        Company company = createCompany(companyId, UUID.randomUUID());
+
+        when(companyService.getCompanyEntity(companyId)).thenReturn(company);
+        when(userClient.getUserByKeycloakSub(keycloakSub)).thenReturn(createUserResponse(UUID.randomUUID()));
+
+        // when
+        Throwable throwable = catchThrowable(() ->
+                productFacade.updateProduct(companyId, productId, createUpdateRequest(), "SUPPLIER_MANAGER", null, keycloakSub)
+        );
+
+        // then
+        assertForbidden(throwable);
+        verify(companyService).getCompanyEntity(companyId);
+        verify(userClient).getUserByKeycloakSub(keycloakSub);
+        verifyNoMoreInteractions(userClient, companyService);
+        verifyNoInteractions(productService, hubValidator);
+    }
+
+    @Test
+    @DisplayName("실패 - DELIVERY_MANAGER는 상품을 수정할 수 없다")
+    void updateProductWithDeliveryManagerRole() {
+        // when
+        Throwable throwable = catchThrowable(() ->
+                productFacade.updateProduct(
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        createUpdateRequest(),
+                        "DELIVERY_MANAGER",
+                        null,
+                        null
+                )
+        );
+
+        // then
+        assertForbidden(throwable);
+        verifyNoInteractions(userClient, companyService, productService, hubValidator);
+    }
+
+    @Test
+    @DisplayName("실패 - 알 수 없는 role은 상품을 수정할 수 없다")
+    void updateProductWithUnknownRole() {
+        // when
+        Throwable throwable = catchThrowable(() ->
+                productFacade.updateProduct(
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        createUpdateRequest(),
+                        "UNKNOWN_ROLE",
+                        null,
+                        null
+                )
+        );
+
+        // then
+        assertForbidden(throwable);
+        verifyNoInteractions(userClient, companyService, productService, hubValidator);
+    }
+
+    @Test
+    @DisplayName("성공 - MASTER는 상품을 삭제할 수 있다")
+    void deleteProductWithMasterRole() {
+        // given
+        UUID companyId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+        String keycloakSub = UUID.randomUUID().toString();
+        UUID userId = UUID.randomUUID();
+        Company company = createCompany(companyId, UUID.randomUUID());
+
+        when(companyService.getCompanyEntity(companyId)).thenReturn(company);
+        when(userClient.getUserByKeycloakSub(keycloakSub)).thenReturn(createUserResponse(companyId, userId));
+
+        // when
+        productFacade.deleteProduct(companyId, productId, "MASTER", null, keycloakSub);
+
+        // then
+        verify(companyService).getCompanyEntity(companyId);
+        verify(userClient).getUserByKeycloakSub(keycloakSub);
+        verify(productService).deleteProduct(companyId, productId, userId);
+        verifyNoMoreInteractions(userClient, companyService, productService);
+        verifyNoInteractions(hubValidator);
+    }
+
+    @Test
+    @DisplayName("성공 - HUB_MANAGER는 담당 허브 업체 상품을 삭제할 수 있다")
+    void deleteProductWithHubManagerRoleAndSameHub() {
+        // given
+        UUID companyId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+        UUID hubId = UUID.randomUUID();
+        String keycloakSub = UUID.randomUUID().toString();
+        UUID userId = UUID.randomUUID();
+        Company company = createCompany(companyId, hubId);
+
+        when(companyService.getCompanyEntity(companyId)).thenReturn(company);
+        when(userClient.getUserByKeycloakSub(keycloakSub)).thenReturn(createUserResponse(companyId, userId));
+
+        // when
+        productFacade.deleteProduct(companyId, productId, "HUB_MANAGER", hubId, keycloakSub);
+
+        // then
+        verify(companyService).getCompanyEntity(companyId);
+        verify(userClient).getUserByKeycloakSub(keycloakSub);
+        verify(productService).deleteProduct(companyId, productId, userId);
+        verifyNoMoreInteractions(userClient, companyService, productService);
+        verifyNoInteractions(hubValidator);
+    }
+
+    @Test
+    @DisplayName("실패 - HUB_MANAGER는 다른 허브 업체 상품을 삭제할 수 없다")
+    void deleteProductWithHubManagerRoleAndDifferentHub() {
+        // given
+        UUID companyId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+        String keycloakSub = UUID.randomUUID().toString();
+        Company company = createCompany(companyId, UUID.randomUUID());
+
+        when(companyService.getCompanyEntity(companyId)).thenReturn(company);
+
+        // when
+        Throwable throwable = catchThrowable(() ->
+                productFacade.deleteProduct(companyId, productId, "HUB_MANAGER", UUID.randomUUID(), keycloakSub)
+        );
+
+        // then
+        assertForbidden(throwable);
+        verify(companyService).getCompanyEntity(companyId);
+        verifyNoMoreInteractions(companyService);
+        verifyNoInteractions(userClient, productService, hubValidator);
+    }
+
+    @ParameterizedTest(name = "실패 - role={0}은 상품을 삭제할 수 없다")
+    @ValueSource(strings = {"DELIVERY_MANAGER", "SUPPLIER_MANAGER", "UNKNOWN_ROLE"})
+    void deleteProductWithForbiddenRole(String userRole) {
+        // when
+        Throwable throwable = catchThrowable(() ->
+                productFacade.deleteProduct(
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        userRole,
+                        null,
+                        UUID.randomUUID().toString()
+                )
+        );
+
+        // then
+        assertForbidden(throwable);
+        verifyNoInteractions(userClient, companyService, productService, hubValidator);
+    }
+
+    @Test
     @DisplayName("실패 - 존재하지 않거나 삭제된 업체에는 상품을 생성할 수 없다")
     void createProductWithUnknownCompanyIdThrowsNotFound() {
         // given
@@ -671,8 +935,21 @@ class ProductFacadeTest {
         return request;
     }
 
+    private ProductUpdateRequestDto createUpdateRequest() {
+        ProductUpdateRequestDto request = new ProductUpdateRequestDto();
+        ReflectionTestUtils.setField(request, "name", "수정 상품");
+        ReflectionTestUtils.setField(request, "price", 15000);
+        ReflectionTestUtils.setField(request, "stockQuantity", 30);
+        return request;
+    }
+
     private ApiResponse<UserResponseDto> createUserResponse(UUID companyId) {
+        return createUserResponse(companyId, null);
+    }
+
+    private ApiResponse<UserResponseDto> createUserResponse(UUID companyId, UUID userId) {
         UserResponseDto user = new UserResponseDto();
+        ReflectionTestUtils.setField(user, "id", userId);
         ReflectionTestUtils.setField(user, "companyId", companyId);
 
         return ApiResponse.success(user);

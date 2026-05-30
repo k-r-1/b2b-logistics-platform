@@ -5,6 +5,7 @@ import com.boxoffice.companyservice.company.exception.CompanyErrorCode;
 import com.boxoffice.companyservice.company.repository.CompanyRepository;
 import com.boxoffice.companyservice.product.domain.PriceVO;
 import com.boxoffice.companyservice.product.dto.request.ProductCreateRequestDto;
+import com.boxoffice.companyservice.product.dto.request.ProductUpdateRequestDto;
 import com.boxoffice.companyservice.product.dto.response.ProductCreateResponseDto;
 import com.boxoffice.companyservice.product.dto.response.ProductResponseDto;
 import com.boxoffice.companyservice.product.dto.search.ProductSearchCondition;
@@ -45,6 +46,23 @@ public class ProductService {
                 savedProduct.getId(), company.getId(), savedProduct.getPrice().getValue(), savedProduct.getStockQuantity());
 
         return ProductCreateResponseDto.from(savedProduct);
+    }
+
+    @Transactional
+    public void updateProduct(UUID companyId, UUID productId, ProductUpdateRequestDto request) {
+        Product product = productRepository.findProduct(companyId, productId)
+                .orElseThrow(() -> new BaseException(ProductErrorCode.PRODUCT_NOT_FOUND));
+        PriceVO price = request.getPrice() == null ? null : PriceVO.create(request.getPrice());
+
+        product.update(request.getName(), price, request.getStockQuantity());
+    }
+
+    @Transactional
+    public void deleteProduct(UUID companyId, UUID productId, UUID deletedBy) {
+        Product product = productRepository.findProduct(companyId, productId)
+                .orElseThrow(() -> new BaseException(ProductErrorCode.PRODUCT_NOT_FOUND));
+
+        product.softDelete(deletedBy);
     }
 
     @Transactional(readOnly = true)

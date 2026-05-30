@@ -4,6 +4,7 @@ import com.boxoffice.common.response.ApiResponse;
 import com.boxoffice.common.response.PageResponse;
 import com.boxoffice.common.util.PageableUtils;
 import com.boxoffice.companyservice.product.dto.request.ProductCreateRequestDto;
+import com.boxoffice.companyservice.product.dto.request.ProductUpdateRequestDto;
 import com.boxoffice.companyservice.product.dto.response.ProductCreateResponseDto;
 import com.boxoffice.companyservice.product.dto.response.ProductResponseDto;
 import com.boxoffice.companyservice.product.dto.search.ProductSearchCondition;
@@ -20,6 +21,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -110,5 +113,32 @@ public class ProductController {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(ApiResponse.success(HttpStatus.CREATED, response));
+    }
+
+    @PatchMapping("/{productId}")
+    public ResponseEntity<Void> updateProduct(
+            @RequestHeader(value = "X-User-Role", required = false) String userRole,
+            @RequestHeader(value = "X-User-Hub-Id", required = false) UUID userHubId,
+            @RequestHeader(value = "X-User-Id", required = false) String keycloakSub,
+            @PathVariable("companyId") UUID companyId,
+            @PathVariable("productId") UUID productId,
+            @Valid @RequestBody ProductUpdateRequestDto request
+    ) {
+        productFacade.updateProduct(companyId, productId, request, userRole, userHubId, keycloakSub);
+
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{productId}")
+    public ResponseEntity<Void> deleteProduct(
+            @RequestHeader(value = "X-User-Role", required = false) String userRole,
+            @RequestHeader(value = "X-User-Hub-Id", required = false) UUID userHubId,
+            @RequestHeader(value = "X-User-Id", required = false) String keycloakSub,
+            @PathVariable("companyId") UUID companyId,
+            @PathVariable("productId") UUID productId
+    ) {
+        productFacade.deleteProduct(companyId, productId, userRole, userHubId, keycloakSub);
+
+        return ResponseEntity.noContent().build();
     }
 }

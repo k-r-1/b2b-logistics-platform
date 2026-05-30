@@ -1,14 +1,17 @@
 package com.boxoffice.companyservice.product.service;
 
+import com.boxoffice.common.exception.BaseException;
 import com.boxoffice.companyservice.company.entity.Company;
 import com.boxoffice.companyservice.company.entity.CompanyType;
 import com.boxoffice.companyservice.company.repository.CompanyRepository;
 import com.boxoffice.companyservice.product.domain.PriceVO;
 import com.boxoffice.companyservice.product.dto.request.ProductCreateRequestDto;
+import com.boxoffice.companyservice.product.dto.request.ProductUpdateRequestDto;
 import com.boxoffice.companyservice.product.dto.response.ProductCreateResponseDto;
 import com.boxoffice.companyservice.product.dto.response.ProductResponseDto;
 import com.boxoffice.companyservice.product.dto.search.ProductSearchCondition;
 import com.boxoffice.companyservice.product.entity.Product;
+import com.boxoffice.companyservice.product.exception.ProductErrorCode;
 import com.boxoffice.companyservice.product.repository.ProductRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -28,6 +31,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -84,6 +88,167 @@ class ProductServiceTest {
         assertThat(response.getName()).isEqualTo("테스트 상품");
         assertThat(response.getPrice()).isEqualTo(10000);
         assertThat(response.getStockQuantity()).isEqualTo(50);
+    }
+
+    @Test
+    @DisplayName("성공 - 수정 요청의 null 필드는 유지하고 전달된 필드만 변경한다")
+    void updateProductChangesOnlyRequestedFields() {
+        // given
+        UUID companyId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+        Company company = createCompany(companyId);
+        Product product = createProduct(productId, company);
+        ProductUpdateRequestDto request = createUpdateRequest(" 수정 상품 ", 15000, null);
+
+        when(productRepository.findProduct(companyId, productId)).thenReturn(Optional.of(product));
+
+        // when
+        productService.updateProduct(companyId, productId, request);
+
+        // then
+        verify(productRepository).findProduct(companyId, productId);
+        verifyNoMoreInteractions(productRepository);
+
+        assertThat(product.getName()).isEqualTo("수정 상품");
+        assertThat(product.getPrice().getValue()).isEqualTo(15000);
+        assertThat(product.getStockQuantity()).isEqualTo(50);
+    }
+
+    @Test
+    @DisplayName("실패 - 존재하지 않는 상품은 수정할 수 없다")
+    void updateProductWithUnknownProductThrowsNotFound() {
+        // given
+        UUID companyId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+        ProductUpdateRequestDto request = createUpdateRequest("수정 상품", 15000, 30);
+
+        when(productRepository.findProduct(companyId, productId)).thenReturn(Optional.empty());
+
+        // when
+        Throwable throwable = catchThrowable(() -> productService.updateProduct(companyId, productId, request));
+
+        // then
+        assertProductNotFound(throwable);
+        verify(productRepository).findProduct(companyId, productId);
+        verifyNoMoreInteractions(productRepository);
+    }
+
+    @Test
+    @DisplayName("실패 - 삭제된 상품은 수정할 수 없다")
+    void updateDeletedProductThrowsNotFound() {
+        // given
+        UUID companyId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+        ProductUpdateRequestDto request = createUpdateRequest("수정 상품", 15000, 30);
+
+        when(productRepository.findProduct(companyId, productId)).thenReturn(Optional.empty());
+
+        // when
+        Throwable throwable = catchThrowable(() -> productService.updateProduct(companyId, productId, request));
+
+        // then
+        assertProductNotFound(throwable);
+        verify(productRepository).findProduct(companyId, productId);
+        verifyNoMoreInteractions(productRepository);
+    }
+
+    @Test
+    @DisplayName("실패 - 다른 업체 상품은 수정할 수 없다")
+    void updateProductWithDifferentCompanyThrowsNotFound() {
+        // given
+        UUID pathCompanyId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+        ProductUpdateRequestDto request = createUpdateRequest("수정 상품", 15000, 30);
+
+        when(productRepository.findProduct(pathCompanyId, productId)).thenReturn(Optional.empty());
+
+        // when
+        Throwable throwable = catchThrowable(() -> productService.updateProduct(pathCompanyId, productId, request));
+
+        // then
+        assertProductNotFound(throwable);
+        verify(productRepository).findProduct(pathCompanyId, productId);
+        verifyNoMoreInteractions(productRepository);
+    }
+
+    @Test
+    @DisplayName("성공 - 상품을 soft delete 처리한다")
+    void deleteProductSoftDeletesProduct() {
+        // given
+        UUID companyId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+        UUID deletedBy = UUID.randomUUID();
+        Product product = createProduct(productId, createCompany(companyId));
+
+        when(productRepository.findProduct(companyId, productId)).thenReturn(Optional.of(product));
+
+        // when
+        productService.deleteProduct(companyId, productId, deletedBy);
+
+        // then
+        verify(productRepository).findProduct(companyId, productId);
+        verifyNoMoreInteractions(productRepository);
+
+        assertThat(product.isDeleted()).isTrue();
+        assertThat(product.getDeletedAt()).isNotNull();
+        assertThat(product.getDeletedBy()).isEqualTo(deletedBy);
+    }
+
+    @Test
+    @DisplayName("실패 - 존재하지 않는 상품은 삭제할 수 없다")
+    void deleteProductWithUnknownProductThrowsNotFound() {
+        // given
+        UUID companyId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+        UUID deletedBy = UUID.randomUUID();
+
+        when(productRepository.findProduct(companyId, productId)).thenReturn(Optional.empty());
+
+        // when
+        Throwable throwable = catchThrowable(() -> productService.deleteProduct(companyId, productId, deletedBy));
+
+        // then
+        assertProductNotFound(throwable);
+        verify(productRepository).findProduct(companyId, productId);
+        verifyNoMoreInteractions(productRepository);
+    }
+
+    @Test
+    @DisplayName("실패 - 삭제된 상품은 삭제할 수 없다")
+    void deleteDeletedProductThrowsNotFound() {
+        // given
+        UUID companyId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+        UUID deletedBy = UUID.randomUUID();
+
+        when(productRepository.findProduct(companyId, productId)).thenReturn(Optional.empty());
+
+        // when
+        Throwable throwable = catchThrowable(() -> productService.deleteProduct(companyId, productId, deletedBy));
+
+        // then
+        assertProductNotFound(throwable);
+        verify(productRepository).findProduct(companyId, productId);
+        verifyNoMoreInteractions(productRepository);
+    }
+
+    @Test
+    @DisplayName("실패 - 다른 업체 상품은 삭제할 수 없다")
+    void deleteProductWithDifferentCompanyThrowsNotFound() {
+        // given
+        UUID pathCompanyId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+        UUID deletedBy = UUID.randomUUID();
+
+        when(productRepository.findProduct(pathCompanyId, productId)).thenReturn(Optional.empty());
+
+        // when
+        Throwable throwable = catchThrowable(() -> productService.deleteProduct(pathCompanyId, productId, deletedBy));
+
+        // then
+        assertProductNotFound(throwable);
+        verify(productRepository).findProduct(pathCompanyId, productId);
+        verifyNoMoreInteractions(productRepository);
     }
 
     @Test
@@ -216,5 +381,19 @@ class ProductServiceTest {
         ReflectionTestUtils.setField(request, "price", price);
         ReflectionTestUtils.setField(request, "stockQuantity", stockQuantity);
         return request;
+    }
+
+    private ProductUpdateRequestDto createUpdateRequest(String name, Integer price, Integer stockQuantity) {
+        ProductUpdateRequestDto request = new ProductUpdateRequestDto();
+        ReflectionTestUtils.setField(request, "name", name);
+        ReflectionTestUtils.setField(request, "price", price);
+        ReflectionTestUtils.setField(request, "stockQuantity", stockQuantity);
+        return request;
+    }
+
+    private void assertProductNotFound(Throwable throwable) {
+        assertThat(throwable)
+                .isInstanceOfSatisfying(BaseException.class,
+                        exception -> assertThat(exception.getErrorCode()).isEqualTo(ProductErrorCode.PRODUCT_NOT_FOUND));
     }
 }

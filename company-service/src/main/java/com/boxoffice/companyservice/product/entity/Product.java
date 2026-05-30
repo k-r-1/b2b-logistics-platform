@@ -59,6 +59,21 @@ public class Product extends BaseEntity {
         return new Product(name, price, stockQuantity, company);
     }
 
+    public void update(String name, PriceVO price, Integer stockQuantity) {
+        if (name != null) {
+            validateName(name);
+            this.name = name.trim();
+        }
+        if (price != null) {
+            validatePrice(price);
+            this.price = price;
+        }
+        if (stockQuantity != null) {
+            validateStockQuantity(stockQuantity);
+            this.stockQuantity = stockQuantity;
+        }
+    }
+
     private static void validateName(String name) {
         // 공통 핸들러가 IllegalArgumentException을 400으로 변환하지 않으므로 최소 방어선도 BaseException으로 맞춘다.
         if (name == null || name.isBlank()) {
