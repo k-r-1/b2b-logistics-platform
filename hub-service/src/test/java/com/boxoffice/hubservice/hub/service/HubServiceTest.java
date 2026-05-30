@@ -4,7 +4,11 @@ import com.boxoffice.common.entity.AddressVO;
 import com.boxoffice.common.exception.BaseException;
 import com.boxoffice.common.response.ApiResponse;
 import com.boxoffice.common.response.PageResponse;
-import com.boxoffice.hubservice.client.*;
+import com.boxoffice.hubservice.client.CompanyDetailResponseDto;
+import com.boxoffice.hubservice.client.CompanyFeignClient;
+import com.boxoffice.hubservice.client.DeliveryFeignClient;
+import com.boxoffice.hubservice.client.DeliveryManagerFeignClient;
+import com.boxoffice.hubservice.client.UserFeignClient;
 import com.boxoffice.hubservice.exception.HubErrorCode;
 import com.boxoffice.hubservice.hub.dto.request.HubClosingRequestDto;
 import com.boxoffice.hubservice.hub.dto.request.HubCreateRequestDto;
@@ -65,7 +69,7 @@ class HubServiceTest {
     private UserFeignClient userFeignClient;
 
     @Mock
-    private ProductFeignClient productFeignClient;
+    private CompanyFeignClient companyFeignClient;
 
     @Mock
     private DeliveryFeignClient deliveryFeignClient;
@@ -681,7 +685,7 @@ class HubServiceTest {
         given(emptyResponse.getData()).willReturn(List.of());
 
         given(hubRepository.findById(hubId)).willReturn(Optional.of(hub));
-        given(productFeignClient.getCompaniesByHubId(hubId)).willReturn(emptyResponse);
+        given(companyFeignClient.getCompaniesByHubId(hubId)).willReturn(emptyResponse);
         given(auditorAware.getCurrentAuditor()).willReturn(Optional.of(UUID.randomUUID()));
         given(hubRouteRepository.findAllByOriginHubIdOrDestinationHubId(hubId, hubId)).willReturn(List.of());
 
@@ -768,7 +772,7 @@ class HubServiceTest {
         given(response.getData()).willReturn(List.of(company));
 
         given(hubRepository.findById(hubId)).willReturn(Optional.of(hub));
-        given(productFeignClient.getCompaniesByHubId(hubId)).willReturn(response);
+        given(companyFeignClient.getCompaniesByHubId(hubId)).willReturn(response);
 
         // when & then
         assertThatThrownBy(() -> hubService.deleteHub(hubId))

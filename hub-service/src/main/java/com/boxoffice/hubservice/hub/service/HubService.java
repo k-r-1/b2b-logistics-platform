@@ -5,9 +5,6 @@ import com.boxoffice.common.exception.BaseException;
 import com.boxoffice.common.response.ApiResponse;
 import com.boxoffice.common.response.PageResponse;
 import com.boxoffice.common.util.PageableUtils;
-import com.boxoffice.hubservice.client.BulkHubTransferRequestDto;
-import com.boxoffice.hubservice.client.BulkStockCountRequestDto;
-import com.boxoffice.hubservice.client.BulkStockCountResponseDto;
 import com.boxoffice.hubservice.client.CompanyDetailResponseDto;
 import com.boxoffice.hubservice.client.CompanyFeignClient;
 import com.boxoffice.hubservice.client.DeliveryFeignClient;
@@ -216,7 +213,10 @@ public class HubService {
     }
 
     @Transactional
-    @CacheEvict(cacheNames = "hub", key = "#hubId")
+    @Caching(evict = {
+            @CacheEvict(cacheNames = "hub", key = "#hubId"),
+            @CacheEvict(cacheNames = "hub-routes", allEntries = true)
+    })
     public void deleteHub(UUID hubId) {
         Hub hub = hubRepository.findById(hubId)
                 .orElseThrow(() -> new BaseException(HubErrorCode.HUB_NOT_FOUND));
