@@ -5,6 +5,8 @@ import com.boxoffice.companyservice.product.entity.Product;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -15,4 +17,8 @@ public interface ProductRepositoryCustom {
     Page<Product> searchProducts(UUID companyId, ProductSearchCondition condition, Pageable pageable);
 
     Page<Product> searchProducts(ProductSearchCondition condition, Pageable pageable);
+
+    Map<UUID, Long> sumStockQuantityByHubIds(List<UUID> hubIds);
+
+    Map<UUID, Long> sumStockQuantityByCompanyIds(List<UUID> companyIds);
 }

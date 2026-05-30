@@ -8,6 +8,7 @@ import com.boxoffice.companyservice.product.domain.PriceVO;
 import com.boxoffice.companyservice.product.dto.request.ProductCreateRequestDto;
 import com.boxoffice.companyservice.product.dto.request.ProductUpdateRequestDto;
 import com.boxoffice.companyservice.product.dto.response.ProductCreateResponseDto;
+import com.boxoffice.companyservice.product.dto.response.HubStockCountResponseDto;
 import com.boxoffice.companyservice.product.dto.response.ProductResponseDto;
 import com.boxoffice.companyservice.product.dto.search.ProductSearchCondition;
 import com.boxoffice.companyservice.product.entity.Product;
@@ -27,6 +28,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -264,6 +266,30 @@ class ProductServiceTest {
         assertThat(response.getName()).isEqualTo("테스트 상품");
         assertThat(response.getPrice()).isEqualTo(10000);
         assertThat(response.getStockQuantity()).isEqualTo(50);
+    }
+
+    @Test
+    @DisplayName("성공 - 허브별 재고 합계가 없는 허브는 0으로 채워 반환한다")
+    void getHubStockCountsFillsZeroForEmptyHub() {
+        // given
+        UUID firstHubId = UUID.randomUUID();
+        UUID secondHubId = UUID.randomUUID();
+        List<UUID> hubIds = List.of(firstHubId, secondHubId);
+
+        when(productRepository.sumStockQuantityByHubIds(hubIds)).thenReturn(Map.of(firstHubId, 500L));
+
+        // when
+        List<HubStockCountResponseDto> response = productService.getHubStockCounts(hubIds);
+
+        // then
+        verify(productRepository).sumStockQuantityByHubIds(hubIds);
+        verifyNoMoreInteractions(productRepository);
+
+        assertThat(response).hasSize(2);
+        assertThat(response.get(0).getHubId()).isEqualTo(firstHubId);
+        assertThat(response.get(0).getStockCount()).isEqualTo(500L);
+        assertThat(response.get(1).getHubId()).isEqualTo(secondHubId);
+        assertThat(response.get(1).getStockCount()).isZero();
     }
 
     private Company createCompany(UUID companyId) {

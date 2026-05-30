@@ -9,7 +9,7 @@ import org.springframework.http.HttpStatus;
 @AllArgsConstructor
 public enum OrderErrorCode implements ErrorCode {
   // 권한
-  UNAUTHORIZED_ORDER(HttpStatus.FORBIDDEN, "ORDER_001", "해당 주문을 생성할 권한이 없습니다."),
+  UNAUTHORIZED_ORDER(HttpStatus.FORBIDDEN, "ORDER_001", "해당 주문에 대한 권한이 없습니다."),
   UNAUTHORIZED_HUB_ORDER(HttpStatus.FORBIDDEN, "ORDER_002", "본인 관찰 허브와 연관된 주문만 생성할 수 있습니다."),
 
   // 주문 상태

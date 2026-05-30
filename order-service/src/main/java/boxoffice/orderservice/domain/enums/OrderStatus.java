@@ -8,6 +8,7 @@ import lombok.AllArgsConstructor;
 public enum OrderStatus {
   PENDING("주문 접수"),
   CONFIRMED("배송 요청 완료"),
+  DELIVERED("배송 완료"),
   CANCELLED("주문 취소");
 
   private final String description;
