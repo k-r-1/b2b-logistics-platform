@@ -98,8 +98,8 @@ class CompanyInternalFacadeTest {
         UUID receiverId = UUID.randomUUID();
         UUID supplierHubId = UUID.randomUUID();
         UUID receiverHubId = UUID.randomUUID();
-        Company supplier = createCompany(supplierId, "supplier", supplierHubId);
-        Company receiver = createCompany(receiverId, "receiver", receiverHubId);
+        Company supplier = createCompany(supplierId, "supplier", CompanyType.SUPPLIER, supplierHubId);
+        Company receiver = createCompany(receiverId, "receiver", CompanyType.RECEIVER, receiverHubId);
 
         when(companyService.getCompanyEntity(supplierId)).thenReturn(supplier);
         when(companyService.getCompanyEntity(receiverId)).thenReturn(receiver);
@@ -114,7 +114,11 @@ class CompanyInternalFacadeTest {
     }
 
     private Company createCompany(UUID companyId, String name, UUID hubId) {
-        Company company = Company.create(name, CompanyType.SUPPLIER, hubId, null);
+        return createCompany(companyId, name, CompanyType.SUPPLIER, hubId);
+    }
+
+    private Company createCompany(UUID companyId, String name, CompanyType type, UUID hubId) {
+        Company company = Company.create(name, type, hubId, null);
         ReflectionTestUtils.setField(company, "id", companyId);
         return company;
     }

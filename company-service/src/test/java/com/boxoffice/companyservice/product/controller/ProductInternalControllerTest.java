@@ -123,17 +123,21 @@ class ProductInternalControllerTest {
     @Test
     @DisplayName("실패 - 재고 차감 요청의 orderId가 없으면 validation error를 반환한다")
     void deductStocksWithoutOrderIdReturnsBadRequest() throws Exception {
+        UUID supplierId = UUID.randomUUID();
+        UUID receiverId = UUID.randomUUID();
         UUID productId = UUID.randomUUID();
 
         mockMvc.perform(post("/internal/v1/products/stocks/deduct")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
+                                  "supplierId": "%s",
+                                  "receiverId": "%s",
                                   "products": [
                                     { "productId": "%s", "quantity": 2 }
                                   ]
                                 }
-                """.formatted(productId)))
+                """.formatted(supplierId, receiverId, productId)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status", is(400)));
     }
