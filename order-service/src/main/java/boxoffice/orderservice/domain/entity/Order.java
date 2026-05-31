@@ -35,7 +35,11 @@ import org.hibernate.annotations.SQLRestriction;
         @Index(name = "idx_order_supplier", columnList = "supplier_id"),
         @Index(name = "idx_order_receiver", columnList = "receiver_id"),
         @Index(name = "idx_order_source_hub", columnList = "source_hub_id"),
-        @Index(name = "idx_order_destination_hub", columnList = "destination_hub_id")
+        @Index(name = "idx_order_destination_hub", columnList = "destination_hub_id"),
+        @Index(name = "idx_order_supplier_created", columnList = "supplier_id, created_at DESC"),
+        @Index(name = "idx_order_receiver_created", columnList = "receiver_id, created_at DESC"),
+        @Index(name = "idx_order_source_hub_created", columnList = "source_hub_id, created_at DESC"),
+        @Index(name = "idx_order_dest_hub_created", columnList = "destination_hub_id, created_at DESC")
     }
 )
 @SQLRestriction("deleted_at IS NULL")

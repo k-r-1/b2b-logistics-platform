@@ -52,8 +52,6 @@ public class OrderQueryService {
 
   @Transactional(readOnly = true)
   public Page<Order> searchOrders(OrderSearchCondition condition, Pageable pageable) {
-    Page<Order> orders = orderRepository.searchOrders(condition, pageable);
-    orders.forEach(o -> o.getOrderProducts().size());
-    return orders;
+    return orderRepository.searchOrders(condition, pageable);
   }
 }

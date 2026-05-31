@@ -33,12 +33,21 @@ public class OrderRepositoryImpl implements OrderRepositoryCustom {
             .orderBy(QOrder.order.createdAt.desc())
             .fetch();
 
-        long total = Optional.ofNullable(queryFactory
-            .select(QOrder.order.count())
-            .from(QOrder.order)
-            .where(predicate)
-            .fetchOne()
-        ).orElse(0L);
+        long total;
+        if (pageable.getPageNumber() == 0) {
+            total = Optional.ofNullable(queryFactory
+                .select(QOrder.order.count())
+                .from(QOrder.order)
+                .where(predicate)
+                .fetchOne()
+            ).orElse(0L);
+        } else {
+            // 첫 페이지 이후는 COUNT 생략 — hasNext 패턴으로 전체 건수 추정
+            long offset = pageable.getOffset();
+            total = content.size() == pageable.getPageSize()
+                ? offset + content.size() + 1
+                : offset + content.size();
+        }
 
         return new PageImpl<>(content, pageable, total);
     }

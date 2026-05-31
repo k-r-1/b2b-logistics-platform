@@ -35,7 +35,7 @@ public class UpdateOrderService {
             throw new BaseException(OrderErrorCode.ORDER_ALREADY_DELIVERED);
         }
 
-        Order updated = orderCommandService.updateOrder(orderId, request.request());
+        Order updated = orderCommandService.updateOrder(order, request.request());
         return CreateOrderResponseDto.toResponse(updated);
     }
 
