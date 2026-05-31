@@ -47,6 +47,20 @@ services:
       - eureka-server
       - postgres-db
 
+  hub-service:
+    build: ./hub-service
+    container_name: boxoffice-hub-service
+    ports:
+      - "8083:8083"
+    env_file:
+      - ./.env
+    environment:
+      - DB_HOST=postgres-db
+    depends_on:
+      - eureka-server
+      - postgres-db
+      - redis-cache
+        
   company-service:
     build: ./company-service
     container_name: boxoffice-company-service
@@ -61,22 +75,7 @@ services:
       - eureka-server
       - postgres-db
       - redis-cache
-
-  # 2. 허브 서비스
-  hub-service:
-    build: ./hub-service
-    container_name: boxoffice-hub-service
-    ports:
-      - "8083:8083"
-    env_file:
-      - ./.env
-    environment:
-      - DB_HOST=postgres-db
-    depends_on:
-      - eureka-server
-      - postgres-db
-      - redis-cache
-
+        
   order-service:
     build: ./order-service
     container_name: boxoffice-order
@@ -97,6 +96,18 @@ services:
     container_name: boxoffice-delivery-manager
     ports:
       - "8086:8086"
+    env_file:
+      - ./.env
+    depends_on:
+      - eureka-server
+      - postgres-db
+
+  # 7. 배송 서비스
+  delivery-service:
+    build: ./delivery-service
+    container_name: boxoffice-delivery-service
+    ports:
+      - "8085:8085"
     env_file:
       - ./.env
     depends_on:
