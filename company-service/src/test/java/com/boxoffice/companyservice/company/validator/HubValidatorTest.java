@@ -53,6 +53,24 @@ class HubValidatorTest {
     }
 
     @Test
+    @DisplayName("실패 - Hub가 비활성 상태이면 HUB_INACTIVE 예외로 변환한다")
+    void validateHubActiveWithInactiveHub() {
+        // given
+        UUID hubId = UUID.randomUUID();
+        when(hubClient.checkHubActive(hubId)).thenReturn(createWrapper(hubId, false));
+
+        // when
+        Throwable throwable = catchThrowable(() -> hubValidator.validateHubActive(hubId));
+
+        // then
+        assertThat(throwable)
+                .isInstanceOfSatisfying(BaseException.class,
+                        exception -> assertThat(exception.getErrorCode()).isEqualTo(CompanyErrorCode.HUB_INACTIVE));
+        verify(hubClient).checkHubActive(hubId);
+        verifyNoMoreInteractions(hubClient);
+    }
+
+    @Test
     @DisplayName("실패 - Hub Service가 404를 반환하면 HUB_NOT_FOUND 예외로 변환한다")
     void validateHubActiveWithNotFoundHub() {
         // given

@@ -28,6 +28,10 @@ public class HubValidator {
                 throw new BaseException(CommonErrorCode.FEIGN_CLIENT_ERROR);
             }
 
+            if (!wrapper.getData().isActive()) {
+                throw new BaseException(CompanyErrorCode.HUB_INACTIVE);
+            }
+
         } catch (FeignException.NotFound e) {
             throw new BaseException(CompanyErrorCode.HUB_NOT_FOUND);
         } catch (FeignException e) {

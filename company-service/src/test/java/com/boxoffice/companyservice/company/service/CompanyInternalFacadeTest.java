@@ -1,5 +1,7 @@
 package com.boxoffice.companyservice.company.service;
 
+import com.boxoffice.common.exception.BaseException;
+import com.boxoffice.common.exception.CommonErrorCode;
 import com.boxoffice.companyservice.company.dto.request.BulkHubTransferRequestDto;
 import com.boxoffice.companyservice.company.dto.response.HubCompanyStockResponseDto;
 import com.boxoffice.companyservice.company.dto.response.InternalCompanyHubResponseDto;
@@ -20,6 +22,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
@@ -108,6 +111,27 @@ class CompanyInternalFacadeTest {
 
         assertThat(response.supplierHubId()).isEqualTo(supplierHubId);
         assertThat(response.receiverHubId()).isEqualTo(receiverHubId);
+        verify(companyService).getCompanyEntity(supplierId);
+        verify(companyService).getCompanyEntity(receiverId);
+        verifyNoMoreInteractions(companyService);
+    }
+
+    @Test
+    @DisplayName("실패 - 공급업체와 수령업체 타입이 맞지 않으면 INVALID_INPUT 예외로 변환한다")
+    void getCompanyHubsWithInvalidCompanyTypesThrowsInvalidInput() {
+        UUID supplierId = UUID.randomUUID();
+        UUID receiverId = UUID.randomUUID();
+        Company supplier = createCompany(supplierId, "supplier", CompanyType.RECEIVER, UUID.randomUUID());
+        Company receiver = createCompany(receiverId, "receiver", CompanyType.SUPPLIER, UUID.randomUUID());
+
+        when(companyService.getCompanyEntity(supplierId)).thenReturn(supplier);
+        when(companyService.getCompanyEntity(receiverId)).thenReturn(receiver);
+
+        Throwable throwable = catchThrowable(() -> companyInternalFacade.getCompanyHubs(supplierId, receiverId));
+
+        assertThat(throwable)
+                .isInstanceOfSatisfying(BaseException.class,
+                        exception -> assertThat(exception.getErrorCode()).isEqualTo(CommonErrorCode.INVALID_INPUT));
         verify(companyService).getCompanyEntity(supplierId);
         verify(companyService).getCompanyEntity(receiverId);
         verifyNoMoreInteractions(companyService);
