@@ -8,6 +8,8 @@ import static org.mockito.Mockito.mock;
 import boxoffice.orderservice.application.client.UserInfoCacheService;
 import boxoffice.orderservice.application.client.dto.UserDetailInfo;
 import boxoffice.orderservice.application.service.dto.OrderResultDto;
+import boxoffice.orderservice.application.service.query.GetOrderService;
+import boxoffice.orderservice.application.service.query.OrderQueryService;
 import boxoffice.orderservice.infra.exception.OrderErrorCode;
 import com.boxoffice.common.exception.BaseException;
 import io.micrometer.core.instrument.MeterRegistry;

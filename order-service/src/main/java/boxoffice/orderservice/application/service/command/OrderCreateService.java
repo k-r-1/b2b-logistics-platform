@@ -1,4 +1,4 @@
-package boxoffice.orderservice.application.service;
+package boxoffice.orderservice.application.service.command;
 
 import boxoffice.orderservice.application.client.CompanyProductFeignClient;
 import boxoffice.orderservice.application.client.UserFeignClient;
@@ -12,7 +12,6 @@ import boxoffice.orderservice.application.service.dto.CreateOrderCommand;
 import boxoffice.orderservice.application.service.dto.OrderResultDto;
 import boxoffice.orderservice.infra.exception.OrderErrorCode;
 import com.boxoffice.common.exception.BaseException;
-import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

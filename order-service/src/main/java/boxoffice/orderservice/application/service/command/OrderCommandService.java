@@ -1,4 +1,4 @@
-package boxoffice.orderservice.application.service;
+package boxoffice.orderservice.application.service.command;
 
 import boxoffice.orderservice.application.client.dto.response.StockDeductResponse;
 import boxoffice.orderservice.application.service.dto.CreateOrderCommand;

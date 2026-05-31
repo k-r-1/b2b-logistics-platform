@@ -5,6 +5,7 @@ import boxoffice.orderservice.domain.entity.QOrder;
 import boxoffice.orderservice.domain.vo.OrderSearchCondition;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.jpa.impl.JPAQueryFactory;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -45,6 +46,7 @@ public class OrderRepositoryImpl implements OrderRepositoryCustom {
     private BooleanBuilder buildPredicate(OrderSearchCondition condition) {
         BooleanBuilder builder = new BooleanBuilder();
 
+        // 접근 제어: SUPPLIER_MANAGER (OR 조건)
         if (condition.companyId() != null) {
             builder.and(
                 QOrder.order.supplierId.eq(condition.companyId())
@@ -52,11 +54,33 @@ public class OrderRepositoryImpl implements OrderRepositoryCustom {
             );
         }
 
+        // 접근 제어: HUB_MANAGER 방향 필터 없을 때 (OR 조건)
         if (condition.hubId() != null) {
             builder.and(
                 QOrder.order.sourceHubId.eq(condition.hubId())
                     .or(QOrder.order.destinationHubId.eq(condition.hubId()))
             );
+        }
+
+        // 허브 방향 필터 (HUB_MANAGER 방향 지정 or MASTER 특정 허브 지정)
+        if (condition.filterSourceHubId() != null) {
+            builder.and(QOrder.order.sourceHubId.eq(condition.filterSourceHubId()));
+        }
+        if (condition.filterDestinationHubId() != null) {
+            builder.and(QOrder.order.destinationHubId.eq(condition.filterDestinationHubId()));
+        }
+
+        // 주문 상태 필터
+        if (condition.status() != null) {
+            builder.and(QOrder.order.status.eq(condition.status()));
+        }
+
+        // 날짜 범위 필터 (createdAt 기준)
+        if (condition.startDate() != null) {
+            builder.and(QOrder.order.createdAt.goe(condition.startDate().atStartOfDay()));
+        }
+        if (condition.endDate() != null) {
+            builder.and(QOrder.order.createdAt.loe(condition.endDate().atTime(LocalTime.MAX)));
         }
 
         return builder;

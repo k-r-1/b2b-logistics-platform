@@ -8,8 +8,8 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
-import boxoffice.orderservice.application.service.GetOrderService;
-import boxoffice.orderservice.application.service.OrderCreateService;
+import boxoffice.orderservice.application.service.query.GetOrderService;
+import boxoffice.orderservice.application.service.command.OrderCreateService;
 import boxoffice.orderservice.application.service.dto.CreateOrderCommand;
 import boxoffice.orderservice.application.service.dto.OrderResultDto;
 import boxoffice.orderservice.infra.exception.OrderErrorCode;

@@ -1,7 +1,8 @@
-package boxoffice.orderservice.application.service;
+package boxoffice.orderservice.application.service.command;
 
 import boxoffice.orderservice.application.client.UserFeignClient;
 import boxoffice.orderservice.application.client.dto.UserDetailInfo;
+import boxoffice.orderservice.application.service.query.OrderQueryService;
 import boxoffice.orderservice.domain.entity.Order;
 import boxoffice.orderservice.domain.enums.OrderStatus;
 import boxoffice.orderservice.infra.exception.OrderErrorCode;
@@ -21,7 +22,7 @@ public class UpdateOrderService {
     private final OrderCommandService orderCommandService;
 
     public CreateOrderResponseDto updateOrder(UUID orderId, UpdateOrderRequest request, String keycloakId) {
-        UserDetailInfo user = userFeignClient.getUserById(keycloakId);
+        UserDetailInfo user = userFeignClient.getUserById(keycloakId).getData();
         validateRole(user);
 
         Order order = orderQueryService.findById(orderId);

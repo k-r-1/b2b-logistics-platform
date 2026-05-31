@@ -16,6 +16,8 @@ import boxoffice.orderservice.application.client.dto.UserDetailInfo;
 import boxoffice.orderservice.application.client.dto.request.StockDeductRequest;
 import boxoffice.orderservice.application.client.dto.response.InternalCompanyHub;
 import boxoffice.orderservice.application.client.dto.response.StockDeductResponse;
+import boxoffice.orderservice.application.service.command.OrderCommandService;
+import boxoffice.orderservice.application.service.command.OrderCreateService;
 import boxoffice.orderservice.application.service.dto.CreateOrderCommand;
 import boxoffice.orderservice.application.service.dto.OrderResultDto;
 import boxoffice.orderservice.infra.exception.OrderErrorCode;

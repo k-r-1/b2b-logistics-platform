@@ -1,9 +1,10 @@
-package boxoffice.orderservice.application.service;
+package boxoffice.orderservice.application.service.command;
 
 import boxoffice.orderservice.application.client.CompanyProductFeignClient;
 import boxoffice.orderservice.application.client.UserFeignClient;
 import boxoffice.orderservice.application.client.dto.UserDetailInfo;
 import boxoffice.orderservice.application.client.dto.request.StockRestoreRequest;
+import boxoffice.orderservice.application.service.query.OrderQueryService;
 import boxoffice.orderservice.domain.entity.Order;
 import boxoffice.orderservice.domain.enums.OrderStatus;
 import boxoffice.orderservice.infra.event.OrderCancelledEvent;
@@ -28,7 +29,7 @@ public class DeleteOrderService {
     private final OrderEventListener orderEventListener;
 
     public void deleteOrder(UUID orderId, String keycloakId) {
-        UserDetailInfo user = userFeignClient.getUserById(keycloakId);
+        UserDetailInfo user = userFeignClient.getUserById(keycloakId).getData();
         validateRole(user);
 
         Order order = orderQueryService.findById(orderId);
@@ -69,7 +70,7 @@ public class DeleteOrderService {
             List<StockRestoreRequest> restoreRequests = order.getOrderProducts().stream()
                 .map(p -> new StockRestoreRequest(p.getProductId(), p.getQuantity()))
                 .toList();
-            companyProductFeignClient.restoreStocks(restoreRequests);
+            companyProductFeignClient.restoreStocks(orderId, restoreRequests);
         } catch (Exception e) {
             log.error("[DeleteOrder] 재고 복구 실패 - 수동 처리 필요. orderId={}", orderId, e);
         }

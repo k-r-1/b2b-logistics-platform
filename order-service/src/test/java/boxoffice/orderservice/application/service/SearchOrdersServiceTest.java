@@ -8,8 +8,11 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
-import boxoffice.orderservice.application.client.UserFeignClient;
+import boxoffice.orderservice.application.client.UserInfoCacheService;
 import boxoffice.orderservice.application.client.dto.UserDetailInfo;
+import boxoffice.orderservice.application.service.dto.SearchOrderFilter;
+import boxoffice.orderservice.application.service.query.OrderQueryService;
+import boxoffice.orderservice.application.service.query.SearchOrdersService;
 import boxoffice.orderservice.domain.entity.Order;
 import boxoffice.orderservice.domain.enums.OrderStatus;
 import boxoffice.orderservice.domain.vo.OrderSearchCondition;
@@ -17,6 +20,7 @@ import boxoffice.orderservice.domain.vo.TotalPrice;
 import boxoffice.orderservice.infra.exception.OrderErrorCode;
 import boxoffice.orderservice.presentation.dto.response.OrderSummaryResponse;
 import com.boxoffice.common.exception.BaseException;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -41,7 +45,7 @@ class SearchOrdersServiceTest {
     private SearchOrdersService searchOrdersService;
 
     @Mock
-    private UserFeignClient userFeignClient;
+    private UserInfoCacheService userInfoCacheService;
 
     @Mock
     private OrderQueryService orderQueryService;
@@ -71,7 +75,7 @@ class SearchOrdersServiceTest {
             // given
             UserDetailInfo masterUser = mock(UserDetailInfo.class);
             given(masterUser.role()).willReturn("MASTER");
-            given(userFeignClient.getUserById(keycloakId)).willReturn(masterUser);
+            given(userInfoCacheService.getUserById(keycloakId)).willReturn(masterUser);
 
             Order order = buildMockOrder(UUID.randomUUID(), UUID.randomUUID());
             Page<Order> mockPage = new PageImpl<>(List.of(order));
@@ -79,7 +83,7 @@ class SearchOrdersServiceTest {
                 .willReturn(mockPage);
 
             // when
-            Page<OrderSummaryResponse> result = searchOrdersService.searchOrders(keycloakId, 0, 10);
+            Page<OrderSummaryResponse> result = searchOrdersService.searchOrders(keycloakId, 0, 10, SearchOrderFilter.empty());
 
             // then
             assertThat(result).isNotNull();
@@ -99,7 +103,7 @@ class SearchOrdersServiceTest {
             UserDetailInfo supplierUser = mock(UserDetailInfo.class);
             given(supplierUser.role()).willReturn("SUPPLIER_MANAGER");
             given(supplierUser.companyId()).willReturn(companyId);
-            given(userFeignClient.getUserById(keycloakId)).willReturn(supplierUser);
+            given(userInfoCacheService.getUserById(keycloakId)).willReturn(supplierUser);
 
             Order order = buildMockOrder(companyId, UUID.randomUUID());
             Page<Order> mockPage = new PageImpl<>(List.of(order));
@@ -107,7 +111,7 @@ class SearchOrdersServiceTest {
                 .willReturn(mockPage);
 
             // when
-            Page<OrderSummaryResponse> result = searchOrdersService.searchOrders(keycloakId, 0, 10);
+            Page<OrderSummaryResponse> result = searchOrdersService.searchOrders(keycloakId, 0, 10, SearchOrderFilter.empty());
 
             // then
             assertThat(result.getContent()).hasSize(1);
@@ -126,7 +130,7 @@ class SearchOrdersServiceTest {
             UserDetailInfo hubUser = mock(UserDetailInfo.class);
             given(hubUser.role()).willReturn("HUB_MANAGER");
             given(hubUser.hubId()).willReturn(hubId);
-            given(userFeignClient.getUserById(keycloakId)).willReturn(hubUser);
+            given(userInfoCacheService.getUserById(keycloakId)).willReturn(hubUser);
 
             Order order = buildMockOrder(UUID.randomUUID(), UUID.randomUUID());
             Page<Order> mockPage = new PageImpl<>(List.of(order));
@@ -134,7 +138,7 @@ class SearchOrdersServiceTest {
                 .willReturn(mockPage);
 
             // when
-            Page<OrderSummaryResponse> result = searchOrdersService.searchOrders(keycloakId, 0, 10);
+            Page<OrderSummaryResponse> result = searchOrdersService.searchOrders(keycloakId, 0, 10, SearchOrderFilter.empty());
 
             // then
             assertThat(result.getContent()).hasSize(1);
@@ -143,6 +147,8 @@ class SearchOrdersServiceTest {
             verify(orderQueryService).searchOrders(conditionCaptor.capture(), any(Pageable.class));
             assertThat(conditionCaptor.getValue().hubId()).isEqualTo(hubId);
             assertThat(conditionCaptor.getValue().companyId()).isNull();
+            assertThat(conditionCaptor.getValue().filterSourceHubId()).isNull();
+            assertThat(conditionCaptor.getValue().filterDestinationHubId()).isNull();
         }
 
         @Test
@@ -153,14 +159,14 @@ class SearchOrdersServiceTest {
             UserDetailInfo deliveryUser = mock(UserDetailInfo.class);
             given(deliveryUser.role()).willReturn("DELIVERY_MANAGER");
             given(deliveryUser.hubId()).willReturn(hubId);
-            given(userFeignClient.getUserById(keycloakId)).willReturn(deliveryUser);
+            given(userInfoCacheService.getUserById(keycloakId)).willReturn(deliveryUser);
 
             Page<Order> mockPage = new PageImpl<>(List.of());
             given(orderQueryService.searchOrders(any(OrderSearchCondition.class), any(Pageable.class)))
                 .willReturn(mockPage);
 
             // when
-            Page<OrderSummaryResponse> result = searchOrdersService.searchOrders(keycloakId, 0, 10);
+            Page<OrderSummaryResponse> result = searchOrdersService.searchOrders(keycloakId, 0, 10, SearchOrderFilter.empty());
 
             // then
             ArgumentCaptor<OrderSearchCondition> conditionCaptor = ArgumentCaptor.forClass(OrderSearchCondition.class);
@@ -174,13 +180,13 @@ class SearchOrdersServiceTest {
             // given
             UserDetailInfo masterUser = mock(UserDetailInfo.class);
             given(masterUser.role()).willReturn("MASTER");
-            given(userFeignClient.getUserById(keycloakId)).willReturn(masterUser);
+            given(userInfoCacheService.getUserById(keycloakId)).willReturn(masterUser);
 
             given(orderQueryService.searchOrders(any(OrderSearchCondition.class), any(Pageable.class)))
                 .willReturn(Page.empty());
 
             // when
-            Page<OrderSummaryResponse> result = searchOrdersService.searchOrders(keycloakId, 0, 10);
+            Page<OrderSummaryResponse> result = searchOrdersService.searchOrders(keycloakId, 0, 10, SearchOrderFilter.empty());
 
             // then
             assertThat(result.getContent()).isEmpty();
@@ -193,13 +199,13 @@ class SearchOrdersServiceTest {
             // given
             UserDetailInfo masterUser = mock(UserDetailInfo.class);
             given(masterUser.role()).willReturn("MASTER");
-            given(userFeignClient.getUserById(keycloakId)).willReturn(masterUser);
+            given(userInfoCacheService.getUserById(keycloakId)).willReturn(masterUser);
 
             given(orderQueryService.searchOrders(any(OrderSearchCondition.class), any(Pageable.class)))
                 .willReturn(Page.empty());
 
             // when
-            searchOrdersService.searchOrders(keycloakId, 0, 7);
+            searchOrdersService.searchOrders(keycloakId, 0, 7, SearchOrderFilter.empty());
 
             // then
             ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
@@ -208,15 +214,109 @@ class SearchOrdersServiceTest {
         }
 
         @Test
+        @DisplayName("[성공] status 필터가 조건에 반영된다.")
+        void searchOrders_성공_status_필터() {
+            // given
+            UserDetailInfo masterUser = mock(UserDetailInfo.class);
+            given(masterUser.role()).willReturn("MASTER");
+            given(userInfoCacheService.getUserById(keycloakId)).willReturn(masterUser);
+            given(orderQueryService.searchOrders(any(OrderSearchCondition.class), any(Pageable.class)))
+                .willReturn(Page.empty());
+
+            SearchOrderFilter filter = new SearchOrderFilter(OrderStatus.PENDING, null, null, null, null);
+
+            // when
+            searchOrdersService.searchOrders(keycloakId, 0, 10, filter);
+
+            // then
+            ArgumentCaptor<OrderSearchCondition> captor = ArgumentCaptor.forClass(OrderSearchCondition.class);
+            verify(orderQueryService).searchOrders(captor.capture(), any());
+            assertThat(captor.getValue().status()).isEqualTo(OrderStatus.PENDING);
+        }
+
+        @Test
+        @DisplayName("[성공] 날짜 범위 필터가 조건에 반영된다.")
+        void searchOrders_성공_날짜범위_필터() {
+            // given
+            UserDetailInfo masterUser = mock(UserDetailInfo.class);
+            given(masterUser.role()).willReturn("MASTER");
+            given(userInfoCacheService.getUserById(keycloakId)).willReturn(masterUser);
+            given(orderQueryService.searchOrders(any(OrderSearchCondition.class), any(Pageable.class)))
+                .willReturn(Page.empty());
+
+            LocalDate start = LocalDate.of(2024, 3, 1);
+            LocalDate end = LocalDate.of(2024, 3, 31);
+            SearchOrderFilter filter = new SearchOrderFilter(null, start, end, null, null);
+
+            // when
+            searchOrdersService.searchOrders(keycloakId, 0, 10, filter);
+
+            // then
+            ArgumentCaptor<OrderSearchCondition> captor = ArgumentCaptor.forClass(OrderSearchCondition.class);
+            verify(orderQueryService).searchOrders(captor.capture(), any());
+            assertThat(captor.getValue().startDate()).isEqualTo(start);
+            assertThat(captor.getValue().endDate()).isEqualTo(end);
+        }
+
+        @Test
+        @DisplayName("[성공] HUB_MANAGER가 sourceHubId 필터를 요청하면 방향 필터(자신의 hubId)로 전환된다.")
+        void searchOrders_성공_HUB_MANAGER_source방향_필터() {
+            // given
+            UUID hubId = UUID.randomUUID();
+            UserDetailInfo hubUser = mock(UserDetailInfo.class);
+            given(hubUser.role()).willReturn("HUB_MANAGER");
+            given(hubUser.hubId()).willReturn(hubId);
+            given(userInfoCacheService.getUserById(keycloakId)).willReturn(hubUser);
+            given(orderQueryService.searchOrders(any(OrderSearchCondition.class), any(Pageable.class)))
+                .willReturn(Page.empty());
+
+            // sourceHubId 파라미터를 임의 UUID로 전달해도 자신의 hubId로 고정
+            SearchOrderFilter filter = new SearchOrderFilter(null, null, null, UUID.randomUUID(), null);
+
+            // when
+            searchOrdersService.searchOrders(keycloakId, 0, 10, filter);
+
+            // then
+            ArgumentCaptor<OrderSearchCondition> captor = ArgumentCaptor.forClass(OrderSearchCondition.class);
+            verify(orderQueryService).searchOrders(captor.capture(), any());
+            OrderSearchCondition condition = captor.getValue();
+            assertThat(condition.hubId()).isNull();                      // 방향 필터로 전환 → broad OR 해제
+            assertThat(condition.filterSourceHubId()).isEqualTo(hubId);  // 자신의 hubId로 고정
+            assertThat(condition.filterDestinationHubId()).isNull();
+        }
+
+        @Test
+        @DisplayName("[성공] MASTER가 sourceHubId 필터를 요청하면 전달된 UUID가 그대로 사용된다.")
+        void searchOrders_성공_MASTER_sourceHub_필터() {
+            // given
+            UUID specificSourceHub = UUID.randomUUID();
+            UserDetailInfo masterUser = mock(UserDetailInfo.class);
+            given(masterUser.role()).willReturn("MASTER");
+            given(userInfoCacheService.getUserById(keycloakId)).willReturn(masterUser);
+            given(orderQueryService.searchOrders(any(OrderSearchCondition.class), any(Pageable.class)))
+                .willReturn(Page.empty());
+
+            SearchOrderFilter filter = new SearchOrderFilter(null, null, null, specificSourceHub, null);
+
+            // when
+            searchOrdersService.searchOrders(keycloakId, 0, 10, filter);
+
+            // then
+            ArgumentCaptor<OrderSearchCondition> captor = ArgumentCaptor.forClass(OrderSearchCondition.class);
+            verify(orderQueryService).searchOrders(captor.capture(), any());
+            assertThat(captor.getValue().filterSourceHubId()).isEqualTo(specificSourceHub);
+        }
+
+        @Test
         @DisplayName("[예외] 알 수 없는 역할은 UNAUTHORIZED_ORDER 예외를 발생시킨다.")
         void searchOrders_실패_알수없는_역할() {
             // given
             UserDetailInfo unknownUser = mock(UserDetailInfo.class);
             given(unknownUser.role()).willReturn("UNKNOWN_ROLE");
-            given(userFeignClient.getUserById(keycloakId)).willReturn(unknownUser);
+            given(userInfoCacheService.getUserById(keycloakId)).willReturn(unknownUser);
 
             // when & then
-            assertThatThrownBy(() -> searchOrdersService.searchOrders(keycloakId, 0, 10))
+            assertThatThrownBy(() -> searchOrdersService.searchOrders(keycloakId, 0, 10, SearchOrderFilter.empty()))
                 .isInstanceOf(BaseException.class)
                 .hasFieldOrPropertyWithValue("errorCode", OrderErrorCode.UNAUTHORIZED_ORDER);
 
@@ -230,10 +330,10 @@ class SearchOrdersServiceTest {
             UserDetailInfo user = mock(UserDetailInfo.class);
             given(user.role()).willReturn("SUPPLIER_MANAGER");
             given(user.companyId()).willReturn(null);
-            given(userFeignClient.getUserById(keycloakId)).willReturn(user);
+            given(userInfoCacheService.getUserById(keycloakId)).willReturn(user);
 
             // when & then
-            assertThatThrownBy(() -> searchOrdersService.searchOrders(keycloakId, 0, 10))
+            assertThatThrownBy(() -> searchOrdersService.searchOrders(keycloakId, 0, 10, SearchOrderFilter.empty()))
                 .isInstanceOf(BaseException.class)
                 .hasFieldOrPropertyWithValue("errorCode", OrderErrorCode.UNAUTHORIZED_ORDER);
 
@@ -247,10 +347,10 @@ class SearchOrdersServiceTest {
             UserDetailInfo user = mock(UserDetailInfo.class);
             given(user.role()).willReturn("HUB_MANAGER");
             given(user.hubId()).willReturn(null);
-            given(userFeignClient.getUserById(keycloakId)).willReturn(user);
+            given(userInfoCacheService.getUserById(keycloakId)).willReturn(user);
 
             // when & then
-            assertThatThrownBy(() -> searchOrdersService.searchOrders(keycloakId, 0, 10))
+            assertThatThrownBy(() -> searchOrdersService.searchOrders(keycloakId, 0, 10, SearchOrderFilter.empty()))
                 .isInstanceOf(BaseException.class)
                 .hasFieldOrPropertyWithValue("errorCode", OrderErrorCode.UNAUTHORIZED_ORDER);
 

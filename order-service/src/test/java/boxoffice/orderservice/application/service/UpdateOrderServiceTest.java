@@ -10,6 +10,9 @@ import static org.mockito.Mockito.verify;
 
 import boxoffice.orderservice.application.client.UserFeignClient;
 import boxoffice.orderservice.application.client.dto.UserDetailInfo;
+import boxoffice.orderservice.application.service.command.OrderCommandService;
+import boxoffice.orderservice.application.service.command.UpdateOrderService;
+import boxoffice.orderservice.application.service.query.OrderQueryService;
 import boxoffice.orderservice.domain.entity.Order;
 import boxoffice.orderservice.domain.enums.OrderStatus;
 import boxoffice.orderservice.domain.vo.TotalPrice;

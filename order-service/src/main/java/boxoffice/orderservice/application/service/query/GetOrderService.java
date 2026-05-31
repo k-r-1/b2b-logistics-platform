@@ -1,4 +1,4 @@
-package boxoffice.orderservice.application.service;
+package boxoffice.orderservice.application.service.query;
 
 import boxoffice.orderservice.application.client.UserInfoCacheService;
 import boxoffice.orderservice.application.client.dto.UserDetailInfo;
