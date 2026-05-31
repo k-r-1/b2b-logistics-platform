@@ -18,6 +18,17 @@ spring:
       host: ${REDIS_HOST:}
       port: ${REDIS_PORT:6379}
 
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: ai-notification-service
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
   cloud:
     compatibility-verifier:
       enabled: false
@@ -40,6 +51,9 @@ spring:
         default_schema: notification_schema
 
 notification:
+  slack:
+    webhook-url: ${SLACK_WEBHOOK_URL:}
+    channel-id: ${SLACK_NOTIFICATIONS_CHANNEL_ID:notifications}
   dispatch:
     max-attempts: 3
   recovery:
