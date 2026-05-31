@@ -27,6 +27,19 @@ public class DeliveryManagerEventConsumer {
     private static final String GROUP = "ai-notification-service";
     private static final String SOURCE = "delivery-manager-service";
 
+    // delivery-manager 이벤트가 주문·경로 상세를 싣기 전까지의 임시 더미.
+    //  계약 합의 후 이 상수들과 withDummyDefaults()를 통째로 제거.
+    private static final DeliveryAssignedEvent.Order DUMMY_ORDER = new DeliveryAssignedEvent.Order(
+            "DEMO-ORDER",
+            List.of(new DeliveryAssignedEvent.Product("샘플상품", 1)),
+            null,
+            "2026-06-01T18:00:00+09:00");
+    private static final DeliveryAssignedEvent.Route DUMMY_ROUTE = new DeliveryAssignedEvent.Route(
+            "출발허브", List.of(), "도착허브");
+    private static final DeliveryAssignedEvent.Agent DUMMY_AGENT = new DeliveryAssignedEvent.Agent(
+            "데모담당자", new DeliveryAssignedEvent.WorkingHours("09:00", "18:00"));
+    private static final long DUMMY_DURATION_SECONDS = 10800L;
+
     private final IdempotentEventProcessor idempotentProcessor;
     private final NotificationService notificationService;
     private final DispatchDeadlinePredictor predictor;
@@ -51,17 +64,28 @@ public class DeliveryManagerEventConsumer {
     }
 
     private void handleDeliveryAssigned(DeliveryAssignedEvent event) {
-        // 무거운 예측은 멱등/트랜잭션 경계 밖에서 수행. 중복 이벤트는 동일 입력이라 캐시 히트로 저렴.
-        DispatchDeadlinePrediction prediction = predictor.predict(toPredictionContext(event));
+        DeliveryAssignedEvent enriched = withDummyDefaults(event);
+
+        DispatchDeadlinePrediction prediction = predictor.predict(toPredictionContext(enriched));
         DispatchDeadlineNotificationContext context = new DispatchDeadlineNotificationContext(
-                event.agent().name(),
-                event.order().orderId(),
+                enriched.agent().name(),
+                enriched.order().orderId(),
                 prediction.dispatchDeadline(),
                 prediction.reasoning());
         idempotentProcessor.processOnce(event.eventId(), GROUP, () ->
                 notificationService.sendFromEvent(
                         event.eventId(), Recipient.channel(channelId), context,
                         new EventCause(event.eventId(), SOURCE)));
+    }
+
+    // (임시) order/route/agent가 비어 오면 더미로 채워 예측·발송을 동작.
+    private DeliveryAssignedEvent withDummyDefaults(DeliveryAssignedEvent event) {
+        return new DeliveryAssignedEvent(
+                event.eventId(),
+                event.order() != null ? event.order() : DUMMY_ORDER,
+                event.route() != null ? event.route() : DUMMY_ROUTE,
+                event.totalEstimatedDurationSeconds() > 0 ? event.totalEstimatedDurationSeconds() : DUMMY_DURATION_SECONDS,
+                event.agent() != null ? event.agent() : DUMMY_AGENT);
     }
 
     private DispatchDeadlineContext toPredictionContext(DeliveryAssignedEvent event) {
