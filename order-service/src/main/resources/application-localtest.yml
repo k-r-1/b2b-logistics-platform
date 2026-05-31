@@ -16,10 +16,10 @@ spring:
 
   data:
     redis:
-      host: ${REDIS_HOST:localhost}   # ← 로컬에서는 localhost 사용
+      host: ${REDIS_HOST:localhost}
       port: 6379
 
-# ── Eureka 비활성화 (로컬 단독 실행 시 503 방지) ──────────────────
+# ── Eureka 비활성화 ──────────────────
 eureka:
   client:
     register-with-eureka: false    # Eureka 서버에 등록하지 않음
@@ -31,6 +31,7 @@ app:
   cache:
     user-company-ttl: 3600
     order-ttl: 60
+    order-search-ttl: 180
     user-info-ttl: 10
 
 management:

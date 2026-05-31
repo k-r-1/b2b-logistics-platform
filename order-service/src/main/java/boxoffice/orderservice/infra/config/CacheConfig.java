@@ -26,10 +26,14 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 public class CacheConfig {
 
     public static final String ORDER_CACHE = "order";
+    public static final String ORDER_SEARCH_CACHE = "orderSearch";
     public static final String USER_INFO_CACHE = "userInfo";
 
     @Value("${app.cache.order-ttl:60}")
     private long orderTtlSeconds;
+
+    @Value("${app.cache.order-search-ttl:180}")
+    private long orderSearchTtlSeconds;
 
     @Value("${app.cache.user-info-ttl:10}")
     private long userInfoTtlSeconds;
@@ -45,9 +49,8 @@ public class CacheConfig {
                 JsonTypeInfo.As.PROPERTY
             );
 
-        RedisCacheConfiguration orderConfig = RedisCacheConfiguration.defaultCacheConfig()
+        RedisCacheConfiguration baseConfig = RedisCacheConfiguration.defaultCacheConfig()
             .disableCachingNullValues()
-            .entryTtl(Duration.ofSeconds(orderTtlSeconds))
             .prefixCacheNameWith("v2:")
             .serializeKeysWith(
                 RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
@@ -56,7 +59,9 @@ public class CacheConfig {
                     new GenericJackson2JsonRedisSerializer(mapper)));
 
         return RedisCacheManager.builder(cf)
-            .cacheDefaults(orderConfig)
+            .cacheDefaults(baseConfig.entryTtl(Duration.ofSeconds(orderTtlSeconds)))
+            .withCacheConfiguration(ORDER_CACHE, baseConfig.entryTtl(Duration.ofSeconds(orderTtlSeconds)))
+            .withCacheConfiguration(ORDER_SEARCH_CACHE, baseConfig.entryTtl(Duration.ofSeconds(orderSearchTtlSeconds)))
             .build();
     }
 

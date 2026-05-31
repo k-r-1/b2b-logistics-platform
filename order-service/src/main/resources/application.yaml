@@ -19,6 +19,10 @@ eureka:
     service-url:
       defaultZone: http://${EUREKA_HOST:boxoffice-eureka}:8761/eureka/
 
+app:
+  cache:
+    order-search-ttl: 180
+
 management:
   endpoints:
     web:

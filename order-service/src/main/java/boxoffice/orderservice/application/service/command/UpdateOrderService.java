@@ -36,6 +36,7 @@ public class UpdateOrderService {
         }
 
         Order updated = orderCommandService.updateOrder(order, request.request());
+        orderQueryService.evictSearchCache();
         return CreateOrderResponseDto.toResponse(updated);
     }
 

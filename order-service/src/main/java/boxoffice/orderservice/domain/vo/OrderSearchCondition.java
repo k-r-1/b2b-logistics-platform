@@ -73,4 +73,16 @@ public record OrderSearchCondition(
     ) {
         return new OrderSearchCondition(null, null, filterSourceHubId, filterDestinationHubId, status, startDate, endDate);
     }
+
+    public String cacheKey() {
+        return String.join("_",
+            companyId != null ? companyId.toString() : "N",
+            hubId != null ? hubId.toString() : "N",
+            filterSourceHubId != null ? filterSourceHubId.toString() : "N",
+            filterDestinationHubId != null ? filterDestinationHubId.toString() : "N",
+            status != null ? status.name() : "N",
+            startDate != null ? startDate.toString() : "N",
+            endDate != null ? endDate.toString() : "N"
+        );
+    }
 }

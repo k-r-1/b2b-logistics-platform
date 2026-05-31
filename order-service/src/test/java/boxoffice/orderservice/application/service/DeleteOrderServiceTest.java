@@ -22,6 +22,7 @@ import boxoffice.orderservice.infra.event.OrderCancelledEvent;
 import boxoffice.orderservice.infra.event.OrderEventListener;
 import boxoffice.orderservice.infra.exception.OrderErrorCode;
 import com.boxoffice.common.exception.BaseException;
+import com.boxoffice.common.response.ApiResponse;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -85,7 +86,7 @@ class DeleteOrderServiceTest {
             given(masterUser.role()).willReturn("MASTER");
             given(masterUser.isHubManager()).willReturn(false);
             given(masterUser.userId()).willReturn(userId);
-            given(userFeignClient.getUserById(keycloakId)).willReturn(masterUser);
+            given(userFeignClient.getUserById(keycloakId)).willReturn(ApiResponse.success(masterUser));
             given(orderQueryService.findById(orderId)).willReturn(mockOrder);
             given(orderCommandService.cancelOrder(mockOrder, userId)).willReturn(mockOrder);
 
@@ -106,7 +107,7 @@ class DeleteOrderServiceTest {
             given(hubManagerUser.isHubManager()).willReturn(true);
             given(hubManagerUser.hubId()).willReturn(hubId);
             given(hubManagerUser.userId()).willReturn(userId);
-            given(userFeignClient.getUserById(keycloakId)).willReturn(hubManagerUser);
+            given(userFeignClient.getUserById(keycloakId)).willReturn(ApiResponse.success(hubManagerUser));
 
             given(mockOrder.getSourceHubId()).willReturn(hubId);
             given(orderQueryService.findById(orderId)).willReturn(mockOrder);
@@ -129,7 +130,7 @@ class DeleteOrderServiceTest {
             given(hubManagerUser.isHubManager()).willReturn(true);
             given(hubManagerUser.hubId()).willReturn(hubId);
             given(hubManagerUser.userId()).willReturn(userId);
-            given(userFeignClient.getUserById(keycloakId)).willReturn(hubManagerUser);
+            given(userFeignClient.getUserById(keycloakId)).willReturn(ApiResponse.success(hubManagerUser));
 
             given(mockOrder.getSourceHubId()).willReturn(UUID.randomUUID());
             given(mockOrder.getDestinationHubId()).willReturn(hubId);
@@ -151,11 +152,11 @@ class DeleteOrderServiceTest {
             given(masterUser.role()).willReturn("MASTER");
             given(masterUser.isHubManager()).willReturn(false);
             given(masterUser.userId()).willReturn(userId);
-            given(userFeignClient.getUserById(keycloakId)).willReturn(masterUser);
+            given(userFeignClient.getUserById(keycloakId)).willReturn(ApiResponse.success(masterUser));
             given(orderQueryService.findById(orderId)).willReturn(mockOrder);
 
             willThrow(new RuntimeException("재고 서비스 오류"))
-                .given(companyProductFeignClient).restoreStocks(anyList());
+                .given(companyProductFeignClient).restoreStocks(any(UUID.class), anyList());
             given(orderCommandService.cancelOrder(mockOrder, userId)).willReturn(mockOrder);
 
             // when
@@ -172,7 +173,7 @@ class DeleteOrderServiceTest {
             // given
             UserDetailInfo supplierUser = mock(UserDetailInfo.class);
             given(supplierUser.role()).willReturn("SUPPLIER_MANAGER");
-            given(userFeignClient.getUserById(keycloakId)).willReturn(supplierUser);
+            given(userFeignClient.getUserById(keycloakId)).willReturn(ApiResponse.success(supplierUser));
 
             // when & then
             assertThatThrownBy(() -> deleteOrderService.deleteOrder(orderId, keycloakId))
@@ -189,7 +190,7 @@ class DeleteOrderServiceTest {
             // given
             UserDetailInfo deliveryUser = mock(UserDetailInfo.class);
             given(deliveryUser.role()).willReturn("DELIVERY_MANAGER");
-            given(userFeignClient.getUserById(keycloakId)).willReturn(deliveryUser);
+            given(userFeignClient.getUserById(keycloakId)).willReturn(ApiResponse.success(deliveryUser));
 
             // when & then
             assertThatThrownBy(() -> deleteOrderService.deleteOrder(orderId, keycloakId))
@@ -205,7 +206,7 @@ class DeleteOrderServiceTest {
             // given
             UserDetailInfo unknownUser = mock(UserDetailInfo.class);
             given(unknownUser.role()).willReturn("UNKNOWN_ROLE");
-            given(userFeignClient.getUserById(keycloakId)).willReturn(unknownUser);
+            given(userFeignClient.getUserById(keycloakId)).willReturn(ApiResponse.success(unknownUser));
 
             // when & then
             assertThatThrownBy(() -> deleteOrderService.deleteOrder(orderId, keycloakId))
@@ -221,7 +222,7 @@ class DeleteOrderServiceTest {
             given(hubManagerUser.role()).willReturn("HUB_MANAGER");
             given(hubManagerUser.isHubManager()).willReturn(true);
             given(hubManagerUser.hubId()).willReturn(hubId);
-            given(userFeignClient.getUserById(keycloakId)).willReturn(hubManagerUser);
+            given(userFeignClient.getUserById(keycloakId)).willReturn(ApiResponse.success(hubManagerUser));
 
             given(mockOrder.getSourceHubId()).willReturn(UUID.randomUUID());
             given(mockOrder.getDestinationHubId()).willReturn(UUID.randomUUID());
@@ -241,7 +242,7 @@ class DeleteOrderServiceTest {
             // given
             UserDetailInfo masterUser = mock(UserDetailInfo.class);
             given(masterUser.role()).willReturn("MASTER");
-            given(userFeignClient.getUserById(keycloakId)).willReturn(masterUser);
+            given(userFeignClient.getUserById(keycloakId)).willReturn(ApiResponse.success(masterUser));
 
             given(orderQueryService.findById(orderId))
                 .willThrow(new BaseException(OrderErrorCode.ORDER_NOT_FOUND));
@@ -261,7 +262,7 @@ class DeleteOrderServiceTest {
             UserDetailInfo masterUser = mock(UserDetailInfo.class);
             given(masterUser.role()).willReturn("MASTER");
             given(masterUser.isHubManager()).willReturn(false);
-            given(userFeignClient.getUserById(keycloakId)).willReturn(masterUser);
+            given(userFeignClient.getUserById(keycloakId)).willReturn(ApiResponse.success(masterUser));
 
             given(mockOrder.getStatus()).willReturn(OrderStatus.CONFIRMED);
             given(orderQueryService.findById(orderId)).willReturn(mockOrder);
@@ -281,7 +282,7 @@ class DeleteOrderServiceTest {
             UserDetailInfo masterUser = mock(UserDetailInfo.class);
             given(masterUser.role()).willReturn("MASTER");
             given(masterUser.isHubManager()).willReturn(false);
-            given(userFeignClient.getUserById(keycloakId)).willReturn(masterUser);
+            given(userFeignClient.getUserById(keycloakId)).willReturn(ApiResponse.success(masterUser));
 
             given(mockOrder.getStatus()).willReturn(OrderStatus.CANCELLED);
             given(orderQueryService.findById(orderId)).willReturn(mockOrder);

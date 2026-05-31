@@ -45,6 +45,7 @@ public class DeleteOrderService {
         restoreStockOrLog(order, orderId);
 
         orderCommandService.cancelOrder(order, user.userId());
+        orderQueryService.evictSearchCache();
 
         orderEventListener.orderCancelledEvent(new OrderCancelledEvent(orderId));
     }

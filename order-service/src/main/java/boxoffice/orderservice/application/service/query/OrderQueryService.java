@@ -1,6 +1,7 @@
 package boxoffice.orderservice.application.service.query;
 
 import boxoffice.orderservice.application.service.dto.OrderResultDto;
+import boxoffice.orderservice.application.service.dto.OrderSearchPageDto;
 import boxoffice.orderservice.domain.entity.Order;
 import boxoffice.orderservice.domain.repository.OrderRepository;
 import boxoffice.orderservice.domain.vo.OrderSearchCondition;
@@ -50,8 +51,22 @@ public class OrderQueryService {
     public void evictOrderCache(UUID orderId) {
     }
 
-  @Transactional(readOnly = true)
-  public Page<Order> searchOrders(OrderSearchCondition condition, Pageable pageable) {
-    return orderRepository.searchOrders(condition, pageable);
-  }
+    @Transactional(readOnly = true)
+    public Page<Order> searchOrders(OrderSearchCondition condition, Pageable pageable) {
+        return orderRepository.searchOrders(condition, pageable);
+    }
+
+    @Cacheable(
+        value = CacheConfig.ORDER_SEARCH_CACHE,
+        key = "#condition.cacheKey() + '_p' + #pageable.pageNumber + '_s' + #pageable.pageSize"
+    )
+    @Transactional(readOnly = true)
+    public OrderSearchPageDto searchOrdersCached(OrderSearchCondition condition, Pageable pageable) {
+        Page<Order> page = orderRepository.searchOrders(condition, pageable);
+        return OrderSearchPageDto.from(page);
+    }
+
+    @CacheEvict(value = CacheConfig.ORDER_SEARCH_CACHE, allEntries = true)
+    public void evictSearchCache() {
+    }
 }

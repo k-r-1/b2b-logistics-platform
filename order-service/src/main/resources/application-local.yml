@@ -28,6 +28,7 @@ app:
   cache:
     user-company-ttl: 3600
     order-ttl: 60
+    order-search-ttl: 180
     user-info-ttl: 10
 
 management:
