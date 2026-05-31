@@ -60,7 +60,22 @@ services:
       - eureka-server
       - postgres-db
       - redis-cache
-
+        
+  company-service:
+    build: ./company-service
+    container_name: boxoffice-company-service
+    ports:
+      - "8082:8082"
+    env_file:
+      - ./.env
+    environment:
+      - DB_HOST=postgres-db
+      - REDIS_HOST=redis-cache
+    depends_on:
+      - eureka-server
+      - postgres-db
+      - redis-cache
+        
   order-service:
     build: ./order-service
     container_name: boxoffice-order

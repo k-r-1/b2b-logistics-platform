@@ -74,6 +74,19 @@ public class Product extends BaseEntity {
         }
     }
 
+    public void deductStock(int quantity) {
+        validateOrderQuantity(quantity);
+        if (this.stockQuantity < quantity) {
+            throw new BaseException(ProductErrorCode.INSUFFICIENT_STOCK);
+        }
+        this.stockQuantity -= quantity;
+    }
+
+    public void restoreStock(int quantity) {
+        validateOrderQuantity(quantity);
+        this.stockQuantity += quantity;
+    }
+
     private static void validateName(String name) {
         // 도메인 검증 실패는 공통 예외 응답 정책에 맞춰 BaseException으로 변환한다.
         if (name == null || name.isBlank()) {
@@ -93,6 +106,12 @@ public class Product extends BaseEntity {
         }
 
         if (stockQuantity < 0) {
+            throw new BaseException(ProductErrorCode.INVALID_STOCK_QUANTITY);
+        }
+    }
+
+    private static void validateOrderQuantity(int quantity) {
+        if (quantity <= 0) {
             throw new BaseException(ProductErrorCode.INVALID_STOCK_QUANTITY);
         }
     }

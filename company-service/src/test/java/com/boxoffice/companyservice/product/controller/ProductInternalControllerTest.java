@@ -77,4 +77,87 @@ class ProductInternalControllerTest {
                 .andExpect(jsonPath("$.status", is(400)))
                 .andExpect(jsonPath("$.message", is("VALIDATION_ERROR")));
     }
+
+    @Test
+    @DisplayName("성공 - 주문 상품 재고 확인 요청을 처리한다")
+    void checkStocksReturnsSuccess() throws Exception {
+        UUID productId = UUID.randomUUID();
+
+        mockMvc.perform(post("/internal/v1/products/stocks/check")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                [
+                                  { "productId": "%s", "quantity": 2 }
+                                ]
+                                """.formatted(productId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status", is(200)))
+                .andExpect(jsonPath("$.message", is("SUCCESS")));
+    }
+
+    @Test
+    @DisplayName("성공 - 주문 상품 재고 차감 요청을 처리한다")
+    void deductStocksReturnsSuccess() throws Exception {
+        UUID orderId = UUID.randomUUID();
+        UUID supplierId = UUID.randomUUID();
+        UUID receiverId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+
+        mockMvc.perform(post("/internal/v1/products/stocks/deduct")
+                        .param("orderId", orderId.toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "supplierId": "%s",
+                                  "receiverId": "%s",
+                                  "products": [
+                                    { "productId": "%s", "quantity": 2 }
+                                  ]
+                                }
+                                """.formatted(supplierId, receiverId, productId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status", is(200)))
+                .andExpect(jsonPath("$.message", is("SUCCESS")));
+    }
+
+    @Test
+    @DisplayName("실패 - 재고 차감 요청의 orderId가 없으면 validation error를 반환한다")
+    void deductStocksWithoutOrderIdReturnsBadRequest() throws Exception {
+        UUID supplierId = UUID.randomUUID();
+        UUID receiverId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+
+        mockMvc.perform(post("/internal/v1/products/stocks/deduct")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "supplierId": "%s",
+                                  "receiverId": "%s",
+                                  "products": [
+                                    { "productId": "%s", "quantity": 2 }
+                                  ]
+                                }
+                """.formatted(supplierId, receiverId, productId)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status", is(400)));
+    }
+
+    @Test
+    @DisplayName("성공 - 주문 상품 재고 복원 요청을 처리한다")
+    void restoreStocksReturnsSuccess() throws Exception {
+        UUID orderId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+
+        mockMvc.perform(post("/internal/v1/products/stocks/restore")
+                        .param("orderId", orderId.toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                [
+                                  { "productId": "%s", "quantity": 2 }
+                                ]
+                                """.formatted(productId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status", is(200)))
+                .andExpect(jsonPath("$.message", is("SUCCESS")));
+    }
 }

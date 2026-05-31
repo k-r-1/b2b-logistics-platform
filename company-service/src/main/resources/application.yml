@@ -20,6 +20,13 @@ spring:
     password: ${DB_PASSWORD:password123}
     driver-class-name: org.postgresql.Driver
 
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      connect-timeout: 3s
+      timeout: 3s
+
   jpa:
     hibernate:
       ddl-auto: validate
