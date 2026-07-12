@@ -1,8 +1,15 @@
 # 📦 MSA 기반 B2B 물류 운영 플랫폼, "*BoxOffice*"
-> **전국 17개 허브를 기반으로 B2B 물류의 주문·배송·업체·상품 관리를 처리하는 MSA 기반 물류 운영 플랫폼입니다.**
-> 주요 도메인을 독립 서비스로 분리하고, 주문 및 배송 상태 변경을 Kafka 이벤트로 발행하여 Slack 알림과 AI 기반 발송 시한 예측 로직이 비동기적으로 연동되도록 설계했습니다.
->
+전국 17개 허브를 기반으로 B2B 물류의 주문·배송·업체·상품 관리를 처리하는 **MSA 기반 물류 운영 플랫폼**입니다. 주요 도메인을 독립 서비스로 분리하고, 주문·배송 상태 변경을 Kafka 이벤트로 발행하여 Slack 알림과 AI 기반 발송 시한 예측 로직이 비동기로 연동되도록 설계했습니다.
+
 > **🔗 원본 협업 저장소:** [boxoffice-sparta/boxoffice](https://github.com/boxoffice-sparta/boxoffice) — 팀 협업 당시의 [Pull Request](https://github.com/boxoffice-sparta/boxoffice/pulls) · [Issue](https://github.com/boxoffice-sparta/boxoffice/issues) 기록을 확인할 수 있습니다.
+
+<br>
+
+## 👩‍💻 박주원(k-r-1) — 담당 도메인 & 리팩토링
+
+업체(Company)·상품(Product) 도메인을 단독 담당했습니다. 프로젝트 종료 후에도 재고 차감의 동시성 처리를 **비관적 락에서 Redis Lua 원자 차감으로 리팩토링**하고 k6로 성능을 측정·분석했습니다.
+
+📄 **[설계 · 트러블슈팅 · 리팩토링 상세 문서 →](./docs/contributions/박주원-company-product.md)**
 
 <br>
 
@@ -15,8 +22,6 @@
 | **오영현** | <a href="https://github.com/dddd2356"><img src="https://img.shields.io/badge/GitHub-dddd2356-181717?style=flat-square&logo=github&logoColor=white"/></a> | Hub Domain | 공통 모듈 및 허브 도메인 API 구현 |
 | **하준영** | <a href="https://github.com/HaJunyoung"><img src="https://img.shields.io/badge/GitHub-HaJunyoung-181717?style=flat-square&logo=github&logoColor=white"/></a> | User & Auth Domain, Delivery Manager | 사용자 및 인증 기능 구현, 배송 담당자 도메인 API 구현, 인프라 설계 |
 | **한혜수** | <a href="https://github.com/hyesuhan"><img src="https://img.shields.io/badge/GitHub-hyesuhan-181717?style=flat-square&logo=github&logoColor=white"/></a> | Order Domain | 주문 도메인 API 구현 |
-
-> 📌 **박주원(k-r-1) 상세 기여 정리** (설계 · 트러블슈팅 · 리팩토링) → [문서 보기](./docs/contributions/박주원-company-product.md)
 
 <br>
 
