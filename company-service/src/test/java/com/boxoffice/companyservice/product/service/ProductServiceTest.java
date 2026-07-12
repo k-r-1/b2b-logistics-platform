@@ -29,11 +29,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -42,7 +39,9 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -66,10 +65,7 @@ class ProductServiceTest {
     private CompanyService companyService;
 
     @Mock
-    private StringRedisTemplate redisTemplate;
-
-    @Mock
-    private ValueOperations<String, String> valueOperations;
+    private ProductStockRedisManager stockRedisManager;
 
     @Test
     @DisplayName("성공 - 요청을 상품 엔티티로 변환해 저장하고 생성 응답으로 반환한다")
@@ -435,8 +431,8 @@ class ProductServiceTest {
     }
 
     @Test
-    @DisplayName("성공 - 주문 상품 재고를 비관적 락 조회 후 차감한다")
-    void deductStocksDeductsStockWithLock() {
+    @DisplayName("성공 - Redis 원자 차감 성공 시 DB 재고를 차감한다")
+    void deductStocksDeductsStockWhenRedisSucceeds() {
         UUID orderId = UUID.randomUUID();
         UUID supplierId = UUID.randomUUID();
         UUID receiverId = UUID.randomUUID();
@@ -448,23 +444,19 @@ class ProductServiceTest {
 
         when(companyService.getCompanyEntity(supplierId)).thenReturn(supplier);
         when(companyService.getCompanyEntity(receiverId)).thenReturn(receiver);
-        when(redisTemplate.hasKey(doneKey(orderId, "deduct"))).thenReturn(false);
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.setIfAbsent(lockKey(orderId, "deduct"), "1", Duration.ofMinutes(1))).thenReturn(true);
-        when(productRepository.findAllByIdInForUpdate(List.of(productId))).thenReturn(List.of(product));
+        when(productRepository.findAllById(List.of(productId))).thenReturn(List.of(product));
+        when(stockRedisManager.deduct(eq(orderId), eq(List.of(productId)), any(), any()))
+                .thenReturn(ProductStockRedisManager.DeductResult.success());
 
         productService.deductStocks(orderId, request);
 
-        verify(valueOperations).setIfAbsent(lockKey(orderId, "deduct"), "1", Duration.ofMinutes(1));
-        verify(valueOperations).set(doneKey(orderId, "deduct"), "1", Duration.ofDays(7));
-        verify(redisTemplate).delete(lockKey(orderId, "deduct"));
-        verify(productRepository).findAllByIdInForUpdate(List.of(productId));
-        assertThat(product.getStockQuantity()).isEqualTo(40);
+        verify(stockRedisManager).deduct(eq(orderId), eq(List.of(productId)), any(), any());
+        verify(productRepository).decreaseStock(productId, 10);
     }
 
     @Test
-    @DisplayName("실패 - 여러 상품 차감 중 하나라도 재고가 부족하면 차감하지 않는다")
-    void deductStocksDoesNotDeductAnyProductWhenOneProductIsInsufficient() {
+    @DisplayName("실패 - Redis 차감이 재고 부족을 반환하면 INSUFFICIENT_STOCK 예외를 던진다")
+    void deductStocksThrowsWhenRedisReturnsInsufficient() {
         UUID orderId = UUID.randomUUID();
         UUID supplierId = UUID.randomUUID();
         UUID receiverId = UUID.randomUUID();
@@ -479,51 +471,22 @@ class ProductServiceTest {
 
         when(companyService.getCompanyEntity(supplierId)).thenReturn(supplier);
         when(companyService.getCompanyEntity(receiverId)).thenReturn(receiver);
-        when(redisTemplate.hasKey(doneKey(orderId, "deduct"))).thenReturn(false);
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.setIfAbsent(lockKey(orderId, "deduct"), "1", Duration.ofMinutes(1))).thenReturn(true);
-        when(productRepository.findAllByIdInForUpdate(List.of(firstProductId, secondProductId)))
+        when(productRepository.findAllById(List.of(firstProductId, secondProductId)))
                 .thenReturn(List.of(firstProduct, secondProduct));
+        when(stockRedisManager.deduct(eq(orderId), any(), any(), any()))
+                .thenReturn(ProductStockRedisManager.DeductResult.insufficient(secondProductId));
 
         Throwable throwable = catchThrowable(() -> productService.deductStocks(orderId, request));
 
         assertThat(throwable)
                 .isInstanceOfSatisfying(BaseException.class,
                         exception -> assertThat(exception.getErrorCode()).isEqualTo(ProductErrorCode.INSUFFICIENT_STOCK));
-        assertThat(firstProduct.getStockQuantity()).isEqualTo(50);
-        assertThat(secondProduct.getStockQuantity()).isEqualTo(50);
-        verify(valueOperations, never()).set(doneKey(orderId, "deduct"), "1", Duration.ofDays(7));
-        verify(redisTemplate).delete(lockKey(orderId, "deduct"));
+        verify(productRepository, never()).decreaseStock(any(), anyInt());
     }
 
     @Test
-    @DisplayName("실패 - 처리 중인 재고 차감 요청은 거부한다")
-    void deductStocksThrowsWhenOperationIsInProgress() {
-        UUID orderId = UUID.randomUUID();
-        UUID supplierId = UUID.randomUUID();
-        UUID receiverId = UUID.randomUUID();
-        UUID productId = UUID.randomUUID();
-        Company supplier = createCompany(supplierId);
-        Company receiver = createCompany(receiverId);
-        ProductStockDeductRequestDto request = createDeductRequest(supplierId, receiverId, productId, 10);
-
-        when(companyService.getCompanyEntity(supplierId)).thenReturn(supplier);
-        when(companyService.getCompanyEntity(receiverId)).thenReturn(receiver);
-        when(redisTemplate.hasKey(doneKey(orderId, "deduct"))).thenReturn(false);
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.setIfAbsent(lockKey(orderId, "deduct"), "1", Duration.ofMinutes(1))).thenReturn(false);
-
-        Throwable throwable = catchThrowable(() -> productService.deductStocks(orderId, request));
-
-        assertThat(throwable)
-                .isInstanceOfSatisfying(BaseException.class,
-                        exception -> assertThat(exception.getErrorCode()).isEqualTo(ProductErrorCode.STOCK_OPERATION_IN_PROGRESS));
-        verifyNoInteractions(productRepository);
-    }
-
-    @Test
-    @DisplayName("성공 - 재고 차감 락 조회는 productId를 정렬해서 요청한다")
-    void deductStocksSortsProductIdsBeforeLockQuery() {
+    @DisplayName("성공 - Redis 차감 요청 시 productId를 정렬해서 전달한다")
+    void deductStocksSortsProductIds() {
         UUID orderId = UUID.randomUUID();
         UUID supplierId = UUID.randomUUID();
         UUID receiverId = UUID.randomUUID();
@@ -538,20 +501,19 @@ class ProductServiceTest {
 
         when(companyService.getCompanyEntity(supplierId)).thenReturn(supplier);
         when(companyService.getCompanyEntity(receiverId)).thenReturn(receiver);
-        when(redisTemplate.hasKey(doneKey(orderId, "deduct"))).thenReturn(false);
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.setIfAbsent(lockKey(orderId, "deduct"), "1", Duration.ofMinutes(1))).thenReturn(true);
-        when(productRepository.findAllByIdInForUpdate(List.of(firstProductId, secondProductId)))
+        when(productRepository.findAllById(List.of(firstProductId, secondProductId)))
                 .thenReturn(List.of(firstProduct, secondProduct));
+        when(stockRedisManager.deduct(eq(orderId), eq(List.of(firstProductId, secondProductId)), any(), any()))
+                .thenReturn(ProductStockRedisManager.DeductResult.success());
 
         productService.deductStocks(orderId, request);
 
-        verify(productRepository).findAllByIdInForUpdate(List.of(firstProductId, secondProductId));
+        verify(stockRedisManager).deduct(eq(orderId), eq(List.of(firstProductId, secondProductId)), any(), any());
     }
 
     @Test
-    @DisplayName("성공 - 같은 orderId 차감 요청은 재고를 다시 차감하지 않는다")
-    void deductStocksSkipsDuplicatedOrderId() {
+    @DisplayName("성공 - 이미 처리된 주문(중복)이면 DB 재고를 차감하지 않는다")
+    void deductStocksSkipsWhenAlreadyDone() {
         UUID orderId = UUID.randomUUID();
         UUID supplierId = UUID.randomUUID();
         UUID receiverId = UUID.randomUUID();
@@ -563,72 +525,61 @@ class ProductServiceTest {
 
         when(companyService.getCompanyEntity(supplierId)).thenReturn(supplier);
         when(companyService.getCompanyEntity(receiverId)).thenReturn(receiver);
-        when(redisTemplate.hasKey(doneKey(orderId, "deduct"))).thenReturn(true);
         when(productRepository.findAllById(List.of(productId))).thenReturn(List.of(product));
+        when(stockRedisManager.deduct(eq(orderId), any(), any(), any()))
+                .thenReturn(ProductStockRedisManager.DeductResult.alreadyDone());
 
         productService.deductStocks(orderId, request);
 
-        verify(redisTemplate).hasKey(doneKey(orderId, "deduct"));
-        verify(productRepository).findAllById(List.of(productId));
-        verifyNoMoreInteractions(productRepository, redisTemplate, valueOperations);
+        verify(productRepository, never()).decreaseStock(any(), anyInt());
     }
 
     @Test
-    @DisplayName("성공 - 같은 orderId 복원 요청은 재고를 다시 복원하지 않는다")
-    void restoreStocksSkipsDuplicatedOrderId() {
+    @DisplayName("성공 - 이미 복원된 주문(중복)이면 DB 재고를 복원하지 않는다")
+    void restoreStocksSkipsWhenAlreadyDone() {
         UUID orderId = UUID.randomUUID();
         UUID productId = UUID.randomUUID();
         List<ProductStockItemRequestDto> request = createRestoreRequest(productId, 10);
 
-        when(redisTemplate.hasKey(doneKey(orderId, "deduct"))).thenReturn(true);
-        when(redisTemplate.hasKey(doneKey(orderId, "restore"))).thenReturn(true);
+        when(stockRedisManager.restore(eq(orderId), eq(List.of(productId)), any()))
+                .thenReturn(ProductStockRedisManager.RestoreStatus.ALREADY_DONE);
 
         productService.restoreStocks(orderId, request);
 
-        verify(redisTemplate).hasKey(doneKey(orderId, "deduct"));
-        verify(redisTemplate).hasKey(doneKey(orderId, "restore"));
-        verifyNoMoreInteractions(productRepository, redisTemplate, valueOperations);
+        verify(productRepository, never()).increaseStock(any(), anyInt());
     }
 
     @Test
-    @DisplayName("성공 - 주문 상품 재고를 복원하고 orderId 이력을 저장한다")
-    void restoreStocksRestoresStockAndSavesHistory() {
+    @DisplayName("성공 - Redis 복원 성공 시 DB 재고를 복원한다")
+    void restoreStocksRestoresStockWhenRedisSucceeds() {
         UUID orderId = UUID.randomUUID();
         UUID productId = UUID.randomUUID();
-        Product product = createProduct(productId, createCompany(UUID.randomUUID()));
         List<ProductStockItemRequestDto> request = createRestoreRequest(productId, 10);
 
-        when(redisTemplate.hasKey(doneKey(orderId, "deduct"))).thenReturn(true);
-        when(redisTemplate.hasKey(doneKey(orderId, "restore"))).thenReturn(false);
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.setIfAbsent(lockKey(orderId, "restore"), "1", Duration.ofMinutes(1))).thenReturn(true);
-        when(productRepository.findAllByIdInForUpdate(List.of(productId))).thenReturn(List.of(product));
+        when(stockRedisManager.restore(eq(orderId), eq(List.of(productId)), any()))
+                .thenReturn(ProductStockRedisManager.RestoreStatus.SUCCESS);
 
         productService.restoreStocks(orderId, request);
 
-        verify(valueOperations).setIfAbsent(lockKey(orderId, "restore"), "1", Duration.ofMinutes(1));
-        verify(valueOperations).set(doneKey(orderId, "restore"), "1", Duration.ofDays(7));
-        verify(redisTemplate).delete(lockKey(orderId, "restore"));
-        verify(productRepository).findAllByIdInForUpdate(List.of(productId));
-        assertThat(product.getStockQuantity()).isEqualTo(60);
+        verify(productRepository).increaseStock(productId, 10);
     }
 
     @Test
-    @DisplayName("실패 - 차감 이력이 없는 orderId는 재고 복원할 수 없다")
-    void restoreStocksWithoutDeductHistoryThrowsInvalidInput() {
+    @DisplayName("실패 - 차감 이력이 없으면 재고 복원할 수 없다")
+    void restoreStocksThrowsWhenNoDeductHistory() {
         UUID orderId = UUID.randomUUID();
         UUID productId = UUID.randomUUID();
         List<ProductStockItemRequestDto> request = createRestoreRequest(productId, 10);
 
-        when(redisTemplate.hasKey(doneKey(orderId, "deduct"))).thenReturn(false);
+        when(stockRedisManager.restore(eq(orderId), any(), any()))
+                .thenReturn(ProductStockRedisManager.RestoreStatus.NO_DEDUCT_HISTORY);
 
         Throwable throwable = catchThrowable(() -> productService.restoreStocks(orderId, request));
 
         assertThat(throwable)
                 .isInstanceOfSatisfying(BaseException.class,
                         exception -> assertThat(exception.getErrorCode()).isEqualTo(CommonErrorCode.INVALID_INPUT));
-        verify(redisTemplate).hasKey(doneKey(orderId, "deduct"));
-        verifyNoMoreInteractions(productRepository, redisTemplate, valueOperations);
+        verify(productRepository, never()).increaseStock(any(), anyInt());
     }
 
     private Company createCompany(UUID companyId) {
@@ -718,14 +669,6 @@ class ProductServiceTest {
         ReflectionTestUtils.setField(item, "productId", productId);
         ReflectionTestUtils.setField(item, "quantity", quantity);
         return item;
-    }
-
-    private String doneKey(UUID orderId, String operation) {
-        return "company-service:product-stock:done:" + operation + ":" + orderId;
-    }
-
-    private String lockKey(UUID orderId, String operation) {
-        return "company-service:product-stock:lock:" + operation + ":" + orderId;
     }
 
     private void assertProductNotFound(Throwable throwable) {

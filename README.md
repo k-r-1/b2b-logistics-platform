@@ -16,6 +16,8 @@
 | **하준영** | <a href="https://github.com/HaJunyoung"><img src="https://img.shields.io/badge/GitHub-HaJunyoung-181717?style=flat-square&logo=github&logoColor=white"/></a> | User & Auth Domain, Delivery Manager | 사용자 및 인증 기능 구현, 배송 담당자 도메인 API 구현, 인프라 설계 |
 | **한혜수** | <a href="https://github.com/hyesuhan"><img src="https://img.shields.io/badge/GitHub-hyesuhan-181717?style=flat-square&logo=github&logoColor=white"/></a> | Order Domain | 주문 도메인 API 구현 |
 
+> 📌 **박주원(k-r-1) 상세 기여 정리** (설계 · 트러블슈팅 · 리팩토링) → [문서 보기](./docs/contributions/박주원-company-product.md)
+
 <br>
 
 
