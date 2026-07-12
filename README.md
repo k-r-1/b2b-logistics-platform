@@ -1,6 +1,8 @@
 # 📦 MSA 기반 B2B 물류 운영 플랫폼, "*BoxOffice*"
 > **전국 17개 허브를 기반으로 B2B 물류의 주문·배송·업체·상품 관리를 처리하는 MSA 기반 물류 운영 플랫폼입니다.**
 > 주요 도메인을 독립 서비스로 분리하고, 주문 및 배송 상태 변경을 Kafka 이벤트로 발행하여 Slack 알림과 AI 기반 발송 시한 예측 로직이 비동기적으로 연동되도록 설계했습니다.
+>
+> **🔗 원본 협업 저장소:** [boxoffice-sparta/boxoffice](https://github.com/boxoffice-sparta/boxoffice) — 팀 협업 당시의 [Pull Request](https://github.com/boxoffice-sparta/boxoffice/pulls) · [Issue](https://github.com/boxoffice-sparta/boxoffice/issues) 기록을 확인할 수 있습니다.
 
 <br>
 
@@ -98,13 +100,6 @@ API Gateway를 단일 진입점으로 하여 라우팅 및 전역 인증(JWT)을
 
 ## ✨ Core Features (주요 기능)
 
-> ### ✔️ 각자 도메인 1~2줄 정도 추가하면 좋을 것 같습니다
-> (예: 주문 도메인 - 재고 차감을 위한 Saga 패턴 적용 여부)
-
-> (예: AI 도메인 - Gemini를 활용한 배송 지연 확률 예측 로직)
-
-> (예: 배송/허브 도메인 - 허브 간 최적 경로 산출 알고리즘 적용 등)
-
 ------------
 
 ### 1. 🔐 중앙 집중식 인증 및 다중 권한 제어 (User & Auth)
@@ -124,8 +119,6 @@ API Gateway를 단일 진입점으로 하여 라우팅 및 전역 인증(JWT)을
 <br>
 
 ## 📈 Performance & Observability (성능 최적화 및 모니터링)
-> (예시입니다)
-> 실제로 측정하신 내용 있으면 추가 부탁드립니다
 
 - **응답 속도 개선 (Redis Cache-Aside):** 허브 정보, 권한 검증 등 변경이 적고 조회가 빈번한 데이터에 Redis 캐싱을 적용하여 API 평균 응답 시간을 최소화했습니다. (목표: 캐시 적중률 80% 이상)
 - **대용량 트래픽 처리 (Kafka Partitioning):** 주문 생성 및 배송 이벤트 등 트래픽이 몰리는 구간에 Kafka 파티셔닝을 적용하여 비동기 병렬 처리 Throughput(처리량)을 극대화했습니다.
@@ -173,16 +166,6 @@ API Gateway를 단일 진입점으로 하여 라우팅 및 전역 인증(JWT)을
 ### Issue 6. 모노레포 CI 환경 빌드 캐시 충돌 및 단위 테스트 전환
 * **상황:** CI 구동 시 삭제된 파일의 `.class` 캐시가 남아 `ConflictingBeanDefinitionException`을 유발하고, 깡통 서버에서 `@SpringBootTest`가 DB 연결을 시도해 CI 실패.
 * **해결:** 테스트 스텝에 `./gradlew clean test` 명령어를 적용해 캐시 유령(Ghost Class) 문제를 해결하고, 무거운 컨텍스트 로딩 대신 **JUnit5 + Mockito 기반의 단위 테스트(Unit Test)**로 전면 개편하여 비즈니스 로직 엣지 케이스 커버리지를 끌어올렸습니다.
-
-### Issue 7. (추가 작성 내용)
-
-...
-<br>
-...
-<br>
-...
-
-<br>
 
 ## 📚 API Documentation
 
